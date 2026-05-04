@@ -70,9 +70,9 @@ export default function LoginPage() {
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className="font-syne text-[12px] font-semibold text-text-muted">Mot de passe</label>
-              <button type="button" className="font-syne text-[12px] text-accent hover:text-accent-dark transition-colors">
+              <Link href="/forgot-password" className="font-syne text-[12px] text-accent hover:text-accent-dark transition-colors">
                 Oublié ?
-              </button>
+              </Link>
             </div>
             <input
               type="password"
