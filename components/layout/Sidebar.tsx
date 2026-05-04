@@ -1,7 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 
 function LogoMark() {
   return (
@@ -67,6 +68,14 @@ const modules = [
 
 export function Sidebar() {
   const pathname = usePathname()
+  const router = useRouter()
+
+  const handleLogout = async () => {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    router.push('/login')
+    router.refresh()
+  }
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/')
 
@@ -155,7 +164,7 @@ export function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <div className="px-4 py-4 border-t border-border">
+      <div className="px-4 py-4 border-t border-border space-y-3">
         <div className="flex items-center gap-2 px-1">
           <div className="relative w-2 h-2 shrink-0">
             <div className="absolute inset-0 rounded-full bg-accent animate-pulse-slow" />
@@ -163,6 +172,17 @@ export function Sidebar() {
           </div>
           <span className="font-syne text-[11px] text-text-subtle">Claude AI · Connecté</span>
         </div>
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg font-syne text-[12px] font-semibold text-text-subtle hover:text-red-600 hover:bg-red-50 transition-all duration-150 border border-transparent hover:border-red-100"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
+            <polyline points="16 17 21 12 16 7" />
+            <line x1="21" y1="12" x2="9" y2="12" />
+          </svg>
+          Se déconnecter
+        </button>
       </div>
     </aside>
   )

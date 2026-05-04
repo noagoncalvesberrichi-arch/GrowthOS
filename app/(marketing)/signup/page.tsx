@@ -1,20 +1,40 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { createClient } from '@/lib/supabase/client'
 
 export default function SignupPage() {
+  const router = useRouter()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [agreed, setAgreed] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!agreed) return
     setLoading(true)
-    setTimeout(() => setLoading(false), 1500)
+    setError('')
+
+    const supabase = createClient()
+    const { error: signUpError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { full_name: name } },
+    })
+
+    if (signUpError) {
+      setError(signUpError.message)
+      setLoading(false)
+      return
+    }
+
+    router.push('/dashboard')
+    router.refresh()
   }
 
   return (
@@ -29,11 +49,17 @@ export default function SignupPage() {
             </svg>
           </div>
           <h1 className="font-syne text-[22px] font-extrabold text-text">Créer votre compte</h1>
-          <p className="font-syne text-[13px] text-text-muted mt-1">3 jours d'essai gratuit — sans carte bancaire.</p>
+          <p className="font-syne text-[13px] text-text-muted mt-1">3 jours d&apos;essai gratuit — sans carte bancaire.</p>
         </div>
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="px-8 py-7 space-y-4">
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3">
+              <p className="font-syne text-[13px] text-red-600">{error}</p>
+            </div>
+          )}
+
           <div>
             <label className="block font-syne text-[12px] font-semibold text-text-muted mb-1.5">Nom complet</label>
             <input
@@ -42,7 +68,7 @@ export default function SignupPage() {
               onChange={(e) => setName(e.target.value)}
               placeholder="Marie Dupont"
               required
-              className="w-full bg-background border border-border rounded-lg px-3.5 py-2.5 font-syne text-[14px] text-text placeholder:text-text-subtle transition-all duration-150 focus:border-accent focus:ring-2 focus:ring-accent/10"
+              className="w-full bg-background border border-border rounded-lg px-3.5 py-2.5 font-syne text-[14px] text-text placeholder:text-text-subtle transition-all duration-150 focus:border-accent focus:ring-2 focus:ring-accent/10 outline-none"
             />
           </div>
 
@@ -54,7 +80,7 @@ export default function SignupPage() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="vous@exemple.com"
               required
-              className="w-full bg-background border border-border rounded-lg px-3.5 py-2.5 font-syne text-[14px] text-text placeholder:text-text-subtle transition-all duration-150 focus:border-accent focus:ring-2 focus:ring-accent/10"
+              className="w-full bg-background border border-border rounded-lg px-3.5 py-2.5 font-syne text-[14px] text-text placeholder:text-text-subtle transition-all duration-150 focus:border-accent focus:ring-2 focus:ring-accent/10 outline-none"
             />
           </div>
 
@@ -67,7 +93,7 @@ export default function SignupPage() {
               placeholder="Minimum 8 caractères"
               required
               minLength={8}
-              className="w-full bg-background border border-border rounded-lg px-3.5 py-2.5 font-syne text-[14px] text-text placeholder:text-text-subtle transition-all duration-150 focus:border-accent focus:ring-2 focus:ring-accent/10"
+              className="w-full bg-background border border-border rounded-lg px-3.5 py-2.5 font-syne text-[14px] text-text placeholder:text-text-subtle transition-all duration-150 focus:border-accent focus:ring-2 focus:ring-accent/10 outline-none"
             />
           </div>
 
