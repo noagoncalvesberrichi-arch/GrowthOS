@@ -1,4 +1,4 @@
-export const metadata = { title: 'Growth B2B — GrowthOS' }
+export const metadata = { title: 'Growth B2B — Stratly' }
 
 export default function GrowthB2BPage() {
   return (

@@ -15,7 +15,7 @@ const spaceMono = Space_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'GrowthOS — Growth Intelligence',
+  title: 'Stratly — Growth Intelligence',
   description: 'AI-powered growth modules for B2B and creators',
 }
 

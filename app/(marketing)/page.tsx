@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { DarkButton } from '@/components/ui/DarkButton'
 
 export const metadata = {
-  title: 'GrowthOS — Marketing B2B sans friction',
+  title: 'Stratly — Marketing B2B sans friction',
   description: 'La plateforme qui centralise votre stratégie marketing B2B.',
 }
 
@@ -261,7 +261,7 @@ export default function HomePage() {
                 Ils témoignent<br />bientôt.
               </h2>
               <p className="font-syne text-[14px] text-text-muted max-w-xs leading-relaxed">
-                GrowthOS est en phase de lancement. Les premiers retours utilisateurs arrivent très prochainement.
+                Stratly est en phase de lancement. Les premiers retours utilisateurs arrivent très prochainement.
               </p>
             </div>
           </div>

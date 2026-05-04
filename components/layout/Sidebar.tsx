@@ -85,7 +85,7 @@ export function Sidebar() {
         <Link href="/" className="flex items-center gap-2.5">
           <LogoMark />
           <div>
-            <p className="font-syne font-bold text-[15px] text-text tracking-tight leading-none">GrowthOS</p>
+            <p className="font-syne font-bold text-[15px] text-text tracking-tight leading-none">Stratly</p>
             <p className="text-[10px] text-text-subtle mt-0.5 font-syne">Intelligence Platform</p>
           </div>
         </Link>

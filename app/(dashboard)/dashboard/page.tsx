@@ -1,6 +1,6 @@
 import Link from 'next/link'
 
-export const metadata = { title: 'Dashboard — GrowthOS' }
+export const metadata = { title: 'Dashboard — Stratly' }
 
 const modules = [
   {

@@ -28,7 +28,7 @@ export function TopNav() {
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2.5 shrink-0">
           <LogoMark />
-          <span className="font-syne font-bold text-[15px] text-text tracking-tight">GrowthOS</span>
+          <span className="font-syne font-bold text-[15px] text-text tracking-tight">Stratly</span>
         </Link>
 
         {/* Nav links */}

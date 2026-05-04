@@ -26,7 +26,7 @@ export default function LoginPage() {
             </svg>
           </div>
           <h1 className="font-syne text-[22px] font-extrabold text-text">Bon retour !</h1>
-          <p className="font-syne text-[13px] text-text-muted mt-1">Connectez-vous à votre espace GrowthOS.</p>
+          <p className="font-syne text-[13px] text-text-muted mt-1">Connectez-vous à votre espace Stratly.</p>
         </div>
 
         {/* Form */}

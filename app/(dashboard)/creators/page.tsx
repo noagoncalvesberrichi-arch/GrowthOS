@@ -1,4 +1,4 @@
-export const metadata = { title: 'Growth Créateurs — GrowthOS' }
+export const metadata = { title: 'Growth Créateurs — Stratly' }
 
 export default function CreatorsPage() {
   return (
