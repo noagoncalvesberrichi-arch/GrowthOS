@@ -1,6 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { anthropic } from '@/lib/anthropic'
 
+const SYSTEM_PROMPT = `Tu es un CMO expert en B2B SaaS avec 10 ans d'expérience.
+Tu dois répondre UNIQUEMENT avec un objet JSON valide, sans markdown autour, sans backticks, sans commentaires.
+La structure doit être exactement :
+{
+  "linkedin_posts": "...",
+  "onboarding_emails": "...",
+  "prospection_script": "...",
+  "influenceur_messages": "...",
+  "analyse_strategique": "..."
+}
+Chaque valeur est une chaîne de texte (avec sauts de ligne \\n si besoin). Aucun autre champ. Aucun texte avant ou après le JSON.`
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
@@ -16,60 +28,70 @@ export async function POST(req: NextRequest) {
       '10+': 'plus de 10 clients (croissance)',
     }
 
-    const prompt = `Tu es un CMO expert en B2B SaaS avec 10 ans d'expérience. Tu aides ${productName}, un produit qui cible ${targetClient}, actuellement au stade ${stageLabels[growthStage] || growthStage} avec un MRR de ${currentMRR || '0'}€ et un objectif de ${targetMRR || '?'}€.
+    const prompt = `Tu aides ${productName}, un produit qui cible ${targetClient}, au stade ${stageLabels[growthStage] || growthStage} avec un MRR de ${currentMRR || '0'}€ et un objectif de ${targetMRR || '?'}€.
 
-Génère exactement les livrables suivants, formatés en markdown, séparés par des délimiteurs clairs :
+Génère les 5 livrables suivants et retourne-les dans le JSON demandé :
 
----LINKEDIN_POSTS---
-Génère 5 posts LinkedIn prêts à publier, chacun avec un hook fort, du contenu de valeur, et un call-to-action. Chaque post doit être distinct en format (storytelling, data, opinion, how-to, behind-the-scenes). Numéroter 1/ à 5/.
+linkedin_posts : 5 posts LinkedIn prêts à publier, chacun avec un hook fort, du contenu de valeur, et un call-to-action. Formats distincts (storytelling, data, opinion, how-to, behind-the-scenes). Numéroter 1/ à 5/.
 
----ONBOARDING_EMAILS---
-Génère une séquence de 3 emails d'onboarding (Jour 0, Jour 3, Jour 7). Chaque email : Objet / Corps / CTA. Ton direct, personnalisé, axé valeur.
+onboarding_emails : Séquence de 3 emails d'onboarding (Jour 0, Jour 3, Jour 7). Chaque email : Objet / Corps / CTA. Ton direct, personnalisé, axé valeur.
 
----PROSPECTION_SCRIPT---
-Génère 1 script de prospection téléphonique complet : accroche (30 sec), qualification (3 questions), pitch valeur (2 min), gestion des 2 objections principales, closing. Format conversationnel.
+prospection_script : Script de prospection téléphonique complet — accroche (30 sec), qualification (3 questions), pitch valeur (2 min), gestion des 2 objections principales, closing. Format conversationnel.
 
----INFLUENCEUR_MESSAGES---
-Génère 3 messages d'approche influenceurs/partenaires différents en style (directe, valeur d'abord, collaboration), adaptés à la cible ${targetClient}.
+influenceur_messages : 3 messages d'approche influenceurs/partenaires en styles différents (directe, valeur d'abord, collaboration), adaptés à la cible ${targetClient}.
 
----ANALYSE_STRATEGIQUE---
-Génère 1 analyse stratégique de la semaine : 3 priorités d'acquisition immédiates, 2 risques à surveiller, 1 quick win à activer cette semaine, KPI à suivre.
+analyse_strategique : Analyse stratégique — 3 priorités d'acquisition immédiates, 2 risques à surveiller, 1 quick win à activer cette semaine, KPI à suivre.
 
-Sois précis, concret, actionnable. Évite les généralités. Adapte tout au contexte exact de ${productName}.`
+Sois précis, concret, actionnable. Adapte tout au contexte exact de ${productName}.`
 
     const message = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 4000,
+      system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: prompt }],
     })
 
     const content = message.content[0].type === 'text' ? message.content[0].text : ''
 
-    const sections: Record<string, string> = {}
-    const delimiters = [
-      'LINKEDIN_POSTS',
-      'ONBOARDING_EMAILS',
-      'PROSPECTION_SCRIPT',
-      'INFLUENCEUR_MESSAGES',
-      'ANALYSE_STRATEGIQUE',
+    console.log('[CMO] Raw Claude response:', content)
+
+    let parsed: Record<string, string>
+    try {
+      parsed = JSON.parse(content)
+    } catch (parseError) {
+      console.error('[CMO] JSON.parse failed:', parseError)
+      console.error('[CMO] Content was:', content)
+      return NextResponse.json({ error: 'Invalid JSON from model' }, { status: 500 })
+    }
+
+    const expectedKeys = [
+      'linkedin_posts',
+      'onboarding_emails',
+      'prospection_script',
+      'influenceur_messages',
+      'analyse_strategique',
     ]
 
-    delimiters.forEach((key, i) => {
-      const startMarker = `---${key}---`
-      const nextKey = delimiters[i + 1]
-      const endMarker = nextKey ? `---${nextKey}---` : null
+    const sections: Record<string, string> = {}
+    for (const key of expectedKeys) {
+      if (!parsed[key]) {
+        console.warn(`[CMO] Section "${key}" not found in response`)
+      }
+      sections[key] = parsed[key] ?? ''
+    }
 
-      const startIdx = content.indexOf(startMarker)
-      if (startIdx === -1) return
-
-      const afterStart = content.slice(startIdx + startMarker.length).trim()
-      const endIdx = endMarker ? afterStart.indexOf(endMarker) : -1
-      sections[key] = endIdx !== -1 ? afterStart.slice(0, endIdx).trim() : afterStart.trim()
+    return NextResponse.json({
+      sections: {
+        LINKEDIN_POSTS: sections.linkedin_posts,
+        ONBOARDING_EMAILS: sections.onboarding_emails,
+        PROSPECTION_SCRIPT: sections.prospection_script,
+        INFLUENCEUR_MESSAGES: sections.influenceur_messages,
+        ANALYSE_STRATEGIQUE: sections.analyse_strategique,
+      },
     })
-
-    return NextResponse.json({ sections })
   } catch (error) {
-    console.error('CMO generation error:', error)
+    console.error('[CMO] Generation error:', error)
     return NextResponse.json({ error: 'Generation failed' }, { status: 500 })
   }
 }
+
