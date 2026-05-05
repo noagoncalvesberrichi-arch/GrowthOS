@@ -4,6 +4,9 @@ import { useState } from 'react'
 import { OutputSection } from './OutputSection'
 
 interface CMOFormData {
+  projectType: string
+  projectDescription: string
+  mainGoal: string
   productName: string
   targetClient: string
   growthStage: string
@@ -22,10 +25,26 @@ interface GeneratedSections {
 const SECTION_LABELS = {
   LINKEDIN_POSTS: { title: 'Posts LinkedIn', tag: '5 posts' },
   ONBOARDING_EMAILS: { title: 'Séquence Onboarding', tag: '3 emails' },
-  PROSPECTION_SCRIPT: { title: 'Script Prospection', tag: 'Téléphone' },
-  INFLUENCEUR_MESSAGES: { title: 'Messages Influenceurs', tag: '3 messages' },
+  PROSPECTION_SCRIPT: { title: 'Script Prospection', tag: 'Canal adapté' },
+  INFLUENCEUR_MESSAGES: { title: 'Messages Partenaires', tag: '3 messages' },
   ANALYSE_STRATEGIQUE: { title: 'Analyse Stratégique', tag: 'Semaine' },
 }
+
+const PROJECT_TYPES = [
+  { value: 'saas_b2b', label: 'SaaS B2B (logiciel pour entreprises)' },
+  { value: 'saas_b2c', label: 'SaaS B2C (logiciel pour particuliers)' },
+  { value: 'ecommerce', label: 'E-commerce / DTC (boutique en ligne, marque)' },
+  { value: 'service', label: 'Service / Agence / Freelance (consulting, coaching)' },
+  { value: 'createur', label: 'Créateur / Média (newsletter, podcast, YouTube)' },
+  { value: 'autre', label: 'Autre' },
+]
+
+const MAIN_GOALS = [
+  { value: 'acquerir', label: 'Acquérir de nouveaux clients' },
+  { value: 'fideliser', label: 'Fidéliser les clients existants' },
+  { value: 'lancer', label: 'Lancer un nouveau produit/feature' },
+  { value: 'audience', label: 'Construire une audience' },
+]
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -47,7 +66,10 @@ function SectionDivider({ label }: { label: string }) {
 }
 
 const inputBase =
-  'w-full bg-surface border border-border rounded-lg px-3.5 py-2.5 font-syne text-[14px] text-text placeholder:text-text-subtle transition-all duration-150 focus:border-accent focus:ring-2 focus:ring-accent/10'
+  'w-full bg-surface border border-border rounded-lg px-3.5 py-2.5 font-syne text-[14px] text-text placeholder:text-text-subtle transition-all duration-150 focus:border-accent focus:ring-2 focus:ring-accent/10 outline-none'
+
+const selectBase =
+  'w-full bg-surface border border-border rounded-lg px-3.5 py-2.5 font-syne text-[14px] text-text transition-all duration-150 focus:border-accent focus:ring-2 focus:ring-accent/10 outline-none appearance-none cursor-pointer'
 
 function RefreshIcon() {
   return (
@@ -62,6 +84,9 @@ function RefreshIcon() {
 
 export function CMOModule() {
   const [form, setForm] = useState<CMOFormData>({
+    projectType: '',
+    projectDescription: '',
+    mainGoal: '',
     productName: '',
     targetClient: '',
     growthStage: '0',
@@ -72,7 +97,14 @@ export function CMOModule() {
   const [sections, setSections] = useState<GeneratedSections | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  const canGenerate = !loading && !!form.productName.trim() && !!form.targetClient.trim()
+  const descLen = form.projectDescription.trim().length
+  const canGenerate =
+    !loading &&
+    !!form.projectType &&
+    descLen >= 50 &&
+    !!form.mainGoal &&
+    !!form.productName.trim() &&
+    !!form.targetClient.trim()
 
   const handleGenerate = async () => {
     if (!canGenerate) return
@@ -96,18 +128,13 @@ export function CMOModule() {
 
   return (
     <div className="flex min-h-screen">
-
       {/* ── Form Panel ─────────────────────────────────────── */}
       <div className="w-[340px] shrink-0 border-r border-border bg-surface min-h-screen flex flex-col">
-
         {/* Header */}
         <div className="px-6 pt-6 pb-5 border-b border-border">
           <div className="flex items-center gap-2 mb-3">
             <span className="bg-accent-subtle text-accent text-[11px] font-semibold font-syne px-2.5 py-1 rounded-full">
               Module 01
-            </span>
-            <span className="bg-background text-text-subtle text-[11px] font-syne px-2.5 py-1 rounded-full border border-border">
-              B2B
             </span>
           </div>
           <h1 className="font-syne text-[22px] font-extrabold text-text leading-tight tracking-tight">
@@ -120,7 +147,80 @@ export function CMOModule() {
 
         {/* Form */}
         <div className="flex-1 px-6 py-5 space-y-5 overflow-auto">
+          {/* ── Contexte global ── */}
+          <SectionDivider label="Contexte" />
 
+          {/* Type de projet */}
+          <div>
+            <FieldLabel>Type de projet *</FieldLabel>
+            <div className="relative">
+              <select
+                value={form.projectType}
+                onChange={(e) => setForm({ ...form, projectType: e.target.value })}
+                className={`${selectBase} ${!form.projectType ? 'text-text-subtle' : 'text-text'}`}
+              >
+                <option value="" disabled>Sélectionner...</option>
+                {PROJECT_TYPES.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+              <svg className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-text-subtle" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </div>
+          </div>
+
+          {/* Description */}
+          <div>
+            <FieldLabel>Décris ton produit/projet *</FieldLabel>
+            <textarea
+              value={form.projectDescription}
+              onChange={(e) => {
+                if (e.target.value.length <= 500) setForm({ ...form, projectDescription: e.target.value })
+              }}
+              placeholder="Ex: Stratly est un copilote stratégique pour fondateurs SaaS early-stage. Il génère des plans d'action hebdo et du contenu marketing personnalisé."
+              rows={4}
+              className={`${inputBase} resize-none leading-relaxed`}
+            />
+            <div className="flex items-center justify-between mt-1">
+              <span className={`font-syne text-[11px] ${descLen >= 50 ? 'text-accent' : 'text-text-subtle'}`}>
+                {descLen < 50 ? `${50 - descLen} caractères min.` : '✓ Description valide'}
+              </span>
+              <span className={`font-syne text-[11px] ${descLen > 450 ? 'text-amber-500' : 'text-text-subtle'}`}>
+                {descLen}/500
+              </span>
+            </div>
+          </div>
+
+          {/* Objectif principal */}
+          <div>
+            <FieldLabel>Objectif principal *</FieldLabel>
+            <div className="space-y-2">
+              {MAIN_GOALS.map((opt) => {
+                const sel = form.mainGoal === opt.value
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setForm({ ...form, mainGoal: opt.value })}
+                    className={`
+                      w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg border text-left
+                      transition-all duration-150
+                      ${sel
+                        ? 'border-accent bg-accent-subtle text-accent-fg'
+                        : 'border-border bg-surface text-text-muted hover:border-border-focus/40 hover:bg-background hover:text-text'
+                      }
+                    `}
+                  >
+                    <div className={`w-2 h-2 rounded-full shrink-0 transition-colors duration-150 ${sel ? 'bg-accent' : 'bg-border'}`} />
+                    <span className="font-syne text-[13px] font-medium">{opt.label}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* ── Votre produit ── */}
           <SectionDivider label="Votre produit" />
 
           <div>
@@ -145,6 +245,7 @@ export function CMOModule() {
             />
           </div>
 
+          {/* ── Croissance ── */}
           <SectionDivider label="Croissance" />
 
           <div>
@@ -219,7 +320,6 @@ export function CMOModule() {
               <p className="font-syne text-[12px] text-red-600">{error}</p>
             </div>
           )}
-
           <button
             onClick={handleGenerate}
             disabled={!canGenerate}
@@ -232,7 +332,6 @@ export function CMOModule() {
               }
             `}
           >
-            {/* Shimmer */}
             {canGenerate && (
               <span
                 aria-hidden="true"
@@ -251,7 +350,6 @@ export function CMOModule() {
               <span className="relative">Générer mon kit →</span>
             )}
           </button>
-
           <p className="font-syne text-center text-[11px] text-text-subtle">
             Powered by Claude AI · ~30 secondes
           </p>
@@ -260,7 +358,6 @@ export function CMOModule() {
 
       {/* ── Output Panel ────────────────────────────────────── */}
       <div className="flex-1 min-h-screen flex flex-col">
-
         {/* Empty state */}
         {!sections && !loading && (
           <div className="flex-1 dot-grid flex items-center justify-center p-8 min-h-screen">
@@ -274,7 +371,6 @@ export function CMOModule() {
                 <h2 className="font-syne text-[18px] font-bold text-text">Ce que vous allez recevoir</h2>
                 <p className="font-syne text-[13px] text-text-muted mt-1">5 livrables marketing personnalisés</p>
               </div>
-
               <div className="divide-y divide-border">
                 {Object.entries(SECTION_LABELS).map(([, s], i) => (
                   <div key={i} className="flex items-center gap-3 px-6 py-3.5">
@@ -288,7 +384,6 @@ export function CMOModule() {
                   </div>
                 ))}
               </div>
-
               <div className="px-6 py-4 bg-background">
                 <p className="font-syne text-[12px] text-text-subtle text-center">
                   ← Remplissez le formulaire pour commencer
@@ -301,12 +396,9 @@ export function CMOModule() {
         {/* Loading state */}
         {loading && (
           <div className="flex-1 flex flex-col min-h-screen">
-            {/* Scan line */}
             <div className="relative h-[2px] bg-border overflow-hidden">
               <div className="absolute top-0 left-0 h-full w-[35%] bg-gradient-to-r from-transparent via-accent to-transparent animate-scan" />
             </div>
-
-            {/* Header */}
             <div className="px-6 py-4 border-b border-border bg-surface flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-lg bg-accent-subtle flex items-center justify-center">
@@ -322,8 +414,6 @@ export function CMOModule() {
               </div>
               <p className="font-syne text-[12px] text-text-subtle animate-pulse-slow">Claude IA analyse...</p>
             </div>
-
-            {/* Skeleton cards */}
             <div className="p-6 space-y-3">
               {[40, 70, 55, 65, 50].map((w, i) => (
                 <div
@@ -353,7 +443,6 @@ export function CMOModule() {
         {/* Generated content */}
         {sections && !loading && (
           <div className="flex-1 flex flex-col min-h-screen">
-            {/* Results header */}
             <div className="px-6 py-4 border-b border-border bg-surface flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-2 h-2 rounded-full bg-accent" />
@@ -372,8 +461,6 @@ export function CMOModule() {
                 Régénérer
               </button>
             </div>
-
-            {/* Section cards */}
             <div className="p-6 space-y-4 flex-1">
               {(Object.entries(SECTION_LABELS) as [keyof typeof SECTION_LABELS, { title: string; tag: string }][]).map(
                 ([key, label], i) =>
