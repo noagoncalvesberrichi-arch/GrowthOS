@@ -55,12 +55,21 @@ Sois précis, concret, actionnable. Adapte tout au contexte exact de ${productNa
 
     console.log('[CMO] Raw Claude response:', content)
 
+    const firstBrace = content.indexOf('{')
+    const lastBrace = content.lastIndexOf('}')
+    const cleaned = firstBrace !== -1 && lastBrace !== -1
+      ? content.slice(firstBrace, lastBrace + 1).trim()
+      : content.trim()
+
+    console.log('[CMO] Cleaned content:', cleaned)
+
     let parsed: Record<string, string>
     try {
-      parsed = JSON.parse(content)
+      parsed = JSON.parse(cleaned)
     } catch (parseError) {
       console.error('[CMO] JSON.parse failed:', parseError)
-      console.error('[CMO] Content was:', content)
+      console.error('[CMO] Raw content was:', content)
+      console.error('[CMO] Cleaned content was:', cleaned)
       return NextResponse.json({ error: 'Invalid JSON from model' }, { status: 500 })
     }
 
@@ -94,4 +103,3 @@ Sois précis, concret, actionnable. Adapte tout au contexte exact de ${productNa
     return NextResponse.json({ error: 'Generation failed' }, { status: 500 })
   }
 }
-
