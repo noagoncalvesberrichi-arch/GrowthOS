@@ -1,9 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { anthropic } from '@/lib/anthropic'
 
-const SYSTEM_PROMPT = `Tu es un CMO expert en B2B SaaS avec 10 ans d'expérience.
+const SYSTEM_PROMPT = `Tu es un CMO expert qui adapte ses recommandations au type exact de business du client. Tu maîtrises les spécificités de chaque modèle : SaaS B2B (cycle de vente long, MRR), SaaS B2C (acquisition volume, conversion freemium), E-commerce (panier moyen, LTV, ROAS), Service/Agence (prospection directe, pricing à la mission), Créateur/Média (audience, monétisation, communauté).
+
+Tu adaptes ton vocabulaire, tes recommandations, et tes exemples au contexte exact donné. JAMAIS de conseils génériques.
+
+CONTRAINTES STRICTES :
+- N'invente JAMAIS de chiffres, statistiques, pourcentages que tu ne peux pas justifier (pas de "47% des SaaS", "j'ai analysé 20 fondateurs", etc.)
+- N'invente JAMAIS de features, ressources, sessions, ebooks, ou outils qui ne sont pas explicitement décrits par l'utilisateur
+- Pour les CTA dans les emails : limite-toi à des actions simples (répondre à l'email, accéder au produit, visiter la landing page)
+- Si tu mentionnes un asset (ressource, étude, témoignage), il doit pouvoir être créé facilement par l'utilisateur lui-même
+
 Tu dois répondre UNIQUEMENT avec un objet JSON valide, sans markdown autour, sans backticks, sans commentaires.
-La structure doit être exactement :
+
+La structure exacte :
 {
   "linkedin_posts": "...",
   "onboarding_emails": "...",
@@ -11,7 +21,6 @@ La structure doit être exactement :
   "influenceur_messages": "...",
   "analyse_strategique": "..."
 }
-Chaque valeur est une chaîne de texte (avec sauts de ligne \\n si besoin). Aucun autre champ. Aucun texte avant ou après le JSON.
 
 Sois concis et efficace. Chaque livrable doit être complet mais pas verbeux.
 Posts LinkedIn : 150-200 mots max chacun.
@@ -20,34 +29,71 @@ Script : structuré, sans répétitions.
 Messages influenceurs : 100 mots max.
 Analyse : 300 mots max.`
 
+const projectTypeLabels: Record<string, string> = {
+  saas_b2b: 'SaaS B2B',
+  saas_b2c: 'SaaS B2C',
+  ecommerce: 'E-commerce / DTC',
+  service: 'Service / Agence / Freelance',
+  createur: 'Créateur / Média',
+  autre: 'Autre',
+}
+
+const goalLabels: Record<string, string> = {
+  acquerir: 'acquérir de nouveaux clients',
+  fideliser: 'fidéliser les clients existants',
+  lancer: 'lancer un nouveau produit',
+  audience: 'construire une audience',
+}
+
+const stageLabels: Record<string, string> = {
+  '0': '0 client (pré-lancement)',
+  '1-10': '1 à 10 clients (early stage)',
+  '10+': 'plus de 10 clients (croissance)',
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { productName, targetClient, growthStage, currentMRR, targetMRR } = body
+    const {
+      projectType,
+      projectDescription,
+      mainGoal,
+      productName,
+      targetClient,
+      growthStage,
+      currentMRR,
+      targetMRR,
+    } = body
 
-    if (!productName || !targetClient || !growthStage) {
+    if (!projectType || !projectDescription || !mainGoal || !productName || !targetClient || !growthStage) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    const stageLabels: Record<string, string> = {
-      '0': '0 client (pré-lancement)',
-      '1-10': '1 à 10 clients (early stage)',
-      '10+': 'plus de 10 clients (croissance)',
-    }
+    const prompt = `CONTEXTE DU PROJET :
+- Type : ${projectTypeLabels[projectType] || projectType}
+- Description : ${projectDescription}
+- Nom : ${productName}
+- Cible client : ${targetClient}
+- Stade : ${stageLabels[growthStage] || growthStage}
+- MRR actuel : ${currentMRR || '0'}€
+- Objectif MRR : ${targetMRR || '?'}€
+- Objectif principal : ${goalLabels[mainGoal] || mainGoal}
 
-    const prompt = `Tu aides ${productName}, un produit qui cible ${targetClient}, au stade ${stageLabels[growthStage] || growthStage} avec un MRR de ${currentMRR || '0'}€ et un objectif de ${targetMRR || '?'}€.
+Génère 5 livrables marketing parfaitement adaptés à ce contexte exact.
+Adapte ton vocabulaire et tes recommandations au type de projet.
+Pour un e-commerce, parle de panier moyen et conversion. Pour un créateur, parle d'audience et monétisation. Pour un SaaS B2B, parle de MRR et churn. Pour un service, parle de leads qualifiés et taux de closing.
 
-Génère les 5 livrables suivants et retourne-les dans le JSON demandé :
+Retourne dans le JSON :
 
-linkedin_posts : 5 posts LinkedIn prêts à publier, chacun avec un hook fort, du contenu de valeur, et un call-to-action. Formats distincts (storytelling, data, opinion, how-to, behind-the-scenes). Numéroter 1/ à 5/.
+linkedin_posts : 5 posts LinkedIn prêts à publier, adaptés au type de projet, chacun avec un hook fort, du contenu de valeur, et un CTA. Formats distincts (storytelling, data, opinion, how-to, behind-the-scenes). Numéroter 1/ à 5/.
 
-onboarding_emails : Séquence de 3 emails d'onboarding (Jour 0, Jour 3, Jour 7). Chaque email : Objet / Corps / CTA. Ton direct, personnalisé, axé valeur.
+onboarding_emails : Séquence de 3 emails d'onboarding (Jour 0, Jour 3, Jour 7). Chaque email : Objet / Corps / CTA simple. Ton direct, personnalisé, axé valeur. Adapte le ton au type de projet.
 
-prospection_script : Script de prospection téléphonique complet — accroche (30 sec), qualification (3 questions), pitch valeur (2 min), gestion des 2 objections principales, closing. Format conversationnel.
+prospection_script : Script de prospection complet adapté au canal le plus pertinent pour ce type de projet (téléphone pour B2B, DM/email pour B2C, LinkedIn pour service). Accroche / qualification / pitch / 2 objections / closing.
 
-influenceur_messages : 3 messages d'approche influenceurs/partenaires en styles différents (directe, valeur d'abord, collaboration), adaptés à la cible ${targetClient}.
+influenceur_messages : 3 messages d'approche partenaires en styles différents (directe, valeur d'abord, collaboration), adaptés à la cible ${targetClient}. La proposition doit être réaliste pour le stade actuel.
 
-analyse_strategique : Analyse stratégique — 3 priorités d'acquisition immédiates, 2 risques à surveiller, 1 quick win à activer cette semaine, KPI à suivre.
+analyse_strategique : Analyse stratégique — 3 priorités d'acquisition adaptées au type de projet, 2 risques à surveiller, 1 quick win réalisable cette semaine, KPI à suivre adaptés au modèle.
 
 Sois précis, concret, actionnable. Adapte tout au contexte exact de ${productName}.`
 
