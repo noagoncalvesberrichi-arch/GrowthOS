@@ -11,7 +11,14 @@ La structure doit être exactement :
   "influenceur_messages": "...",
   "analyse_strategique": "..."
 }
-Chaque valeur est une chaîne de texte (avec sauts de ligne \\n si besoin). Aucun autre champ. Aucun texte avant ou après le JSON.`
+Chaque valeur est une chaîne de texte (avec sauts de ligne \\n si besoin). Aucun autre champ. Aucun texte avant ou après le JSON.
+
+Sois concis et efficace. Chaque livrable doit être complet mais pas verbeux.
+Posts LinkedIn : 150-200 mots max chacun.
+Emails : 200 mots max chacun.
+Script : structuré, sans répétitions.
+Messages influenceurs : 100 mots max.
+Analyse : 300 mots max.`
 
 export async function POST(req: NextRequest) {
   try {
@@ -46,13 +53,19 @@ Sois précis, concret, actionnable. Adapte tout au contexte exact de ${productNa
 
     const message = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 4000,
+      max_tokens: 16000,
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: prompt }],
     })
 
+    if (message.stop_reason === 'max_tokens') {
+      console.error('[CMO] Response truncated at max_tokens limit')
+      return NextResponse.json({ error: 'Response truncated, increase max_tokens' }, { status: 500 })
+    }
+
     const content = message.content[0].type === 'text' ? message.content[0].text : ''
 
+    console.log('[CMO] stop_reason:', message.stop_reason)
     console.log('[CMO] Raw Claude response:', content)
 
     const firstBrace = content.indexOf('{')
