@@ -18,62 +18,76 @@ export default function ResetPasswordPage() {
 
   useEffect(() => {
     const supabase = createClient()
+    let resolved = false
 
     // Listen for PASSWORD_RECOVERY event — fires when SDK auto-detects a recovery hash
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') {
+        resolved = true
         setPageState('ready')
       }
     })
 
-    // Cas 1 : PKCE flow (?code=xxx in query string)
-    const code = new URLSearchParams(window.location.search).get('code')
+    const init = async () => {
+      // Cas 1 : PKCE flow (?code=xxx in query string)
+      const code = new URLSearchParams(window.location.search).get('code')
 
-    if (code) {
-      supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
+      if (code) {
+        const { error } = await supabase.auth.exchangeCodeForSession(code)
+        resolved = true
         if (error) {
           setPageError('Ce lien est invalide ou a expiré. Recommencez depuis la page mot de passe oublié.')
           setPageState('error')
         } else {
           setPageState('ready')
         }
-      })
-      return () => subscription.unsubscribe()
-    }
+        return
+      }
 
-    // Cas 2 : Implicit flow (#access_token=xxx in hash)
-    const hash = window.location.hash.substring(1)
-    const hashParams = new URLSearchParams(hash)
-    const accessToken = hashParams.get('access_token')
-    const refreshToken = hashParams.get('refresh_token')
-    const type = hashParams.get('type')
+      // Cas 2 : Implicit flow (#access_token=xxx in hash)
+      const hash = window.location.hash.substring(1)
+      const hashParams = new URLSearchParams(hash)
+      const accessToken = hashParams.get('access_token')
+      const refreshToken = hashParams.get('refresh_token')
+      const type = hashParams.get('type')
 
-    if (accessToken && refreshToken && type === 'recovery') {
-      supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: refreshToken,
-      }).then(({ error }) => {
+      if (accessToken && refreshToken && type === 'recovery') {
+        const { error } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        })
+        resolved = true
         if (error) {
           setPageError('Ce lien est invalide ou a expiré. Recommencez depuis la page mot de passe oublié.')
           setPageState('error')
         } else {
           setPageState('ready')
-          // Clean URL (remove sensitive token from hash)
           window.history.replaceState(null, '', window.location.pathname)
         }
-      })
-      return () => subscription.unsubscribe()
+        return
+      }
+
+      // Cas 3 : Session déjà créée par Supabase (verify endpoint avec cookies)
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) {
+        resolved = true
+        setPageState('ready')
+        return
+      }
+
+      // Cas 4 : Aucun token, aucune session — attendre 5s pour PASSWORD_RECOVERY event
+      setTimeout(() => {
+        if (!resolved) {
+          setPageError('Lien de réinitialisation manquant ou expiré.')
+          setPageState('error')
+        }
+      }, 5000)
     }
 
-    // Cas 3 : Aucun token trouvé — attendre 5s puis afficher erreur
-    const timeout = setTimeout(() => {
-      setPageError('Lien de réinitialisation manquant ou expiré.')
-      setPageState('error')
-    }, 5000)
+    init()
 
     return () => {
       subscription.unsubscribe()
-      clearTimeout(timeout)
     }
   }, [])
 
