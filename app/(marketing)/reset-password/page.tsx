@@ -19,7 +19,14 @@ export default function ResetPasswordPage() {
   useEffect(() => {
     const supabase = createClient()
 
-    // Supabase sends either a `code` param (PKCE) or a hash token (implicit)
+    // Listen for PASSWORD_RECOVERY event — fires when SDK auto-detects a recovery hash
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setPageState('ready')
+      }
+    })
+
+    // Cas 1 : PKCE flow (?code=xxx in query string)
     const code = new URLSearchParams(window.location.search).get('code')
 
     if (code) {
@@ -31,20 +38,42 @@ export default function ResetPasswordPage() {
           setPageState('ready')
         }
       })
-    } else {
-      // Fallback: implicit flow — listen for PASSWORD_RECOVERY event
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-        if (event === 'PASSWORD_RECOVERY') setPageState('ready')
+      return () => subscription.unsubscribe()
+    }
+
+    // Cas 2 : Implicit flow (#access_token=xxx in hash)
+    const hash = window.location.hash.substring(1)
+    const hashParams = new URLSearchParams(hash)
+    const accessToken = hashParams.get('access_token')
+    const refreshToken = hashParams.get('refresh_token')
+    const type = hashParams.get('type')
+
+    if (accessToken && refreshToken && type === 'recovery') {
+      supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      }).then(({ error }) => {
+        if (error) {
+          setPageError('Ce lien est invalide ou a expiré. Recommencez depuis la page mot de passe oublié.')
+          setPageState('error')
+        } else {
+          setPageState('ready')
+          // Clean URL (remove sensitive token from hash)
+          window.history.replaceState(null, '', window.location.pathname)
+        }
       })
-      // Give it 3s, then show error if nothing happened
-      const timeout = setTimeout(() => {
-        setPageError('Lien de réinitialisation manquant ou expiré.')
-        setPageState('error')
-      }, 3000)
-      return () => {
-        subscription.unsubscribe()
-        clearTimeout(timeout)
-      }
+      return () => subscription.unsubscribe()
+    }
+
+    // Cas 3 : Aucun token trouvé — attendre 5s puis afficher erreur
+    const timeout = setTimeout(() => {
+      setPageError('Lien de réinitialisation manquant ou expiré.')
+      setPageState('error')
+    }, 5000)
+
+    return () => {
+      subscription.unsubscribe()
+      clearTimeout(timeout)
     }
   }, [])
 
