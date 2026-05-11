@@ -7,11 +7,11 @@ const plans = [
   {
     id: 'starter',
     name: 'Starter',
-    monthlyPrice: 29,
-    description: 'Pour démarrer avec un module',
+    monthlyPrice: 49,
+    description: 'Pour démarrer avec le CMO IA',
     features: [
-      '1 module au choix',
-      '50 générations / mois',
+      'CMO IA — Plan marketing complet',
+      '20 générations / mois',
       'Export texte',
       'Support email',
     ],
@@ -22,14 +22,13 @@ const plans = [
   {
     id: 'pro',
     name: 'Pro',
-    monthlyPrice: 59,
-    description: 'L\'accès complet à la plateforme',
+    monthlyPrice: 110,
+    description: 'Pour les fondateurs qui itèrent vite',
     features: [
-      '3 modules inclus',
-      'Générations illimitées',
-      'Export + historique',
+      'CMO IA — Plan marketing complet',
+      '80 générations / mois',
+      'Export + historique des plans',
       'Support prioritaire',
-      'Mises à jour en avant-première',
     ],
     cta: 'Passer Pro',
     href: '/signup',
@@ -38,16 +37,16 @@ const plans = [
   {
     id: 'agency',
     name: 'Agency',
-    monthlyPrice: 99,
+    monthlyPrice: 229,
     description: 'Pour les équipes et agences',
     features: [
-      'Tout de Pro',
-      'Jusqu\'à 5 comptes clients',
-      'Dashboard centralisé',
-      'White label partiel',
+      'CMO IA — Plan marketing complet',
+      '300 générations / mois',
+      'Multi-comptes clients (bientôt)',
+      'Export + historique des plans',
       'Support dédié',
     ],
-    cta: 'Nous contacter',
+    cta: 'Commencer',
     href: '/signup',
     highlighted: false,
   },
@@ -211,9 +210,10 @@ export default function PricingPage() {
           <div className="space-y-0 divide-y divide-border">
             {[
               { q: 'Puis-je changer de plan à tout moment ?', a: 'Oui, vous pouvez upgrader ou downgrader votre plan à tout moment depuis votre espace client. Le changement est effectif immédiatement.' },
-              { q: 'Les générations sont-elles limitées ?', a: 'Le plan Starter inclut 50 générations par mois. Les plans Pro et Agency sont illimités.' },
+              { q: 'Combien de générations sont incluses ?', a: 'Le plan Starter inclut 20 générations par mois, le Pro 80, et l\'Agency 300. Chaque génération produit un plan marketing complet (posts LinkedIn, emails, script prospection, analyse stratégique).' },
+              { q: 'Que se passe-t-il si je dépasse mon quota ?', a: 'Si vous atteignez la limite de votre plan, vous pouvez soit attendre le mois suivant, soit upgrader vers un plan supérieur pour débloquer plus de générations.' },
               { q: 'Que se passe-t-il à la fin de l\'essai gratuit ?', a: 'À la fin des 3 jours d\'essai, votre compte passe automatiquement en plan gratuit limité, sans frais. Vous pouvez upgrader quand vous le souhaitez.' },
-              { q: 'Le contenu généré est-il vraiment personnalisé ?', a: 'Oui. Claude AI génère du contenu entièrement personnalisé en fonction de votre produit, votre cible et vos objectifs. Aucun contenu générique.' },
+              { q: 'Le contenu généré est-il vraiment personnalisé ?', a: 'Oui. Claude AI génère du contenu entièrement personnalisé en fonction de votre produit, votre cible, votre type de business et vos objectifs. Aucun contenu générique.' },
             ].map((faq) => (
               <div key={faq.q} className="py-5">
                 <p className="font-syne text-[15px] font-semibold text-text mb-2">{faq.q}</p>
