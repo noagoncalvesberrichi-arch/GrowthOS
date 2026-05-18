@@ -14,7 +14,7 @@ export function Footer() {
           <span className="font-syne text-[12px] text-text-subtle ml-2">© 2025 Tous droits réservés.</span>
         </div>
         <div className="flex items-center gap-6">
-          <Link href="/pricing" className="font-syne text-[12px] text-text-subtle hover:text-text transition-colors">Pricing</Link>
+          <Link href="/#pricing" className="font-syne text-[12px] text-text-subtle hover:text-text transition-colors">Tarifs</Link>
           <Link href="/login" className="font-syne text-[12px] text-text-subtle hover:text-text transition-colors">Connexion</Link>
           <Link href="/dashboard" className="font-syne text-[12px] text-text-subtle hover:text-text transition-colors">Application</Link>
         </div>

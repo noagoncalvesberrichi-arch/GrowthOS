@@ -15,7 +15,7 @@ function LogoMark() {
 
 const navLinks = [
   { href: '/#modules', label: 'Fonctionnalités' },
-  { href: '/pricing', label: 'Pricing' },
+  { href: '/pricing', label: 'Tarifs' },
 ]
 
 export function TopNav() {

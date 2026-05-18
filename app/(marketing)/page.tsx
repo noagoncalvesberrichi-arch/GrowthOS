@@ -123,7 +123,7 @@ const features = [
   {
     icon: <IconEdit />,
     title: 'SMS personnalisable',
-    description: 'Au nom de ton cabinet, ton ton',
+    description: 'Texte au nom de ton cabinet, ton style',
   },
   {
     icon: <IconClock />,
@@ -363,7 +363,7 @@ export default function HomePage() {
       </section>
 
       {/* ── Pricing ───────────────────────────────────────────────────────── */}
-      <section className="bg-white py-28 px-6">
+      <section id="pricing" className="bg-white py-28 px-6">
         <div className="max-w-5xl mx-auto">
           <div className="mb-16 text-center">
             <p className="font-syne text-[11px] font-semibold uppercase tracking-[0.16em] text-text-subtle mb-4">
