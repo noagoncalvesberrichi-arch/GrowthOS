@@ -24,8 +24,7 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
 
   const path = request.nextUrl.pathname
-  const isProtected = path.startsWith('/dashboard') || path.startsWith('/cmo') ||
-    path.startsWith('/growth-b2b') || path.startsWith('/creators')
+  const isProtected = path.startsWith('/dashboard') || path.startsWith('/onboarding')
   const isAuthPage = path === '/login' || path === '/signup'
 
   if (isProtected && !user) {
@@ -34,6 +33,22 @@ export async function middleware(request: NextRequest) {
 
   if (isAuthPage && user) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
+  }
+
+  if (user && (path.startsWith('/dashboard') || path.startsWith('/onboarding'))) {
+    const { data: cabinet } = await supabase
+      .from('cabinets')
+      .select('id')
+      .eq('user_id', user.id)
+      .maybeSingle()
+
+    if (!cabinet && path.startsWith('/dashboard')) {
+      return NextResponse.redirect(new URL('/onboarding', request.url))
+    }
+
+    if (cabinet && path.startsWith('/onboarding')) {
+      return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
   }
 
   return response
