@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useEffect, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
@@ -23,28 +24,29 @@ function HomeIcon({ active }: { active: boolean }) {
   )
 }
 
-function CMOIcon({ active }: { active: boolean }) {
+function UsersIcon() {
   return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.2 : 1.8} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5" />
-      <path d="M11 13l9-9" /><path d="M15 3h6v6" />
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" />
     </svg>
   )
 }
 
-function GrowthIcon({ active }: { active: boolean }) {
+function StarIcon() {
   return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.2 : 1.8} strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
-      <polyline points="16 7 22 7 22 13" />
-    </svg>
-  )
-}
-
-function CreatorsIcon({ active }: { active: boolean }) {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.2 : 1.8} strokeLinecap="round" strokeLinejoin="round">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+    </svg>
+  )
+}
+
+function SettingsIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
     </svg>
   )
 }
@@ -57,18 +59,41 @@ function PricingIcon({ active }: { active: boolean }) {
   )
 }
 
-const primaryLinks = [
-  { id: 'dashboard', label: 'Vue d\'ensemble', description: 'Accueil', href: '/dashboard' },
-]
-const modules = [
-  { id: 'cmo', label: 'CMO IA', description: 'Kit marketing B2B', href: '/cmo' },
-  { id: 'growth-b2b', label: 'Growth B2B', description: 'Contenu & Visibilité', href: '/growth-b2b' },
-  { id: 'creators', label: 'Créateurs', description: 'Social & Viral', href: '/creators' },
+const comingSoonModules = [
+  {
+    id: 'patients',
+    label: 'Patients',
+    description: 'Ajoute & gère',
+    href: '/dashboard/patients',
+    icon: <UsersIcon />,
+  },
+  {
+    id: 'avis',
+    label: 'Avis & Feedback',
+    description: 'Tes nouveaux avis',
+    href: '/dashboard/avis',
+    icon: <StarIcon />,
+  },
+  {
+    id: 'settings',
+    label: 'Paramètres',
+    description: 'SMS & profil',
+    href: '/dashboard/settings',
+    icon: <SettingsIcon />,
+  },
 ]
 
 export function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
+  const [userEmail, setUserEmail] = useState<string | null>(null)
+
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUserEmail(user?.email ?? null)
+    })
+  }, [])
 
   const handleLogout = async () => {
     const supabase = createClient()
@@ -93,59 +118,50 @@ export function Sidebar() {
       <div className="px-5 py-5 border-b border-border">
         <Link href="/" className="flex items-center gap-2.5">
           <LogoMark />
-          <div>
-            <p className="font-syne font-bold text-[15px] text-text tracking-tight leading-none">Stratly</p>
-            <p className="text-[10px] text-text-subtle mt-0.5 font-syne">Intelligence Platform</p>
-          </div>
+          <p className="font-syne font-bold text-[15px] text-text tracking-tight leading-none">Stratly</p>
         </Link>
       </div>
 
       {/* Nav */}
       <nav className="flex-1 px-3 pt-4 pb-3 overflow-auto space-y-4">
 
-        {/* Overview */}
+        {/* Vue d'ensemble */}
         <div>
           <ul className="space-y-0.5">
-            {primaryLinks.map((link) => {
-              const active = isActive(link.href)
-              return (
-                <li key={link.id}>
-                  <Link href={link.href} className={navItemClass(active)}>
-                    <span className={iconClass(active)}><HomeIcon active={active} /></span>
-                    <div className="min-w-0">
-                      <p className="font-syne text-[13px] font-semibold leading-none">{link.label}</p>
-                      <p className="font-syne text-[11px] text-text-subtle mt-0.5">{link.description}</p>
-                    </div>
-                  </Link>
-                </li>
-              )
-            })}
+            <li>
+              <Link href="/dashboard" className={navItemClass(pathname === '/dashboard')}>
+                <span className={iconClass(pathname === '/dashboard')}>
+                  <HomeIcon active={pathname === '/dashboard'} />
+                </span>
+                <div className="min-w-0">
+                  <p className="font-syne text-[13px] font-semibold leading-none">Vue d&apos;ensemble</p>
+                  <p className="font-syne text-[11px] text-text-subtle mt-0.5">Accueil</p>
+                </div>
+              </Link>
+            </li>
           </ul>
         </div>
 
-        {/* Modules */}
+        {/* Modules kinés */}
         <div>
           <p className="text-[10px] font-semibold text-text-subtle uppercase tracking-widest px-3 mb-2 font-syne">
-            Modules IA
+            Mon cabinet
           </p>
           <ul className="space-y-0.5">
-            {modules.map((mod) => {
-              const active = isActive(mod.href)
-              const Icon = mod.id === 'cmo' ? CMOIcon : mod.id === 'growth-b2b' ? GrowthIcon : CreatorsIcon
-              return (
-                <li key={mod.id}>
-                  <Link href={mod.href} className={navItemClass(active)}>
-                    <span className={iconClass(active)}><Icon active={active} /></span>
-                    <div className="min-w-0">
-                      <p className={`font-syne text-[13px] font-semibold leading-none ${active ? 'text-accent-fg' : ''}`}>
-                        {mod.label}
-                      </p>
-                      <p className="font-syne text-[11px] text-text-subtle mt-0.5 truncate">{mod.description}</p>
-                    </div>
-                  </Link>
-                </li>
-              )
-            })}
+            {comingSoonModules.map((mod) => (
+              <li key={mod.id}>
+                <div className="relative flex items-center gap-3 px-3 py-2.5 rounded-lg border-l-[3px] border-transparent opacity-50 cursor-not-allowed pl-[9px]">
+                  <span className="shrink-0 text-text-subtle">{mod.icon}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-syne text-[13px] font-semibold leading-none text-text-muted">{mod.label}</p>
+                    <p className="font-syne text-[11px] text-text-subtle mt-0.5 truncate">{mod.description}</p>
+                  </div>
+                  <span className="font-syne text-[9px] font-bold text-text-subtle bg-background border border-border px-1.5 py-0.5 rounded-full shrink-0">
+                    Bientôt
+                  </span>
+                </div>
+              </li>
+            ))}
           </ul>
         </div>
 
@@ -155,8 +171,10 @@ export function Sidebar() {
           <ul className="space-y-0.5">
             <li>
               <Link href="/pricing" className={navItemClass(isActive('/pricing'))}>
-                <span className={iconClass(isActive('/pricing'))}><PricingIcon active={isActive('/pricing')} /></span>
-                <p className="font-syne text-[13px] font-semibold">Pricing</p>
+                <span className={iconClass(isActive('/pricing'))}>
+                  <PricingIcon active={isActive('/pricing')} />
+                </span>
+                <p className="font-syne text-[13px] font-semibold">Tarifs</p>
               </Link>
             </li>
           </ul>
@@ -165,13 +183,9 @@ export function Sidebar() {
 
       {/* Footer */}
       <div className="px-4 py-4 border-t border-border space-y-3">
-        <div className="flex items-center gap-2 px-1">
-          <div className="relative w-2 h-2 shrink-0">
-            <div className="absolute inset-0 rounded-full bg-accent animate-pulse-slow" />
-            <div className="absolute inset-0 rounded-full bg-accent/30 animate-ping" />
-          </div>
-          <span className="font-syne text-[11px] text-text-subtle">Claude AI · Connecté</span>
-        </div>
+        {userEmail && (
+          <p className="font-syne text-[11px] text-text-subtle px-1 truncate">{userEmail}</p>
+        )}
         <button
           onClick={handleLogout}
           className="w-full flex items-center gap-2 px-3 py-2 rounded-lg font-syne text-[12px] font-semibold text-text-subtle hover:text-red-600 hover:bg-red-50 transition-all duration-150 border border-transparent hover:border-red-100"
