@@ -59,7 +59,7 @@ function PricingIcon({ active }: { active: boolean }) {
   )
 }
 
-const comingSoonModules = [
+const activeModules = [
   {
     id: 'patients',
     label: 'Patients',
@@ -67,6 +67,9 @@ const comingSoonModules = [
     href: '/dashboard/patients',
     icon: <UsersIcon />,
   },
+]
+
+const comingSoonModules = [
   {
     id: 'avis',
     label: 'Avis & Feedback',
@@ -148,6 +151,20 @@ export function Sidebar() {
             Mon cabinet
           </p>
           <ul className="space-y-0.5">
+            {activeModules.map((mod) => {
+              const active = isActive(mod.href)
+              return (
+                <li key={mod.id}>
+                  <Link href={mod.href} className={navItemClass(active)}>
+                    <span className={iconClass(active)}>{mod.icon}</span>
+                    <div className="min-w-0">
+                      <p className="font-syne text-[13px] font-semibold leading-none">{mod.label}</p>
+                      <p className="font-syne text-[11px] text-text-subtle mt-0.5">{mod.description}</p>
+                    </div>
+                  </Link>
+                </li>
+              )
+            })}
             {comingSoonModules.map((mod) => (
               <li key={mod.id}>
                 <div className="relative flex items-center gap-3 px-3 py-2.5 rounded-lg border-l-[3px] border-transparent opacity-50 cursor-not-allowed pl-[9px]">
