@@ -81,7 +81,6 @@ export async function markSmsSent(patientId: string): Promise<{ error: string | 
     .eq('id', patientId)
     .eq('cabinet_id', cabinet.id)
     .single()
-
   if (fetchError || !patient) return { error: 'Patient introuvable ou accès refusé.' }
 
   const now = new Date().toISOString()
@@ -96,7 +95,7 @@ export async function markSmsSent(patientId: string): Promise<{ error: string | 
     return { error: "Erreur lors de la mise à jour du statut SMS." }
   }
 
-  await supabase.from('sms_logs').insert({
+  const { error: logError } = await supabase.from('sms_logs').insert({
     patient_id: patientId,
     cabinet_id: cabinet.id,
     twilio_sid: null,
@@ -104,6 +103,11 @@ export async function markSmsSent(patientId: string): Promise<{ error: string | 
     error_message: 'placeholder — Twilio non intégré',
     cost_cents: null,
   })
+
+  if (logError) {
+    console.error('[markSmsSent] insert sms_logs', logError)
+    return { error: "Erreur lors de l'enregistrement du log SMS." }
+  }
 
   revalidatePath('/dashboard/patients')
   return { error: null }
