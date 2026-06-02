@@ -10,7 +10,7 @@
 
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { PDFParse } from 'pdf-parse'
+import { extractText, getDocumentProxy } from 'unpdf'
 import Anthropic from '@anthropic-ai/sdk'
 
 // ─── Config ──────────────────────────────────────────────────────────────────
@@ -64,9 +64,9 @@ async function main() {
   console.log(`\n📄  Lecture du PDF : ${absPath}`)
 
   const buffer = readFileSync(absPath)
-  const parser = new PDFParse({ data: buffer })
-  const parsed = await parser.getText()
-  const texte = parsed.text?.trim() ?? ''
+  const pdf = await getDocumentProxy(new Uint8Array(buffer))
+  const { text } = await extractText(pdf, { mergePages: true })
+  const texte = text?.trim() ?? ''
 
   console.log(`✅  Texte extrait : ${texte.length} caractères`)
   if (texte.length < 100) {

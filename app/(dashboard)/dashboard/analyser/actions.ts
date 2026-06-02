@@ -1,6 +1,6 @@
 'use server'
 
-import { PDFParse } from 'pdf-parse'
+import { extractText, getDocumentProxy } from 'unpdf'
 import { anthropic } from '@/lib/anthropic'
 
 const SYSTEM_PROMPT = `Tu es un expert en marchés publics français. Tu analyses des appels d'offres et tu extrais les informations clés de manière structurée.
@@ -60,9 +60,9 @@ export async function analyserAO(formData: FormData): Promise<AnalyserAOState> {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer())
-    const parser = new PDFParse({ data: buffer })
-    const parsed = await parser.getText()
-    const texte = parsed.text?.trim() ?? ''
+    const pdf = await getDocumentProxy(new Uint8Array(buffer))
+    const { text } = await extractText(pdf, { mergePages: true })
+    const texte = text?.trim() ?? ''
 
     if (texte.length < 100) {
       return { error: 'PDF illisible ou vide (peut-être un scan image sans texte sélectionnable).' }
