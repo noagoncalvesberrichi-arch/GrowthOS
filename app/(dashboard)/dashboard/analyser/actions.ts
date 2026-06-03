@@ -2,6 +2,7 @@
 
 import { extractText, getDocumentProxy } from 'unpdf'
 import { anthropic } from '@/lib/anthropic'
+import { createClient } from '@/lib/supabase/server'
 
 const SYSTEM_PROMPT = `Tu es un expert en marchés publics français. Tu analyses des appels d'offres et tu extrais les informations clés de manière structurée.
 Tu réponds UNIQUEMENT avec un objet JSON valide, sans markdown, sans backticks, sans commentaires.`
@@ -63,7 +64,7 @@ export type AOMetadata = {
 }
 
 export type AnalyserAOState =
-  | { data: AOResult; meta: AOMetadata }
+  | { data: AOResult; meta: AOMetadata; analyse_id?: string }
   | { error: string }
   | null
 
@@ -116,7 +117,34 @@ export async function analyserAO(formData: FormData): Promise<AnalyserAOState> {
       return { error: 'Impossible de parser la réponse du modèle. Réessaie.' }
     }
 
-    return { data, meta }
+    // Persist to DB — non-blocking: analysis is returned even if save fails
+    let analyse_id: string | undefined
+    try {
+      const supabase = await createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data: inserted, error: insertError } = await supabase
+          .from('analyses')
+          .insert({
+            user_id: user.id,
+            nom_fichier: file.name,
+            objet_marche: data.objet,
+            resultat: data,
+            tronque,
+          })
+          .select('id')
+          .single()
+        if (insertError) {
+          console.error('[analyserAO] insert failed:', insertError)
+        } else {
+          analyse_id = inserted.id as string
+        }
+      }
+    } catch (saveErr) {
+      console.error('[analyserAO] save error:', saveErr)
+    }
+
+    return { data, meta, analyse_id }
   } catch (err) {
     console.error('[analyserAO]', err)
     return { error: "Erreur lors de l'analyse. Vérifie le fichier et réessaie." }
