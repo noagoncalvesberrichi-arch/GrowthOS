@@ -4,11 +4,111 @@ import { extractText, getDocumentProxy } from 'unpdf'
 import { anthropic } from '@/lib/anthropic'
 import { createClient } from '@/lib/supabase/server'
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+export type GoNoGoCritere = {
+  critere: string
+  exigence_marche: string
+  situation_entreprise: string
+  statut: 'ok' | 'manquant' | 'incertain'
+}
+
+export type GoNoGo = {
+  verdict: 'GO' | 'NO_GO' | 'VIGILANCE'
+  score_eligibilite: number
+  criteres: GoNoGoCritere[]
+  synthese: string
+}
+
+export type AOResult = {
+  objet: string
+  type_procedure: string
+  acheteur: string
+  lots: { numero: string; designation: string; estimation: string | null }[]
+  criteres_notation: { critere: string; ponderation: string }[]
+  pieces_a_fournir: string[]
+  dates_cles: {
+    date_limite_offres: string | null
+    visite: string | null
+    validite_offres: string | null
+    autres_dates: { libelle: string; date: string }[]
+  }
+  points_de_vigilance: string[]
+  go_no_go: GoNoGo | null
+}
+
+export type AOMetadata = {
+  tronque: boolean
+  chars_traites: number
+  chars_total: number
+  fichiers_lus: string[]
+  fichiers_illisibles: string[]
+}
+
+export type AnalyserAOState =
+  | { data: AOResult; meta: AOMetadata; analyse_id?: string }
+  | { error: string }
+  | null
+
+// ─── Profil shape (subset used for prompt) ───────────────────────────────────
+
+type ProfilRow = {
+  raison_sociale: string | null
+  ca_dernier_exercice: number | null
+  effectif: number | null
+  annees_experience: number | null
+  certifications: string[] | null
+  domaines: string[] | null
+  zone_geographique: string | null
+  capacite_caution: boolean
+}
+
+// ─── Prompts ──────────────────────────────────────────────────────────────────
+
 const SYSTEM_PROMPT = `Tu es un expert en marchés publics français. Tu analyses des appels d'offres et tu extrais les informations clés de manière structurée.
 Tu réponds UNIQUEMENT avec un objet JSON valide, sans markdown, sans backticks, sans commentaires.`
 
-const USER_PROMPT = (texte: string, nbDocs: number) =>
-  `Voici le contenu d'un dossier de consultation des entreprises (DCE)${nbDocs > 1 ? ` composé de ${nbDocs} documents` : ''}. Analyse l'ensemble${nbDocs > 1 ? ' en croisant les informations de tous les documents' : ''} et extrais les informations clés en JSON.
+function buildUserPrompt(texte: string, nbDocs: number, profil: ProfilRow | null): string {
+  const profilBlock = profil ? `
+
+PROFIL DE L'ENTREPRISE (pour l'analyse Go/No-Go) :
+- Raison sociale : ${profil.raison_sociale ?? 'non renseigné'}
+- CA dernier exercice : ${profil.ca_dernier_exercice != null ? `${profil.ca_dernier_exercice} €` : 'non renseigné'}
+- Effectif : ${profil.effectif != null ? `${profil.effectif} personne(s)` : 'non renseigné'}
+- Années d'expérience : ${profil.annees_experience != null ? profil.annees_experience : 'non renseigné'}
+- Certifications : ${profil.certifications?.length ? profil.certifications.join(', ') : 'aucune renseignée'}
+- Domaines d'activité : ${profil.domaines?.length ? profil.domaines.join(', ') : 'non renseignés'}
+- Zone géographique : ${profil.zone_geographique ?? 'non renseignée'}
+- Capacité caution bancaire : ${profil.capacite_caution ? 'oui' : 'non'}` : ''
+
+  const goNoGoSchema = profil
+    ? `  "go_no_go": {
+    "verdict": "GO | NO_GO | VIGILANCE",
+    "score_eligibilite": 75,
+    "criteres": [
+      {
+        "critere": "string — ex: Chiffre d'affaires, Certification QUALIBAT, Zone géographique",
+        "exigence_marche": "string — ce que le DCE exige ou laisse entendre",
+        "situation_entreprise": "string — situation du profil ci-dessus",
+        "statut": "ok | manquant | incertain"
+      }
+    ],
+    "synthese": "string — 2-3 phrases : verdict, raisons principales, recommandation"
+  }`
+    : `  "go_no_go": null`
+
+  const goNoGoRules = profil ? `
+
+RÈGLES pour go_no_go :
+- Compare UNIQUEMENT les données du profil entreprise ci-dessus aux exigences détectées dans le DCE.
+- verdict "NO_GO" si une condition éliminatoire n'est pas remplie (CA insuffisant par rapport aux seuils mentionnés, certification obligatoire absente, zone hors périmètre).
+- verdict "GO" si tous les critères vérifiables sont satisfaits.
+- verdict "VIGILANCE" si des éléments importants sont incertains ou si le DCE ne précise pas les exigences.
+- Inclure dans criteres uniquement les points pertinents (capacités financières, certifications requises, domaines, zone, caution si exigée).
+- score_eligibilite : entier de 0 (aucune chance) à 100 (toutes conditions remplies).
+- Si une info du profil est "non renseigné", marquer le critère correspondant "incertain".` : ''
+
+  return `Voici le contenu d'un dossier de consultation des entreprises (DCE)${nbDocs > 1 ? ` composé de ${nbDocs} documents` : ''}. Analyse l'ensemble${nbDocs > 1 ? ' en croisant les informations de tous les documents' : ''} et extrais les informations clés en JSON.${profilBlock}
 
 TEXTE DU DOSSIER :
 ${texte}
@@ -33,43 +133,18 @@ Retourne UNIQUEMENT ce JSON (toutes les clés sont requises, utilise null si l'i
       { "libelle": "string — ex: Réunion de lancement, Date de démarrage, Limite questions écrites, etc.", "date": "string" }
     ]
   },
-  "points_de_vigilance": ["string"]
+  "points_de_vigilance": ["string"],
+${goNoGoSchema}
 }
 
 RÈGLES STRICTES pour dates_cles :
 - date_limite_offres : UNIQUEMENT la date/heure de dépôt des offres. Pas de réunion, pas de visite.
 - visite : UNIQUEMENT la visite physique du site. Pas la réunion de lancement.
 - autres_dates : tout le reste (réunion de lancement, date prévisionnelle de démarrage, période de questions, notification du marché, etc.)
-- Ne duplique jamais une date dans plusieurs champs.`
-
-export type AOResult = {
-  objet: string
-  type_procedure: string
-  acheteur: string
-  lots: { numero: string; designation: string; estimation: string | null }[]
-  criteres_notation: { critere: string; ponderation: string }[]
-  pieces_a_fournir: string[]
-  dates_cles: {
-    date_limite_offres: string | null
-    visite: string | null
-    validite_offres: string | null
-    autres_dates: { libelle: string; date: string }[]
-  }
-  points_de_vigilance: string[]
+- Ne duplique jamais une date dans plusieurs champs.${goNoGoRules}`
 }
 
-export type AOMetadata = {
-  tronque: boolean
-  chars_traites: number
-  chars_total: number
-  fichiers_lus: string[]
-  fichiers_illisibles: string[]
-}
-
-export type AnalyserAOState =
-  | { data: AOResult; meta: AOMetadata; analyse_id?: string }
-  | { error: string }
-  | null
+// ─── Server action ────────────────────────────────────────────────────────────
 
 export async function analyserAO(formData: FormData): Promise<AnalyserAOState> {
   try {
@@ -79,6 +154,7 @@ export async function analyserAO(formData: FormData): Promise<AnalyserAOState> {
     const invalidFile = files.find(f => f.type !== 'application/pdf' && !f.name.endsWith('.pdf'))
     if (invalidFile) return { error: `"${invalidFile.name}" n'est pas un PDF.` }
 
+    // Extract text from each PDF
     const fichiers_lus: string[] = []
     const fichiers_illisibles: string[] = []
     const parts: string[] = []
@@ -117,11 +193,25 @@ export async function analyserAO(formData: FormData): Promise<AnalyserAOState> {
       fichiers_illisibles,
     }
 
+    // Load user + profile (profile drives Go/No-Go prompt section)
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    let profil: ProfilRow | null = null
+    if (user) {
+      const { data: profilData } = await supabase
+        .from('profil_entreprise')
+        .select('raison_sociale, ca_dernier_exercice, effectif, annees_experience, certifications, domaines, zone_geographique, capacite_caution')
+        .maybeSingle()
+      profil = profilData as ProfilRow | null
+    }
+
+    // Call Claude
     const message = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 4096,
+      max_tokens: profil ? 8192 : 4096,
       system: SYSTEM_PROMPT,
-      messages: [{ role: 'user', content: USER_PROMPT(texteEnvoye, fichiers_lus.length) }],
+      messages: [{ role: 'user', content: buildUserPrompt(texteEnvoye, fichiers_lus.length, profil) }],
     })
 
     const content = message.content[0].type === 'text' ? message.content[0].text : ''
@@ -142,10 +232,8 @@ export async function analyserAO(formData: FormData): Promise<AnalyserAOState> {
 
     // Persist to DB — non-blocking: analysis is returned even if save fails
     let analyse_id: string | undefined
-    try {
-      const supabase = await createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
+    if (user) {
+      try {
         const { data: inserted, error: insertError } = await supabase
           .from('analyses')
           .insert({
@@ -162,9 +250,9 @@ export async function analyserAO(formData: FormData): Promise<AnalyserAOState> {
         } else {
           analyse_id = inserted.id as string
         }
+      } catch (saveErr) {
+        console.error('[analyserAO] save error:', saveErr)
       }
-    } catch (saveErr) {
-      console.error('[analyserAO] save error:', saveErr)
     }
 
     return { data, meta, analyse_id }

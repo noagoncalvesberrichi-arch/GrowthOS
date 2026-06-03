@@ -1,4 +1,140 @@
-import type { AOResult, AOMetadata } from './actions'
+import Link from 'next/link'
+import type { AOResult, AOMetadata, GoNoGo, GoNoGoCritere } from './actions'
+
+// ─── Go/No-Go ─────────────────────────────────────────────────────────────────
+
+const VERDICT_CONFIG = {
+  GO: {
+    border: 'border-emerald-200',
+    headerBg: 'bg-emerald-50',
+    bodyBg: 'bg-emerald-50/60',
+    verdictText: 'text-emerald-700',
+    bodyText: 'text-emerald-800',
+    scoreBadge: 'bg-emerald-100 text-emerald-700',
+    divider: 'border-emerald-200',
+    label: 'GO',
+  },
+  NO_GO: {
+    border: 'border-red-200',
+    headerBg: 'bg-red-50',
+    bodyBg: 'bg-red-50/60',
+    verdictText: 'text-red-700',
+    bodyText: 'text-red-800',
+    scoreBadge: 'bg-red-100 text-red-700',
+    divider: 'border-red-200',
+    label: 'NO-GO',
+  },
+  VIGILANCE: {
+    border: 'border-amber-200',
+    headerBg: 'bg-amber-50',
+    bodyBg: 'bg-amber-50/60',
+    verdictText: 'text-amber-700',
+    bodyText: 'text-amber-800',
+    scoreBadge: 'bg-amber-100 text-amber-700',
+    divider: 'border-amber-200',
+    label: 'VIGILANCE',
+  },
+} as const
+
+function StatutIcon({ statut }: { statut: GoNoGoCritere['statut'] }) {
+  if (statut === 'ok') {
+    return (
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-0.5">
+        <polyline points="20 6 9 17 4 12" />
+      </svg>
+    )
+  }
+  if (statut === 'manquant') {
+    return (
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-0.5">
+        <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+      </svg>
+    )
+  }
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-0.5">
+      <circle cx="12" cy="12" r="10" />
+      <line x1="12" y1="8" x2="12" y2="12" />
+      <line x1="12" y1="16" x2="12.01" y2="16" />
+    </svg>
+  )
+}
+
+const statutValueColor: Record<GoNoGoCritere['statut'], string> = {
+  ok: 'text-emerald-600',
+  manquant: 'text-red-600',
+  incertain: 'text-amber-600',
+}
+
+function GoNoGoPanel({ gng }: { gng: GoNoGo | null }) {
+  if (!gng) {
+    return (
+      <div className="flex items-center justify-between gap-4 bg-surface border border-border rounded-xl px-5 py-4">
+        <div className="min-w-0">
+          <p className="font-syne text-[13px] font-semibold text-text leading-snug">
+            Analyse Go&nbsp;/&nbsp;No-Go indisponible
+          </p>
+          <p className="font-syne text-[12px] text-text-muted mt-0.5">
+            Renseignez votre profil entreprise pour obtenir une recommandation personnalisée.
+          </p>
+        </div>
+        <Link
+          href="/dashboard/mon-entreprise"
+          className="shrink-0 font-syne text-[12px] font-semibold text-accent hover:text-accent-dark transition-colors duration-150 whitespace-nowrap"
+        >
+          Compléter →
+        </Link>
+      </div>
+    )
+  }
+
+  const cfg = VERDICT_CONFIG[gng.verdict]
+
+  return (
+    <div className={`rounded-xl overflow-hidden border ${cfg.border}`}>
+      {/* Header */}
+      <div className={`${cfg.headerBg} px-5 py-3.5 flex items-center gap-3 border-b ${cfg.border}`}>
+        <span className={`font-syne text-[14px] font-extrabold uppercase tracking-wide ${cfg.verdictText}`}>
+          {cfg.label}
+        </span>
+        <span className={`font-syne text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${cfg.scoreBadge}`}>
+          Éligibilité&nbsp;: {gng.score_eligibilite}/100
+        </span>
+      </div>
+
+      {/* Synthesis */}
+      <div className={`${cfg.bodyBg} px-5 py-4 border-b ${cfg.border}`}>
+        <p className={`font-syne text-[13px] leading-relaxed ${cfg.bodyText}`}>{gng.synthese}</p>
+      </div>
+
+      {/* Criteria */}
+      {gng.criteres.length > 0 && (
+        <div className={`${cfg.bodyBg} px-5 py-4`}>
+          <div className="space-y-0">
+            {gng.criteres.map((c) => (
+              <div key={c.critere} className={`flex items-start gap-3 py-2.5 border-b ${cfg.divider}/50 last:border-0`}>
+                <StatutIcon statut={c.statut} />
+                <div className="flex-1 min-w-0">
+                  <p className="font-syne text-[12px] font-semibold text-text leading-snug">{c.critere}</p>
+                  <div className="flex flex-wrap gap-x-4 mt-0.5">
+                    <span className="font-syne text-[11px] text-text-subtle">
+                      Exigé&nbsp;: <span className="font-semibold text-text-muted">{c.exigence_marche}</span>
+                    </span>
+                    <span className="font-syne text-[11px] text-text-subtle">
+                      Vous&nbsp;: <span className={`font-semibold ${statutValueColor[c.statut]}`}>{c.situation_entreprise}</span>
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Section wrapper ──────────────────────────────────────────────────────────
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -10,6 +146,8 @@ function Section({ title, children }: { title: string; children: React.ReactNode
     </div>
   )
 }
+
+// ─── Main display ─────────────────────────────────────────────────────────────
 
 export function AOResultDisplay({ data, meta }: { data: AOResult; meta: AOMetadata }) {
   return (
@@ -45,6 +183,9 @@ export function AOResultDisplay({ data, meta }: { data: AOResult; meta: AOMetada
           </p>
         </div>
       )}
+
+      {/* Go/No-Go */}
+      <GoNoGoPanel gng={data.go_no_go} />
 
       {/* Objet + meta */}
       <Section title="Marché">
