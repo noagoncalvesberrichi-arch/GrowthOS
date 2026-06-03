@@ -24,20 +24,26 @@ function HomeIcon({ active }: { active: boolean }) {
   )
 }
 
-function UsersIcon() {
+function DocumentIcon({ active }: { active: boolean }) {
   return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
-      <circle cx="9" cy="7" r="4" />
-      <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" />
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.2 : 1.8} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+      <polyline points="14 2 14 8 20 8" />
+      <line x1="12" y1="18" x2="12" y2="12" />
+      <line x1="9" y1="15" x2="15" y2="15" />
     </svg>
   )
 }
 
-function StarIcon() {
+function ListIcon({ active }: { active: boolean }) {
   return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.2 : 1.8} strokeLinecap="round" strokeLinejoin="round">
+      <line x1="8" y1="6" x2="21" y2="6" />
+      <line x1="8" y1="12" x2="21" y2="12" />
+      <line x1="8" y1="18" x2="21" y2="18" />
+      <line x1="3" y1="6" x2="3.01" y2="6" />
+      <line x1="3" y1="12" x2="3.01" y2="12" />
+      <line x1="3" y1="18" x2="3.01" y2="18" />
     </svg>
   )
 }
@@ -59,30 +65,20 @@ function PricingIcon({ active }: { active: boolean }) {
   )
 }
 
-const activeModules = [
+const mainLinks = [
   {
-    id: 'patients',
-    label: 'Patients',
-    description: 'Ajoute & gère',
-    href: '/dashboard/patients',
-    icon: <UsersIcon />,
-  },
-]
-
-const comingSoonModules = [
-  {
-    id: 'avis',
-    label: 'Avis & Feedback',
-    description: 'Tes nouveaux avis',
-    href: '/dashboard/avis',
-    icon: <StarIcon />,
+    id: 'analyser',
+    label: 'Analyser un AO',
+    description: 'Nouveau PDF',
+    href: '/dashboard/analyser',
+    icon: (active: boolean) => <DocumentIcon active={active} />,
   },
   {
-    id: 'settings',
-    label: 'Paramètres',
-    description: 'SMS & profil',
-    href: '/dashboard/settings',
-    icon: <SettingsIcon />,
+    id: 'mes-analyses',
+    label: 'Mes analyses',
+    description: 'Historique',
+    href: '/dashboard/mes-analyses',
+    icon: (active: boolean) => <ListIcon active={active} />,
   },
 ]
 
@@ -145,40 +141,38 @@ export function Sidebar() {
           </ul>
         </div>
 
-        {/* Modules kinés */}
+        {/* Mon espace */}
         <div>
           <p className="text-[10px] font-semibold text-text-subtle uppercase tracking-widest px-3 mb-2 font-syne">
-            Mon cabinet
+            Mon espace
           </p>
           <ul className="space-y-0.5">
-            {activeModules.map((mod) => {
-              const active = isActive(mod.href)
+            {mainLinks.map((link) => {
+              const active = isActive(link.href)
               return (
-                <li key={mod.id}>
-                  <Link href={mod.href} className={navItemClass(active)}>
-                    <span className={iconClass(active)}>{mod.icon}</span>
+                <li key={link.id}>
+                  <Link href={link.href} className={navItemClass(active)}>
+                    <span className={iconClass(active)}>{link.icon(active)}</span>
                     <div className="min-w-0">
-                      <p className="font-syne text-[13px] font-semibold leading-none">{mod.label}</p>
-                      <p className="font-syne text-[11px] text-text-subtle mt-0.5">{mod.description}</p>
+                      <p className="font-syne text-[13px] font-semibold leading-none">{link.label}</p>
+                      <p className="font-syne text-[11px] text-text-subtle mt-0.5">{link.description}</p>
                     </div>
                   </Link>
                 </li>
               )
             })}
-            {comingSoonModules.map((mod) => (
-              <li key={mod.id}>
-                <div className="relative flex items-center gap-3 px-3 py-2.5 rounded-lg border-l-[3px] border-transparent opacity-50 cursor-not-allowed pl-[9px]">
-                  <span className="shrink-0 text-text-subtle">{mod.icon}</span>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-syne text-[13px] font-semibold leading-none text-text-muted">{mod.label}</p>
-                    <p className="font-syne text-[11px] text-text-subtle mt-0.5 truncate">{mod.description}</p>
-                  </div>
-                  <span className="font-syne text-[9px] font-bold text-text-subtle bg-background border border-border px-1.5 py-0.5 rounded-full shrink-0">
-                    Bientôt
-                  </span>
+            <li>
+              <div className="relative flex items-center gap-3 px-3 py-2.5 rounded-lg border-l-[3px] border-transparent opacity-50 cursor-not-allowed pl-[9px]">
+                <span className="shrink-0 text-text-subtle"><SettingsIcon /></span>
+                <div className="min-w-0 flex-1">
+                  <p className="font-syne text-[13px] font-semibold leading-none text-text-muted">Paramètres</p>
+                  <p className="font-syne text-[11px] text-text-subtle mt-0.5 truncate">Compte &amp; profil</p>
                 </div>
-              </li>
-            ))}
+                <span className="font-syne text-[9px] font-bold text-text-subtle bg-background border border-border px-1.5 py-0.5 rounded-full shrink-0">
+                  Bientôt
+                </span>
+              </div>
+            </li>
           </ul>
         </div>
 
