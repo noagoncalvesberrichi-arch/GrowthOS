@@ -7,10 +7,11 @@ import { createClient } from '@/lib/supabase/server'
 const SYSTEM_PROMPT = `Tu es un expert en marchés publics français. Tu analyses des appels d'offres et tu extrais les informations clés de manière structurée.
 Tu réponds UNIQUEMENT avec un objet JSON valide, sans markdown, sans backticks, sans commentaires.`
 
-const USER_PROMPT = (texte: string) => `Voici le texte d'un appel d'offres. Extrais et structure les informations suivantes en JSON.
+const USER_PROMPT = (texte: string, nbDocs: number) =>
+  `Voici le contenu d'un dossier de consultation des entreprises (DCE)${nbDocs > 1 ? ` composé de ${nbDocs} documents` : ''}. Analyse l'ensemble${nbDocs > 1 ? ' en croisant les informations de tous les documents' : ''} et extrais les informations clés en JSON.
 
-TEXTE DE L'APPEL D'OFFRES :
-${texte.slice(0, 40000)}
+TEXTE DU DOSSIER :
+${texte}
 
 Retourne UNIQUEMENT ce JSON (toutes les clés sont requises, utilise null si l'information est absente) :
 {
@@ -61,6 +62,8 @@ export type AOMetadata = {
   tronque: boolean
   chars_traites: number
   chars_total: number
+  fichiers_lus: string[]
+  fichiers_illisibles: string[]
 }
 
 export type AnalyserAOState =
@@ -70,35 +73,55 @@ export type AnalyserAOState =
 
 export async function analyserAO(formData: FormData): Promise<AnalyserAOState> {
   try {
-    const file = formData.get('file') as File | null
-    if (!file || file.size === 0) return { error: 'Aucun fichier reçu.' }
-    if (file.type !== 'application/pdf' && !file.name.endsWith('.pdf')) {
-      return { error: 'Le fichier doit être un PDF.' }
+    const files = (formData.getAll('files') as File[]).filter(f => f.size > 0)
+    if (files.length === 0) return { error: 'Aucun fichier reçu.' }
+
+    const invalidFile = files.find(f => f.type !== 'application/pdf' && !f.name.endsWith('.pdf'))
+    if (invalidFile) return { error: `"${invalidFile.name}" n'est pas un PDF.` }
+
+    const fichiers_lus: string[] = []
+    const fichiers_illisibles: string[] = []
+    const parts: string[] = []
+
+    for (const file of files) {
+      try {
+        const buffer = Buffer.from(await file.arrayBuffer())
+        const pdf = await getDocumentProxy(new Uint8Array(buffer))
+        const { text } = await extractText(pdf, { mergePages: true })
+        const texte = text?.trim() ?? ''
+
+        if (texte.length < 100) {
+          fichiers_illisibles.push(file.name)
+        } else {
+          fichiers_lus.push(file.name)
+          parts.push(`\n\n===== DOCUMENT : ${file.name} =====\n\n${texte}`)
+        }
+      } catch {
+        fichiers_illisibles.push(file.name)
+      }
     }
 
-    const buffer = Buffer.from(await file.arrayBuffer())
-    const pdf = await getDocumentProxy(new Uint8Array(buffer))
-    const { text } = await extractText(pdf, { mergePages: true })
-    const texte = text?.trim() ?? ''
-
-    if (texte.length < 100) {
-      return { error: 'PDF illisible ou vide (peut-être un scan image sans texte sélectionnable).' }
+    if (fichiers_lus.length === 0) {
+      return { error: 'Aucun fichier lisible. Les PDFs sont peut-être des scans image sans texte sélectionnable.' }
     }
 
+    const texteTotal = parts.join('')
     const LIMIT = 180000
-    const tronque = texte.length > LIMIT
-    const texteEnvoye = tronque ? texte.slice(0, LIMIT) : texte
+    const tronque = texteTotal.length > LIMIT
+    const texteEnvoye = tronque ? texteTotal.slice(0, LIMIT) : texteTotal
     const meta: AOMetadata = {
       tronque,
       chars_traites: texteEnvoye.length,
-      chars_total: texte.length,
+      chars_total: texteTotal.length,
+      fichiers_lus,
+      fichiers_illisibles,
     }
 
     const message = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 4096,
       system: SYSTEM_PROMPT,
-      messages: [{ role: 'user', content: USER_PROMPT(texteEnvoye) }],
+      messages: [{ role: 'user', content: USER_PROMPT(texteEnvoye, fichiers_lus.length) }],
     })
 
     const content = message.content[0].type === 'text' ? message.content[0].text : ''
@@ -127,7 +150,7 @@ export async function analyserAO(formData: FormData): Promise<AnalyserAOState> {
           .from('analyses')
           .insert({
             user_id: user.id,
-            nom_fichier: file.name,
+            nom_fichier: files.map(f => f.name).join(', '),
             objet_marche: data.objet,
             resultat: data,
             tronque,
@@ -147,6 +170,6 @@ export async function analyserAO(formData: FormData): Promise<AnalyserAOState> {
     return { data, meta, analyse_id }
   } catch (err) {
     console.error('[analyserAO]', err)
-    return { error: "Erreur lors de l'analyse. Vérifie le fichier et réessaie." }
+    return { error: "Erreur lors de l'analyse. Vérifie les fichiers et réessaie." }
   }
 }

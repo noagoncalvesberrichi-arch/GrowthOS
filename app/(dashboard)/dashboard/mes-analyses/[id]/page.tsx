@@ -22,7 +22,13 @@ export default async function AnalyseDetailPage({ params }: { params: Promise<{ 
     year: 'numeric',
   })
 
-  const meta: AOMetadata = { tronque: data.tronque as boolean, chars_traites: 0, chars_total: 0 }
+  const meta: AOMetadata = {
+    tronque: data.tronque as boolean,
+    chars_traites: 0,
+    chars_total: 0,
+    fichiers_lus: [],
+    fichiers_illisibles: [],
+  }
 
   return (
     <div className="max-w-2xl mx-auto px-8 py-10">

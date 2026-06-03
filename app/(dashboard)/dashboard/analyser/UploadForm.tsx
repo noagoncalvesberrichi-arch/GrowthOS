@@ -5,22 +5,32 @@ import { analyserAO, type AnalyserAOState } from './actions'
 import { AOResultDisplay } from './AOResultDisplay'
 
 export function UploadForm() {
-  const [file, setFile] = useState<File | null>(null)
+  const [files, setFiles] = useState<File[]>([])
   const [result, setResult] = useState<AnalyserAOState>(null)
   const [isPending, startTransition] = useTransition()
   const inputRef = useRef<HTMLInputElement>(null)
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selected = e.target.files?.[0] ?? null
-    setFile(selected)
+    const newFiles = Array.from(e.target.files ?? [])
+    if (newFiles.length === 0) return
+    setFiles(prev => {
+      const existingNames = new Set(prev.map(f => f.name))
+      return [...prev, ...newFiles.filter(f => !existingNames.has(f.name))]
+    })
+    setResult(null)
+    e.target.value = ''
+  }
+
+  const removeFile = (name: string) => {
+    setFiles(prev => prev.filter(f => f.name !== name))
     setResult(null)
   }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!file) return
+    if (files.length === 0) return
     const fd = new FormData()
-    fd.append('file', file)
+    files.forEach(f => fd.append('files', f))
     startTransition(async () => {
       const res = await analyserAO(fd)
       setResult(res)
@@ -29,11 +39,11 @@ export function UploadForm() {
 
   return (
     <div>
-      <form onSubmit={handleSubmit} className="space-y-5">
+      <form onSubmit={handleSubmit} className="space-y-4">
         {/* Drop zone */}
         <div
           onClick={() => !isPending && inputRef.current?.click()}
-          className={`border-2 border-dashed rounded-2xl px-8 py-12 flex flex-col items-center justify-center text-center transition-colors duration-200
+          className={`border-2 border-dashed rounded-2xl px-8 py-10 flex flex-col items-center justify-center text-center transition-colors duration-200
             ${isPending
               ? 'border-border bg-background cursor-not-allowed opacity-60'
               : 'cursor-pointer border-border hover:border-accent bg-background hover:bg-accent-subtle/30'
@@ -57,19 +67,14 @@ export function UploadForm() {
 
           {isPending ? (
             <p className="font-syne text-[14px] font-semibold text-text">Analyse en cours…</p>
-          ) : file ? (
-            <>
-              <p className="font-syne text-[14px] font-semibold text-text">{file.name}</p>
-              <p className="font-syne text-[12px] text-text-subtle mt-1">
-                {(file.size / 1024 / 1024).toFixed(2)} Mo · Cliquer pour changer
-              </p>
-            </>
           ) : (
             <>
               <p className="font-syne text-[14px] font-semibold text-text">
-                Dépose ton PDF ici ou clique pour sélectionner
+                {files.length > 0 ? "Ajouter d'autres fichiers" : 'Dépose tes PDFs ici ou clique pour sélectionner'}
               </p>
-              <p className="font-syne text-[12px] text-text-subtle mt-1">PDF uniquement · 20 Mo max</p>
+              <p className="font-syne text-[12px] text-text-subtle mt-1">
+                PDF uniquement · Plusieurs fichiers acceptés (RC, CCTP, CCAP…)
+              </p>
             </>
           )}
 
@@ -77,15 +82,50 @@ export function UploadForm() {
             ref={inputRef}
             type="file"
             accept=".pdf,application/pdf"
+            multiple
             onChange={handleChange}
             className="hidden"
             disabled={isPending}
           />
         </div>
 
+        {/* File list */}
+        {files.length > 0 && !isPending && (
+          <ul className="space-y-2">
+            {files.map((f) => (
+              <li
+                key={f.name}
+                className="flex items-center justify-between gap-3 bg-background border border-border rounded-lg px-4 py-2.5"
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-text-muted shrink-0">
+                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                  </svg>
+                  <span className="font-syne text-[13px] text-text truncate">{f.name}</span>
+                  <span className="font-syne text-[11px] text-text-subtle shrink-0">
+                    {(f.size / 1024 / 1024).toFixed(2)} Mo
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeFile(f.name)}
+                  className="shrink-0 text-text-subtle hover:text-red-500 transition-colors duration-150"
+                  aria-label={`Retirer ${f.name}`}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+
         <button
           type="submit"
-          disabled={!file || isPending}
+          disabled={files.length === 0 || isPending}
           className="group relative w-full py-3 bg-accent hover:bg-accent-dark text-white font-syne font-bold text-[14px] rounded-xl transition-all duration-200 overflow-hidden shadow-card disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <span
@@ -93,7 +133,12 @@ export function UploadForm() {
             className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/15 to-transparent"
           />
           <span className="relative">
-            {isPending ? 'Analyse en cours…' : 'Analyser →'}
+            {isPending
+              ? 'Analyse en cours…'
+              : files.length > 1
+                ? `Analyser ${files.length} fichiers →`
+                : 'Analyser →'
+            }
           </span>
         </button>
       </form>

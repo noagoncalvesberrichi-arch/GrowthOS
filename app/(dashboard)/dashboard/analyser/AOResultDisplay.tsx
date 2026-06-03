@@ -19,11 +19,25 @@ export function AOResultDisplay({ data, meta }: { data: AOResult; meta: AOMetada
         <p className="font-syne text-[12px] font-bold text-accent uppercase tracking-wider">Analyse terminée</p>
       </div>
 
+      {/* Fichiers illisibles */}
+      {meta.fichiers_illisibles.length > 0 && (
+        <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+          <span className="text-red-500 text-[15px] shrink-0 mt-0.5">⚠️</span>
+          <p className="font-syne text-[13px] text-red-800 leading-relaxed">
+            <span className="font-semibold">
+              {meta.fichiers_illisibles.length === 1 ? '1 fichier illisible' : `${meta.fichiers_illisibles.length} fichiers illisibles`}
+            </span>
+            {' '}— {meta.fichiers_illisibles.join(', ')} (scan image sans texte sélectionnable, non inclus dans l&apos;analyse).
+          </p>
+        </div>
+      )}
+
+      {/* Troncature */}
       {meta.tronque && (
         <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
           <span className="text-amber-500 text-[15px] shrink-0 mt-0.5">⚠️</span>
           <p className="font-syne text-[13px] text-amber-800 leading-relaxed">
-            <span className="font-semibold">Document volumineux</span>
+            <span className="font-semibold">Dossier volumineux</span>
             {meta.chars_traites > 0 && (
               <> — l&apos;analyse porte sur les premières sections ({Math.round(meta.chars_traites / 1000)}k/{Math.round(meta.chars_total / 1000)}k caractères)</>
             )}
