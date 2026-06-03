@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition, useRef } from 'react'
-import { analyserAO, type AOResult, type AnalyserAOState } from './actions'
+import { analyserAO, type AOResult, type AOMetadata, type AnalyserAOState } from './actions'
 
 // ─── Result display ───────────────────────────────────────────────────────────
 
@@ -16,13 +16,22 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   )
 }
 
-function AOResultDisplay({ data }: { data: AOResult }) {
+function AOResultDisplay({ data, meta }: { data: AOResult; meta: AOMetadata }) {
   return (
     <div className="space-y-4 mt-8">
       <div className="flex items-center gap-2 mb-2">
         <div className="w-2 h-2 rounded-full bg-accent" />
         <p className="font-syne text-[12px] font-bold text-accent uppercase tracking-wider">Analyse terminée</p>
       </div>
+
+      {meta.tronque && (
+        <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+          <span className="text-amber-500 text-[15px] shrink-0 mt-0.5">⚠️</span>
+          <p className="font-syne text-[13px] text-amber-800 leading-relaxed">
+            <span className="font-semibold">Document volumineux</span> — l&apos;analyse porte sur les premières sections ({Math.round(meta.chars_traites / 1000)}k/{Math.round(meta.chars_total / 1000)}k caractères). Certaines informations en fin de dossier peuvent ne pas être prises en compte.
+          </p>
+        </div>
+      )}
 
       {/* Objet + meta */}
       <Section title="Marché">
@@ -61,7 +70,7 @@ function AOResultDisplay({ data }: { data: AOResult }) {
               <div key={lot.numero} className="flex items-start justify-between gap-4 py-2 border-b border-border last:border-0">
                 <div className="flex items-start gap-3">
                   <span className="font-syne text-[11px] font-bold bg-accent-subtle text-accent px-2 py-0.5 rounded-md shrink-0 mt-0.5">
-                    Lot {lot.numero}
+                    {lot.numero.toLowerCase().startsWith('lot') ? lot.numero : `Lot ${lot.numero}`}
                   </span>
                   <p className="font-syne text-[13px] text-text">{lot.designation}</p>
                 </div>
@@ -228,7 +237,7 @@ export function UploadForm() {
       )}
 
       {/* Résultat */}
-      {result && 'data' in result && <AOResultDisplay data={result.data} />}
+      {result && 'data' in result && <AOResultDisplay data={result.data} meta={result.meta} />}
     </div>
   )
 }

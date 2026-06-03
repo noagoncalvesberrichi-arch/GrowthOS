@@ -46,8 +46,14 @@ export type AOResult = {
   points_de_vigilance: string[]
 }
 
+export type AOMetadata = {
+  tronque: boolean
+  chars_traites: number
+  chars_total: number
+}
+
 export type AnalyserAOState =
-  | { data: AOResult }
+  | { data: AOResult; meta: AOMetadata }
   | { error: string }
   | null
 
@@ -68,11 +74,20 @@ export async function analyserAO(formData: FormData): Promise<AnalyserAOState> {
       return { error: 'PDF illisible ou vide (peut-être un scan image sans texte sélectionnable).' }
     }
 
+    const LIMIT = 180000
+    const tronque = texte.length > LIMIT
+    const texteEnvoye = tronque ? texte.slice(0, LIMIT) : texte
+    const meta: AOMetadata = {
+      tronque,
+      chars_traites: texteEnvoye.length,
+      chars_total: texte.length,
+    }
+
     const message = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 4096,
       system: SYSTEM_PROMPT,
-      messages: [{ role: 'user', content: USER_PROMPT(texte) }],
+      messages: [{ role: 'user', content: USER_PROMPT(texteEnvoye) }],
     })
 
     const content = message.content[0].type === 'text' ? message.content[0].text : ''
@@ -91,7 +106,7 @@ export async function analyserAO(formData: FormData): Promise<AnalyserAOState> {
       return { error: 'Impossible de parser la réponse du modèle. Réessaie.' }
     }
 
-    return { data }
+    return { data, meta }
   } catch (err) {
     console.error('[analyserAO]', err)
     return { error: "Erreur lors de l'analyse. Vérifie le fichier et réessaie." }
