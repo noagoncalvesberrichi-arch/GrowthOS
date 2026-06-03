@@ -46,11 +46,12 @@ export type AOMetadata = {
 }
 
 export type AnalyserAOState =
-  | { data: AOResult; meta: AOMetadata; analyse_id?: string }
+  | { data: AOResult; meta: AOMetadata; analyse_id?: string; analyses_restantes?: number }
+  | { quota_atteint: true; analyses_utilisees: number; quota_gratuit: number }
   | { error: string }
   | null
 
-// ─── Profil shape (subset used for prompt) ───────────────────────────────────
+// ─── Internal types ───────────────────────────────────────────────────────────
 
 type ProfilRow = {
   raison_sociale: string | null
@@ -61,6 +62,12 @@ type ProfilRow = {
   domaines: string[] | null
   zone_geographique: string | null
   capacite_caution: boolean
+}
+
+type AbonnementRow = {
+  plan: string
+  analyses_utilisees: number
+  quota_gratuit: number
 }
 
 // ─── Prompts ──────────────────────────────────────────────────────────────────
@@ -193,10 +200,43 @@ export async function analyserAO(formData: FormData): Promise<AnalyserAOState> {
       fichiers_illisibles,
     }
 
-    // Load user + profile (profile drives Go/No-Go prompt section)
+    // Load user
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
+    // ── Quota check (BEFORE Claude call) ─────────────────────────────────────
+    let abonnement: AbonnementRow | null = null
+    if (user) {
+      const { data: existingAbo } = await supabase
+        .from('abonnements')
+        .select('plan, analyses_utilisees, quota_gratuit')
+        .maybeSingle()
+
+      if (!existingAbo) {
+        const { data: newAbo, error: createError } = await supabase
+          .from('abonnements')
+          .insert({ user_id: user.id })
+          .select('plan, analyses_utilisees, quota_gratuit')
+          .single()
+        if (createError) {
+          console.error('[analyserAO] create abonnement failed:', createError)
+        } else {
+          abonnement = newAbo as AbonnementRow
+        }
+      } else {
+        abonnement = existingAbo as AbonnementRow
+      }
+
+      if (abonnement && abonnement.plan === 'gratuit' && abonnement.analyses_utilisees >= abonnement.quota_gratuit) {
+        return {
+          quota_atteint: true,
+          analyses_utilisees: abonnement.analyses_utilisees,
+          quota_gratuit: abonnement.quota_gratuit,
+        }
+      }
+    }
+
+    // Load profil for Go/No-Go
     let profil: ProfilRow | null = null
     if (user) {
       const { data: profilData } = await supabase
@@ -230,9 +270,10 @@ export async function analyserAO(formData: FormData): Promise<AnalyserAOState> {
       return { error: 'Impossible de parser la réponse du modèle. Réessaie.' }
     }
 
-    // Persist to DB — non-blocking: analysis is returned even if save fails
+    // Analysis succeeded — persist and update quota
     let analyse_id: string | undefined
     if (user) {
+      // Save analysis to DB
       try {
         const { data: inserted, error: insertError } = await supabase
           .from('analyses')
@@ -253,9 +294,29 @@ export async function analyserAO(formData: FormData): Promise<AnalyserAOState> {
       } catch (saveErr) {
         console.error('[analyserAO] save error:', saveErr)
       }
+
+      // Increment quota counter
+      if (abonnement) {
+        try {
+          const { error: incrError } = await supabase
+            .from('abonnements')
+            .update({
+              analyses_utilisees: abonnement.analyses_utilisees + 1,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('user_id', user.id)
+          if (incrError) console.error('[analyserAO] quota increment failed:', incrError)
+        } catch (incrErr) {
+          console.error('[analyserAO] quota increment error:', incrErr)
+        }
+      }
     }
 
-    return { data, meta, analyse_id }
+    const analyses_restantes = abonnement?.plan === 'gratuit'
+      ? Math.max(0, abonnement.quota_gratuit - abonnement.analyses_utilisees - 1)
+      : undefined
+
+    return { data, meta, analyse_id, analyses_restantes }
   } catch (err) {
     console.error('[analyserAO]', err)
     return { error: "Erreur lors de l'analyse. Vérifie les fichiers et réessaie." }

@@ -150,6 +150,40 @@ export function UploadForm() {
         </div>
       )}
 
+      {/* Quota atteint */}
+      {result && 'quota_atteint' in result && (
+        <div className="mt-6 bg-amber-50 border border-amber-200 rounded-xl px-5 py-5 space-y-3">
+          <p className="font-syne text-[14px] font-bold text-amber-800">
+            Quota d&apos;analyses atteint
+          </p>
+          <p className="font-syne text-[13px] text-amber-700">
+            Tu as utilisé {result.analyses_utilisees} analyse{result.analyses_utilisees > 1 ? 's' : ''} sur {result.quota_gratuit} disponibles dans le plan gratuit.
+          </p>
+          <a
+            href="/pricing"
+            className="inline-block font-syne text-[13px] font-bold text-white bg-accent hover:bg-accent-dark px-5 py-2.5 rounded-lg transition-colors duration-150"
+          >
+            Passer au plan Pro →
+          </a>
+        </div>
+      )}
+
+      {/* Analyses restantes (avertissement) */}
+      {result && 'data' in result && result.analyses_restantes !== undefined && result.analyses_restantes <= 1 && (
+        <div className="mt-4 flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-0.5">
+            <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+            <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+          <p className="font-syne text-[12px] text-amber-800">
+            {result.analyses_restantes === 0
+              ? <>C&apos;était ta dernière analyse gratuite. <a href="/pricing" className="font-semibold underline underline-offset-2 hover:text-amber-900">Passe au Pro</a> pour continuer.</>
+              : <>Il te reste <span className="font-semibold">1 analyse gratuite</span>. <a href="/pricing" className="font-semibold underline underline-offset-2 hover:text-amber-900">Voir les offres</a>.</>
+            }
+          </p>
+        </div>
+      )}
+
       {/* Résultat */}
       {result && 'data' in result && <AOResultDisplay data={result.data} meta={result.meta} />}
     </div>
