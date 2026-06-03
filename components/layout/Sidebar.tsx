@@ -48,6 +48,17 @@ function ListIcon({ active }: { active: boolean }) {
   )
 }
 
+function BuildingIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.2 : 1.8} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 22V4a2 2 0 012-2h8a2 2 0 012 2v18" />
+      <path d="M6 12H4a2 2 0 00-2 2v6a2 2 0 002 2h2" />
+      <path d="M18 9h2a2 2 0 012 2v9a2 2 0 01-2 2h-2" />
+      <path d="M10 6h4M10 10h4M10 14h4M10 18h4" />
+    </svg>
+  )
+}
+
 function SettingsIcon() {
   return (
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -79,6 +90,13 @@ const mainLinks = [
     description: 'Historique',
     href: '/dashboard/mes-analyses',
     icon: (active: boolean) => <ListIcon active={active} />,
+  },
+  {
+    id: 'mon-entreprise',
+    label: 'Mon entreprise',
+    description: 'Profil Go / No-Go',
+    href: '/dashboard/mon-entreprise',
+    icon: (active: boolean) => <BuildingIcon active={active} />,
   },
 ]
 
