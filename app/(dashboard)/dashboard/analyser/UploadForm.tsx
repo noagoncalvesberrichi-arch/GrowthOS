@@ -50,8 +50,8 @@ function AOResultDisplay({ data, meta }: { data: AOResult; meta: AOMetadata }) {
       <Section title="Dates clés">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[
-            { label: 'Limite remise offres', value: data.dates_cles.limite_remise_offres },
-            { label: 'Visite du site', value: data.dates_cles.visite_site },
+            { label: 'Limite remise offres', value: data.dates_cles.date_limite_offres },
+            { label: 'Visite du site', value: data.dates_cles.visite },
             { label: 'Validité des offres', value: data.dates_cles.validite_offres },
           ].map(({ label, value }) => (
             <div key={label} className="bg-background border border-border rounded-lg p-3">
@@ -60,6 +60,16 @@ function AOResultDisplay({ data, meta }: { data: AOResult; meta: AOMetadata }) {
             </div>
           ))}
         </div>
+        {data.dates_cles.autres_dates.length > 0 && (
+          <div className="mt-4 space-y-1.5">
+            {data.dates_cles.autres_dates.map(({ libelle, date }) => (
+              <div key={libelle} className="flex items-baseline justify-between gap-4 py-1 border-b border-border last:border-0">
+                <p className="font-syne text-[12px] text-text-muted">{libelle}</p>
+                <p className="font-syne text-[12px] font-semibold text-text shrink-0">{date}</p>
+              </div>
+            ))}
+          </div>
+        )}
       </Section>
 
       {/* Lots */}

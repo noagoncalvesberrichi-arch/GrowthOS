@@ -24,12 +24,21 @@ Retourne UNIQUEMENT ce JSON (toutes les clés sont requises, utilise null si l'i
   ],
   "pieces_a_fournir": ["string"],
   "dates_cles": {
-    "limite_remise_offres": "string ou null — date et heure",
-    "visite_site": "string ou null",
-    "validite_offres": "string ou null"
+    "date_limite_offres": "string ou null — date ET heure limite de remise des offres uniquement",
+    "visite": "string ou null — visite du site préalable uniquement. Précise si obligatoire ou facultative. Si aucune visite prévue, mettre 'Aucune visite prévue'",
+    "validite_offres": "string ou null — durée de validité des offres",
+    "autres_dates": [
+      { "libelle": "string — ex: Réunion de lancement, Date de démarrage, Limite questions écrites, etc.", "date": "string" }
+    ]
   },
   "points_de_vigilance": ["string"]
-}`
+}
+
+RÈGLES STRICTES pour dates_cles :
+- date_limite_offres : UNIQUEMENT la date/heure de dépôt des offres. Pas de réunion, pas de visite.
+- visite : UNIQUEMENT la visite physique du site. Pas la réunion de lancement.
+- autres_dates : tout le reste (réunion de lancement, date prévisionnelle de démarrage, période de questions, notification du marché, etc.)
+- Ne duplique jamais une date dans plusieurs champs.`
 
 export type AOResult = {
   objet: string
@@ -39,9 +48,10 @@ export type AOResult = {
   criteres_notation: { critere: string; ponderation: string }[]
   pieces_a_fournir: string[]
   dates_cles: {
-    limite_remise_offres: string | null
-    visite_site: string | null
+    date_limite_offres: string | null
+    visite: string | null
     validite_offres: string | null
+    autres_dates: { libelle: string; date: string }[]
   }
   points_de_vigilance: string[]
 }
