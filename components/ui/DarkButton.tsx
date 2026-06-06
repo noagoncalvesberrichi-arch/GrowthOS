@@ -17,7 +17,7 @@ export function DarkButton({ href, children }: { href: string; children: React.R
     <Link
       href={href}
       className="group inline-flex items-center gap-2 font-syne font-bold text-[14px] text-white px-6 py-3 rounded-lg transition-colors duration-200"
-      style={{ backgroundColor: hovered ? '#043528' : '#064E3B' }}
+      style={{ backgroundColor: hovered ? '#1E40AF' : '#1D4ED8' }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >

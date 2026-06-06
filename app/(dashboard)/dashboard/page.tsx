@@ -29,7 +29,7 @@ export default async function DashboardPage() {
           className="group bg-surface border border-border hover:border-accent rounded-2xl p-7 transition-all duration-150 hover:shadow-card"
         >
           <div className="w-10 h-10 rounded-xl bg-accent-subtle flex items-center justify-center mb-5">
-            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-accent">
               <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
               <polyline points="14 2 14 8 20 8" />
               <line x1="12" y1="18" x2="12" y2="12" />
@@ -50,7 +50,7 @@ export default async function DashboardPage() {
           className="group bg-surface border border-border hover:border-accent rounded-2xl p-7 transition-all duration-150 hover:shadow-card"
         >
           <div className="w-10 h-10 rounded-xl bg-accent-subtle flex items-center justify-center mb-5">
-            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-accent">
               <line x1="8" y1="6" x2="21" y2="6" />
               <line x1="8" y1="12" x2="21" y2="12" />
               <line x1="8" y1="18" x2="21" y2="18" />

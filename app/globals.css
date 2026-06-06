@@ -21,7 +21,7 @@ body {
 ::-webkit-scrollbar-thumb:hover { background: #A1A1AA; }
 
 /* Selection */
-::selection { background: rgba(5, 150, 105, 0.15); color: #18181B; }
+::selection { background: rgba(37, 99, 235, 0.15); color: #18181B; }
 
 /* Number inputs */
 input[type=number]::-webkit-inner-spin-button,
@@ -31,7 +31,7 @@ input[type=number] { -moz-appearance: textfield; }
 /* Focus */
 * { outline: none; }
 *:focus-visible {
-  outline: 2px solid rgba(5, 150, 105, 0.5);
+  outline: 2px solid rgba(37, 99, 235, 0.5);
   outline-offset: 2px;
   border-radius: 6px;
 }
