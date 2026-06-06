@@ -30,6 +30,7 @@ const config: Config = {
       fontFamily: {
         syne: ['var(--font-syne)', 'system-ui', 'sans-serif'],
         mono: ['var(--font-space-mono)', 'monospace'],
+        fraunces: ['var(--font-fraunces)', 'Georgia', 'serif'],
       },
       keyframes: {
         fadeIn: {

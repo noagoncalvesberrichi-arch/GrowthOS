@@ -3,7 +3,41 @@ import Link from 'next/link'
 export const metadata = {
   title: "Stratly — Analysez vos appels d'offres en quelques minutes",
   description:
-    "Stratly analyse automatiquement vos dossiers de consultation, extrait les points clés et vous donne un avis Go/No-Go selon le profil de votre entreprise.",
+    "Stratly analyse automatiquement vos dossiers DCE, extrait les points clés et vous donne un avis Go/No-Go selon le profil de votre entreprise.",
+}
+
+// ─── Browser frame ────────────────────────────────────────────────────────────
+
+function BrowserFrame({
+  src,
+  alt,
+  maxHeight,
+  className = '',
+}: {
+  src: string
+  alt: string
+  maxHeight?: number
+  className?: string
+}) {
+  return (
+    <div className={`rounded-2xl overflow-hidden ${className}`}>
+      {/* macOS-style title bar */}
+      <div className="bg-[#E8EAED] px-4 py-2.5 flex items-center gap-3 border-b border-[#CDD0D6] shrink-0">
+        <div className="flex gap-1.5 shrink-0">
+          <div className="w-3 h-3 rounded-full bg-[#FF5F57]" />
+          <div className="w-3 h-3 rounded-full bg-[#FFBD2E]" />
+          <div className="w-3 h-3 rounded-full bg-[#28CA41]" />
+        </div>
+        <div className="flex-1 bg-white/80 rounded-md h-5 flex items-center px-3 overflow-hidden">
+          <span className="font-mono text-[10px] text-[#AAA] truncate">app.stratly.fr</span>
+        </div>
+      </div>
+      <div className="overflow-hidden" style={maxHeight ? { maxHeight } : undefined}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={src} alt={alt} className="w-full block" />
+      </div>
+    </div>
+  )
 }
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
@@ -23,7 +57,6 @@ function IconFile() {
       <polyline points="14 2 14 8 20 8" />
       <line x1="16" y1="13" x2="8" y2="13" />
       <line x1="16" y1="17" x2="8" y2="17" />
-      <polyline points="10 9 9 9 8 9" />
     </svg>
   )
 }
@@ -134,62 +167,87 @@ export default function HomePage() {
   return (
     <div>
 
-      {/* ── Hero ────────────────────────────────────────────────────────────── */}
+      {/* ── HERO — fond bleu nuit immersif ──────────────────────────────────── */}
       <section
-        className="px-6 pt-24 pb-32"
-        style={{ background: 'linear-gradient(to bottom, #ffffff 0%, #ffffff 55%, #ecfdf5 100%)' }}
+        className="relative overflow-hidden"
+        style={{ background: 'linear-gradient(135deg, #0C1647 0%, #1E3A8A 55%, #2563EB 100%)' }}
       >
-        <div className="max-w-4xl mx-auto">
-          <p className="font-syne text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-amber mb-8">
-            Pour les entreprises qui répondent à des appels d&apos;offres
-          </p>
-          <h1
-            className="font-syne font-extrabold text-text tracking-tight leading-[1.04] mb-7"
-            style={{ fontSize: 'clamp(2.4rem, 5.5vw, 4rem)' }}
-          >
-            Analysez un dossier<br className="hidden sm:block" />
-            d&apos;appel d&apos;offres en quelques minutes.
-          </h1>
-          <p className="font-syne text-[17px] md:text-[18px] text-text-muted leading-relaxed max-w-2xl mb-10">
-            Déposez vos PDFs. Stratly extrait l&apos;essentiel — objet du marché, critères de
-            notation, dates, pièces à fournir, points de vigilance — et vous donne un avis
-            Go&nbsp;/&nbsp;No-Go selon le profil de votre entreprise.
-          </p>
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-            <Link
-              href="/signup"
-              className="group relative inline-flex items-center gap-2 font-syne font-bold text-[15px] text-white bg-accent hover:bg-accent-dark px-7 py-3.5 rounded-xl transition-all duration-200 overflow-hidden shadow-card"
+        {/* Dot grid overlay */}
+        <div className="absolute inset-0 dot-grid opacity-[0.06] pointer-events-none" />
+        {/* Radial glow top-right */}
+        <div
+          className="absolute -top-32 -right-32 w-[640px] h-[640px] rounded-full blur-3xl opacity-25 pointer-events-none"
+          style={{ background: 'radial-gradient(circle, #60A5FA, transparent 70%)' }}
+        />
+
+        <div className="relative max-w-6xl mx-auto px-6 pt-16 pb-12 grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-start">
+
+          {/* Colonne texte */}
+          <div className="pt-6 lg:pt-10">
+            <p className="font-syne text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-amber mb-6">
+              Pour les entreprises qui répondent à des appels d&apos;offres
+            </p>
+            <h1
+              className="font-fraunces text-white tracking-tight leading-[1.08] mb-6"
+              style={{ fontSize: 'clamp(2.2rem, 4vw, 3.4rem)' }}
             >
-              <span
-                aria-hidden="true"
-                className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/15 to-transparent pointer-events-none"
-              />
-              <span className="relative">Essayer gratuitement</span>
-              <ArrowRight />
-            </Link>
-            <Link
-              href="/pricing"
-              className="font-syne text-[14px] font-semibold text-text-muted hover:text-text transition-colors duration-150"
-            >
-              Voir les tarifs →
-            </Link>
+              Analysez un dossier d&apos;appel d&apos;offres en quelques minutes.
+            </h1>
+            <p className="font-syne text-[17px] text-white/70 leading-relaxed mb-10 max-w-lg">
+              Déposez vos PDFs. Stratly extrait l&apos;essentiel — objet du marché, critères de
+              notation, dates, pièces à fournir — et vous donne un avis Go&nbsp;/&nbsp;No-Go
+              selon le profil de votre entreprise.
+            </p>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+              <Link
+                href="/signup"
+                className="group relative inline-flex items-center gap-2 font-syne font-bold text-[15px] bg-brand-amber hover:bg-brand-amber-dark text-[#1E3A8A] px-7 py-3.5 rounded-xl transition-all duration-200 overflow-hidden shadow-[0_4px_24px_rgba(217,119,6,0.35)]"
+              >
+                <span
+                  aria-hidden="true"
+                  className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none"
+                />
+                <span className="relative">Essayer gratuitement</span>
+                <ArrowRight />
+              </Link>
+              <Link
+                href="/pricing"
+                className="font-syne text-[14px] font-semibold text-white/55 hover:text-white transition-colors duration-150"
+              >
+                Voir les tarifs →
+              </Link>
+            </div>
+            <p className="font-syne text-[12px] text-white/30 mt-5">
+              3 analyses offertes · Sans carte bancaire
+            </p>
           </div>
-          <p className="font-syne text-[12px] text-text-subtle mt-5">
-            3 analyses offertes · Sans carte bancaire
-          </p>
+
+          {/* Colonne image vedette — Go/No-Go */}
+          <div className="lg:pt-10 lg:pb-0 pb-4">
+            <BrowserFrame
+              src="/screenshots/screenshot-gonogo.png"
+              alt="Verdict Go/No-Go — score 85/100 avec détail des critères"
+              maxHeight={460}
+              className="-rotate-1 shadow-[0_24px_80px_rgba(37,99,235,0.5)]"
+            />
+          </div>
         </div>
       </section>
 
-      {/* ── Le problème ─────────────────────────────────────────────────────── */}
-      <section className="bg-white py-24 px-6">
+      {/* ── LE PROBLÈME — fond bleu très clair ──────────────────────────────── */}
+      <section className="py-24 px-6" style={{ backgroundColor: '#EEF2FF' }}>
         <div className="max-w-4xl mx-auto">
           <p className="font-syne text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-amber mb-4">
             Le problème
           </p>
-          <h2 className="font-syne text-[30px] md:text-[38px] font-extrabold text-text tracking-tight leading-tight mb-14 max-w-2xl">
+          <h2
+            className="font-fraunces text-text tracking-tight leading-tight mb-14 max-w-2xl"
+            style={{ fontSize: 'clamp(1.8rem, 3vw, 2.5rem)' }}
+          >
             Un dossier d&apos;AO, c&apos;est du temps que vous n&apos;avez pas.
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-10 mb-16">
             {[
               {
                 num: '01',
@@ -208,7 +266,7 @@ export default function HomePage() {
               },
             ].map((item) => (
               <div key={item.num}>
-                <p className="font-syne font-extrabold text-[52px] leading-none text-[#E8E8E8] select-none mb-5">
+                <p className="font-fraunces font-bold text-[48px] leading-none text-accent/15 select-none mb-5">
                   {item.num}
                 </p>
                 <h3 className="font-syne text-[16px] font-bold text-text mb-2 leading-snug">
@@ -218,53 +276,80 @@ export default function HomePage() {
               </div>
             ))}
           </div>
+
+          {/* Illustration — points de vigilance */}
+          <BrowserFrame
+            src="/screenshots/screenshot-vigilance.png"
+            alt="Points de vigilance extraits automatiquement du DCE"
+            maxHeight={340}
+            className="rotate-[0.4deg] shadow-[0_16px_56px_rgba(37,99,235,0.14)]"
+          />
+          <p className="font-syne text-[11px] text-text-subtle text-center mt-3">
+            Exemple de points de vigilance extraits automatiquement
+          </p>
         </div>
       </section>
 
-      {/* ── Comment ça marche ───────────────────────────────────────────────── */}
-      <section className="py-24 px-6" style={{ backgroundColor: '#FAFAFA' }}>
+      {/* ── COMMENT ÇA MARCHE — fond bleu nuit ──────────────────────────────── */}
+      <section className="py-24 px-6" style={{ backgroundColor: '#0F1B4D' }}>
         <div className="max-w-5xl mx-auto">
-          <div className="mb-16">
-            <p className="font-syne text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-amber mb-4">
-              Fonctionnement
-            </p>
-            <h2 className="font-syne text-[30px] md:text-[38px] font-extrabold text-text tracking-tight leading-tight">
-              Trois étapes, c&apos;est tout.
-            </h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
+          <p className="font-syne text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-amber mb-4">
+            Fonctionnement
+          </p>
+          <h2
+            className="font-fraunces text-white tracking-tight leading-tight mb-16"
+            style={{ fontSize: 'clamp(1.8rem, 3vw, 2.5rem)' }}
+          >
+            Trois étapes, c&apos;est tout.
+          </h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-12 mb-16">
             {steps.map((step) => (
               <div key={step.num}>
-                <p className="font-syne font-extrabold text-[60px] leading-none text-[#E8E8E8] select-none tabular-nums">
+                <p className="font-fraunces font-bold text-[56px] leading-none text-white/10 select-none tabular-nums">
                   {step.num}
                 </p>
-                <div className="w-10 h-10 rounded-xl bg-accent-subtle text-accent flex items-center justify-center mt-4 mb-5">
+                <div className="w-10 h-10 rounded-xl bg-white/10 text-white flex items-center justify-center mt-4 mb-5">
                   {step.icon}
                 </div>
-                <h3 className="font-syne text-[17px] font-bold text-text mb-2">{step.title}</h3>
-                <p className="font-syne text-[13px] text-text-muted leading-relaxed">{step.sub}</p>
+                <h3 className="font-syne text-[17px] font-bold text-white mb-2">{step.title}</h3>
+                <p className="font-syne text-[13px] text-white/55 leading-relaxed">{step.sub}</p>
               </div>
             ))}
           </div>
+
+          {/* Illustration — dates clés */}
+          <div className="max-w-2xl mx-auto">
+            <BrowserFrame
+              src="/screenshots/screenshot-dates.png"
+              alt="Dates clés extraites du DCE — limite de remise, visite, validité des offres"
+              className="-rotate-[0.3deg] shadow-[0_16px_56px_rgba(0,0,0,0.45)]"
+            />
+            <p className="font-syne text-[11px] text-white/30 text-center mt-3">
+              Exemple de dates clés extraites automatiquement
+            </p>
+          </div>
         </div>
       </section>
 
-      {/* ── Bénéfices ───────────────────────────────────────────────────────── */}
-      <section className="bg-white py-24 px-6">
+      {/* ── BÉNÉFICES — fond blanc ───────────────────────────────────────────── */}
+      <section className="py-24 px-6 bg-white">
         <div className="max-w-5xl mx-auto">
-          <div className="mb-14">
-            <p className="font-syne text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-amber mb-4">
-              Pourquoi Stratly
-            </p>
-            <h2 className="font-syne text-[30px] md:text-[38px] font-extrabold text-text tracking-tight leading-tight">
-              Ce qu&apos;on vous fait gagner.
-            </h2>
-          </div>
+          <p className="font-syne text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-amber mb-4">
+            Pourquoi Stratly
+          </p>
+          <h2
+            className="font-fraunces text-text tracking-tight leading-tight mb-14"
+            style={{ fontSize: 'clamp(1.8rem, 3vw, 2.5rem)' }}
+          >
+            Ce qu&apos;on vous fait gagner.
+          </h2>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {benefits.map((b) => (
               <div
                 key={b.title}
-                className="bg-surface border border-[#EBEBEB] rounded-2xl p-7 hover:shadow-[0_4px_24px_rgba(0,0,0,0.07)] hover:border-[#D5D5D5] transition-all duration-300"
+                className="bg-surface border border-[#E8ECFF] rounded-2xl p-7 hover:shadow-[0_8px_32px_rgba(37,99,235,0.1)] hover:border-accent/30 transition-all duration-300"
               >
                 <div className="w-10 h-10 rounded-xl bg-accent-subtle text-accent flex items-center justify-center mb-5">
                   {b.icon}
@@ -277,18 +362,22 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── CTA final ───────────────────────────────────────────────────────── */}
+      {/* ── CTA FINAL — bleu roi foncé ───────────────────────────────────────── */}
       <section
-        className="py-28 px-6"
+        className="py-28 px-6 relative overflow-hidden"
         style={{ background: 'linear-gradient(160deg, #0F1B4D 0%, #1E3A8A 55%, #2563EB 100%)' }}
       >
-        <div className="max-w-4xl mx-auto">
-          <p className="font-syne text-[11px] font-semibold uppercase tracking-[0.16em] text-white/40 mb-8">
+        <div
+          className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[800px] h-[300px] blur-3xl opacity-20 pointer-events-none"
+          style={{ background: 'radial-gradient(ellipse, #93C5FD, transparent 70%)' }}
+        />
+        <div className="relative max-w-4xl mx-auto">
+          <p className="font-syne text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-amber mb-8">
             Sans engagement
           </p>
           <h2
-            className="font-syne font-extrabold text-white tracking-tight leading-[1.04] mb-6 max-w-2xl"
-            style={{ fontSize: 'clamp(1.9rem, 4vw, 3.2rem)' }}
+            className="font-fraunces text-white tracking-tight leading-[1.08] mb-6 max-w-2xl"
+            style={{ fontSize: 'clamp(1.9rem, 4vw, 3rem)' }}
           >
             Essayez gratuitement,<br className="hidden sm:block" /> sans engagement.
           </h2>
@@ -297,12 +386,12 @@ export default function HomePage() {
           </p>
           <Link
             href="/signup"
-            className="inline-flex items-center gap-2 font-syne font-bold text-[14px] text-[#1E3A8A] bg-white hover:bg-white/92 px-7 py-3.5 rounded-xl transition-colors duration-200 shadow-[0_2px_12px_rgba(0,0,0,0.2)]"
+            className="inline-flex items-center gap-2 font-syne font-bold text-[14px] text-[#1E3A8A] bg-white hover:bg-white/92 px-7 py-3.5 rounded-xl transition-colors duration-200 shadow-[0_2px_16px_rgba(0,0,0,0.25)]"
           >
             Démarrer maintenant
             <ArrowRight />
           </Link>
-          <p className="font-syne text-[12px] text-white/35 mt-5">
+          <p className="font-syne text-[12px] text-white/30 mt-5">
             3 analyses offertes · Sans carte bancaire · Annulable à tout moment
           </p>
         </div>
