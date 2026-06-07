@@ -52,7 +52,7 @@ function AccountDropdown({
   onClose: () => void
 }) {
   const dropdownLinks = [
-    { href: '/dashboard', label: 'Mon espace', icon: (
+    { href: '/dashboard', label: 'Analyse', icon: (
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
       </svg>
@@ -205,7 +205,7 @@ export function TopNav() {
                   href="/dashboard"
                   className="font-syne text-[14px] font-semibold text-text-muted hover:text-text px-4 py-2 rounded-lg transition-colors duration-150"
                 >
-                  Mon espace
+                  Analyse
                 </Link>
                 <div ref={dropdownRef} className="relative">
                   <button
@@ -309,7 +309,7 @@ export function TopNav() {
                       </p>
                       <div className="space-y-1">
                         {[
-                          { href: '/dashboard', label: 'Mon espace' },
+                          { href: '/dashboard', label: 'Analyse' },
                           { href: '/dashboard/mon-entreprise', label: 'Mon entreprise' },
                         ].map((item) => (
                           <Link
