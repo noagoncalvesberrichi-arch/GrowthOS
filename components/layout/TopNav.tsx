@@ -109,6 +109,7 @@ function AccountDropdown({
 const NAV_LINKS = [
   { href: '/', label: 'Accueil' },
   { href: '/pricing', label: 'Tarifs' },
+  { href: '/faq', label: 'FAQ' },
 ]
 
 export function TopNav() {
