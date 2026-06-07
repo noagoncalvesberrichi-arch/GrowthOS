@@ -50,9 +50,9 @@ function BuildingIcon({ active }: { active: boolean }) {
   )
 }
 
-function SettingsIcon() {
+function SettingsIcon({ active }: { active: boolean }) {
   return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.2 : 1.8} strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="12" r="3" />
       <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
     </svg>
@@ -169,16 +169,15 @@ export function Sidebar() {
               )
             })}
             <li>
-              <div className="relative flex items-center gap-3 px-3 py-2.5 rounded-lg border-l-[3px] border-transparent opacity-40 cursor-not-allowed pl-[9px]">
-                <span className="shrink-0 text-white/35"><SettingsIcon /></span>
-                <div className="min-w-0 flex-1">
-                  <p className="font-syne text-[13px] font-semibold leading-none text-white/60">Paramètres</p>
-                  <p className="font-syne text-[11px] text-white/30 mt-0.5 truncate">Compte &amp; profil</p>
-                </div>
-                <span className="font-syne text-[9px] font-bold text-white/30 bg-white/8 border border-white/12 px-1.5 py-0.5 rounded-full shrink-0">
-                  Bientôt
+              <Link href="/dashboard/parametres" onClick={onClose} className={navItemClass(isActive('/dashboard/parametres'))}>
+                <span className={iconClass(isActive('/dashboard/parametres'))}>
+                  <SettingsIcon active={isActive('/dashboard/parametres')} />
                 </span>
-              </div>
+                <div className="min-w-0">
+                  <p className="font-syne text-[13px] font-semibold leading-none">Paramètres</p>
+                  <p className="font-syne text-[11px] text-white/30 mt-0.5">Compte &amp; profil</p>
+                </div>
+              </Link>
             </li>
           </ul>
         </div>
