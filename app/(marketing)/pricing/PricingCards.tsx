@@ -71,11 +71,11 @@ export function PricingCards({ success, canceled }: { success: boolean; canceled
         </div>
       )}
 
-      {/* Cards — 2 colonnes */}
+      {/* Cards */}
       <div className="max-w-2xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
 
         {/* Gratuit */}
-        <div className="bg-surface border border-border rounded-2xl p-7 flex flex-col">
+        <div className="bg-surface border border-border rounded-2xl p-5 md:p-7 flex flex-col">
           <div className="mb-5">
             <h2 className="font-fraunces text-[22px] text-text">Gratuit</h2>
             <p className="font-syne text-[13px] text-text-muted mt-0.5">Pour découvrir Stratly</p>
@@ -99,19 +99,18 @@ export function PricingCards({ success, canceled }: { success: boolean; canceled
           </div>
         </div>
 
-        {/* Pro — carte vedette avec header sombre */}
+        {/* Pro */}
         <div className="rounded-2xl overflow-hidden border-2 border-accent shadow-[0_8px_40px_rgba(37,99,235,0.2)] flex flex-col">
 
           {/* Header sombre avec toggle */}
           <div
-            className="px-7 pt-6 pb-6"
+            className="px-5 pt-5 pb-5 md:px-7 md:pt-6 md:pb-6"
             style={{ background: 'linear-gradient(135deg, #0F1B4D, #1E3A8A)' }}
           >
             <p className="font-syne text-[10px] font-bold text-white/40 uppercase tracking-widest mb-5">
               ✦ Stratly Pro
             </p>
 
-            {/* Toggle mensuel / annuel */}
             <div className="flex items-center gap-3 mb-6">
               <span className={`font-syne text-[13px] font-semibold transition-colors ${billing === 'mensuel' ? 'text-white' : 'text-white/45'}`}>
                 Mensuel
@@ -132,10 +131,9 @@ export function PricingCards({ success, canceled }: { success: boolean; canceled
               </span>
             </div>
 
-            {/* Prix */}
             <div>
               <div className="flex items-baseline gap-1.5">
-                <span className="font-fraunces text-[48px] font-bold text-white leading-none tracking-tight">
+                <span className="font-fraunces text-[40px] md:text-[48px] font-bold text-white leading-none tracking-tight">
                   {billing === 'mensuel' ? '150€' : '125€'}
                 </span>
                 <span className="font-syne text-[14px] text-white/55">/mois</span>
@@ -149,7 +147,7 @@ export function PricingCards({ success, canceled }: { success: boolean; canceled
           </div>
 
           {/* Body */}
-          <div className="p-7 bg-surface flex flex-col flex-1">
+          <div className="p-5 md:p-7 bg-surface flex flex-col flex-1">
             <ul className="space-y-3 flex-1 mb-7">
               {proFeatures.map((f) => (
                 <li key={f} className="flex items-start gap-2.5">
@@ -174,7 +172,7 @@ export function PricingCards({ success, canceled }: { success: boolean; canceled
       </div>
 
       {/* Trust badges */}
-      <div className="max-w-2xl mx-auto flex flex-wrap items-center justify-center gap-6 pt-2">
+      <div className="max-w-2xl mx-auto flex flex-wrap items-center justify-center gap-4 sm:gap-6 pt-2">
         {[
           { icon: '🔒', text: 'Paiement sécurisé par Stripe' },
           { icon: '↩', text: 'Sans engagement (mensuel)' },

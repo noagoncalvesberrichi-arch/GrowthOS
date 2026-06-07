@@ -19,8 +19,8 @@ export function Footer() {
       className="border-t border-white/8"
       style={{ background: 'linear-gradient(180deg, #0F1B4D 0%, #0C1647 100%)' }}
     >
-      <div className="max-w-6xl mx-auto px-8 pt-14 pb-10">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-10 mb-12">
+      <div className="max-w-6xl mx-auto px-5 sm:px-8 pt-10 pb-8 md:pt-14 md:pb-10">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8 md:gap-10 md:mb-12">
 
           {/* Brand */}
           <div>

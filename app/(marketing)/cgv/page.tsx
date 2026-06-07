@@ -21,7 +21,7 @@ export default function CgvPage() {
 
       {/* Header */}
       <section
-        className="relative overflow-hidden py-20 px-6 text-center"
+        className="relative overflow-hidden py-14 px-5 sm:px-6 md:py-20 text-center"
         style={{ background: 'linear-gradient(135deg, #0C1647 0%, #1E3A8A 55%, #2563EB 100%)' }}
       >
         <div className="absolute inset-0 dot-grid opacity-[0.06] pointer-events-none" />
@@ -39,7 +39,7 @@ export default function CgvPage() {
       </section>
 
       {/* Content */}
-      <section className="py-14 px-6">
+      <section className="py-10 px-5 sm:px-6 md:py-14">
         <div className="max-w-2xl mx-auto">
 
           <p className="font-syne text-[14px] text-text-muted leading-relaxed mb-10 border-l-4 border-brand-amber/40 pl-4">
@@ -80,7 +80,8 @@ export default function CgvPage() {
 
           <Section num="4" title="Offres et tarification">
             <p>Les offres disponibles sont les suivantes :</p>
-            <div className="bg-surface border border-border rounded-xl overflow-hidden">
+            <div className="overflow-x-auto">
+            <div className="bg-surface border border-border rounded-xl overflow-hidden min-w-[480px]">
               <table className="w-full text-[13px]">
                 <thead>
                   <tr className="border-b border-border">
@@ -107,6 +108,7 @@ export default function CgvPage() {
                   </tr>
                 </tbody>
               </table>
+            </div>
             </div>
             <p>
               Les prix s&apos;entendent hors taxes (HT). La TVA applicable est ajoutée au taux en vigueur au moment de la facturation. [RAISON SOCIALE] se réserve le droit de modifier ses tarifs à tout moment, avec un préavis d&apos;au moins 30 jours pour les abonnés actifs.

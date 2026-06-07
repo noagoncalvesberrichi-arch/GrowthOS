@@ -28,7 +28,7 @@ export default function MentionsLegalesPage() {
 
       {/* Header */}
       <section
-        className="relative overflow-hidden py-20 px-6 text-center"
+        className="relative overflow-hidden py-14 px-5 sm:px-6 md:py-20 text-center"
         style={{ background: 'linear-gradient(135deg, #0C1647 0%, #1E3A8A 55%, #2563EB 100%)' }}
       >
         <div className="absolute inset-0 dot-grid opacity-[0.06] pointer-events-none" />
@@ -46,7 +46,7 @@ export default function MentionsLegalesPage() {
       </section>
 
       {/* Content */}
-      <section className="py-14 px-6">
+      <section className="py-10 px-5 sm:px-6 md:py-14">
         <div className="max-w-2xl mx-auto">
 
           <Section title="Éditeur du site">

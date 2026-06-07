@@ -14,7 +14,7 @@ export default async function PricingPage({
 
       {/* Header — dark gradient */}
       <section
-        className="relative overflow-hidden py-20 px-6 text-center"
+        className="relative overflow-hidden py-14 px-5 sm:px-6 md:py-20 text-center"
         style={{ background: 'linear-gradient(135deg, #0C1647 0%, #1E3A8A 55%, #2563EB 100%)' }}
       >
         <div className="absolute inset-0 dot-grid opacity-[0.06] pointer-events-none" />
@@ -39,7 +39,7 @@ export default async function PricingPage({
       </section>
 
       {/* Plans */}
-      <section className="py-16 px-6">
+      <section className="py-12 px-5 sm:px-6 md:py-16">
         <PricingCards
           success={params.success === 'true'}
           canceled={params.canceled === 'true'}
@@ -47,12 +47,12 @@ export default async function PricingPage({
       </section>
 
       {/* FAQ */}
-      <section className="py-14 px-6 bg-surface border-t border-border">
+      <section className="py-10 px-5 sm:px-6 md:py-14 bg-surface border-t border-border">
         <div className="max-w-2xl mx-auto">
           <p className="font-syne text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-amber mb-4 text-center">
             FAQ
           </p>
-          <h2 className="font-fraunces text-[28px] text-text text-center mb-10">Questions fréquentes</h2>
+          <h2 className="font-fraunces text-[22px] md:text-[28px] text-text text-center mb-8 md:mb-10">Questions fréquentes</h2>
           <div className="space-y-0 divide-y divide-border">
             {[
               {

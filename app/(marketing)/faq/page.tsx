@@ -45,7 +45,7 @@ function FaqItem({ q, a, open, onToggle }: { q: string; a: string; open: boolean
         onClick={onToggle}
         className="w-full flex items-center justify-between gap-4 py-5 text-left"
       >
-        <span className="font-syne text-[15px] font-semibold text-text leading-snug">{q}</span>
+        <span className="font-syne text-[14px] sm:text-[15px] font-semibold text-text leading-snug">{q}</span>
         <span
           className="shrink-0 w-6 h-6 rounded-full border border-border flex items-center justify-center text-text-muted transition-transform duration-200"
           style={{ transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }}
@@ -55,13 +55,12 @@ function FaqItem({ q, a, open, onToggle }: { q: string; a: string; open: boolean
           </svg>
         </span>
       </button>
-      {/* Grid trick for smooth height animation */}
       <div
         className="grid transition-all duration-200 ease-in-out"
         style={{ gridTemplateRows: open ? '1fr' : '0fr' }}
       >
         <div className="overflow-hidden">
-          <p className="font-syne text-[14px] text-text-muted leading-relaxed pb-5 max-w-2xl">{a}</p>
+          <p className="font-syne text-[13px] sm:text-[14px] text-text-muted leading-relaxed pb-5 max-w-2xl">{a}</p>
         </div>
       </div>
     </div>
@@ -78,7 +77,7 @@ export default function FaqPage() {
 
       {/* Header */}
       <section
-        className="relative overflow-hidden py-20 px-6 text-center"
+        className="relative overflow-hidden py-14 px-5 sm:px-6 md:py-20 text-center"
         style={{ background: 'linear-gradient(135deg, #0C1647 0%, #1E3A8A 55%, #2563EB 100%)' }}
       >
         <div className="absolute inset-0 dot-grid opacity-[0.06] pointer-events-none" />
@@ -88,18 +87,18 @@ export default function FaqPage() {
           </p>
           <h1
             className="font-fraunces text-white tracking-tight leading-tight mb-4"
-            style={{ fontSize: 'clamp(2rem, 4vw, 3rem)' }}
+            style={{ fontSize: 'clamp(1.75rem, 4vw, 3rem)' }}
           >
             Questions fréquentes
           </h1>
-          <p className="font-syne text-[16px] text-white/65 max-w-lg mx-auto">
+          <p className="font-syne text-[15px] sm:text-[16px] text-white/65 max-w-lg mx-auto">
             Tout ce que vous devez savoir sur Stratly.
           </p>
         </div>
       </section>
 
       {/* Accordion */}
-      <section className="py-16 px-6">
+      <section className="py-10 px-5 sm:px-6 md:py-16">
         <div className="max-w-2xl mx-auto">
           {faqs.map((faq, i) => (
             <FaqItem
@@ -114,10 +113,10 @@ export default function FaqPage() {
       </section>
 
       {/* CTA */}
-      <section className="py-14 px-6 bg-surface border-t border-border text-center">
+      <section className="py-10 px-5 sm:px-6 md:py-14 bg-surface border-t border-border text-center">
         <div className="max-w-md mx-auto">
-          <p className="font-fraunces text-[22px] text-text mb-2">Vous avez une autre question ?</p>
-          <p className="font-syne text-[14px] text-text-muted mb-6">
+          <p className="font-fraunces text-[20px] sm:text-[22px] text-text mb-2">Vous avez une autre question ?</p>
+          <p className="font-syne text-[13px] sm:text-[14px] text-text-muted mb-6">
             Contactez-nous ou essayez Stratly directement avec vos premiers dossiers.
           </p>
           <Link
