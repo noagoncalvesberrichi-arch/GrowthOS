@@ -26,7 +26,13 @@ export default function LoginPage() {
       return
     }
 
-    router.push('/dashboard')
+    // Redirect to onboarding if no company profile yet
+    const { data: profil } = await supabase
+      .from('profil_entreprise')
+      .select('id')
+      .maybeSingle()
+
+    router.push(profil ? '/dashboard' : '/dashboard/mon-entreprise')
     router.refresh()
   }
 

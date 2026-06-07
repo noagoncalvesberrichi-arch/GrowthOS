@@ -33,7 +33,8 @@ export default function SignupPage() {
       return
     }
 
-    router.push('/dashboard')
+    // New users always go to onboarding (no profile exists yet)
+    router.push('/dashboard/mon-entreprise')
     router.refresh()
   }
 
