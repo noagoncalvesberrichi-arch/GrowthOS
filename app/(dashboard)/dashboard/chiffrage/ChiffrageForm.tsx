@@ -149,8 +149,15 @@ export function ChiffrageForm() {
     const fd = new FormData()
     files.forEach(f => fd.append('files', f))
     startTransition(async () => {
-      const res = await extractionNomenclature(fd)
-      setResult(res)
+      try {
+        const res = await extractionNomenclature(fd)
+        setResult(res)
+      } catch {
+        setResult({
+          error:
+            "L'extraction a expiré ou une erreur réseau s'est produite. Si le document est volumineux, isolez les pages de nomenclature dans un PDF séparé et réessayez.",
+        })
+      }
     })
   }
 
@@ -187,14 +194,17 @@ export function ChiffrageForm() {
           </div>
 
           {isPending ? (
-            <p className="font-syne text-[14px] font-semibold text-text">Extraction en cours…</p>
+            <>
+              <p className="font-syne text-[14px] font-semibold text-text">Lecture du document en cours…</p>
+              <p className="font-syne text-[12px] text-text-subtle mt-1">Cela peut prendre quelques secondes</p>
+            </>
           ) : (
             <>
               <p className="font-syne text-[14px] font-semibold text-text">
                 {files.length > 0 ? "Ajouter d'autres fichiers" : 'Dépose ton PDF de nomenclature ici ou clique pour sélectionner'}
               </p>
               <p className="font-syne text-[12px] text-text-subtle mt-1">
-                PDF avec texte sélectionnable · tableau REPÈRE / QTÉ / DÉSIGNATION
+                PDF texte ou image · Si gros dossier : isoler les pages de nomenclature dans un PDF séparé
               </p>
             </>
           )}
@@ -281,6 +291,11 @@ export function ChiffrageForm() {
                 </span>
                 {result.data.length} ligne{result.data.length > 1 ? 's' : ''} extraite{result.data.length > 1 ? 's' : ''}
               </span>
+              {result.mode_vision && (
+                <span className="font-syne text-[11px] font-semibold text-accent bg-accent-subtle px-2 py-0.5 rounded-full">
+                  Vision IA
+                </span>
+              )}
               {result.fichiers_illisibles.length > 0 && (
                 <span className="font-syne text-[12px] text-amber-600">
                   ⚠ {result.fichiers_illisibles.length} fichier{result.fichiers_illisibles.length > 1 ? 's' : ''} illisible{result.fichiers_illisibles.length > 1 ? 's' : ''} ignoré{result.fichiers_illisibles.length > 1 ? 's' : ''}

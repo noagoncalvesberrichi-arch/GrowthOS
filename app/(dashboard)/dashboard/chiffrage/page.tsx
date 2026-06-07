@@ -1,5 +1,7 @@
 import { ChiffrageForm } from './ChiffrageForm'
 
+export const maxDuration = 60
+
 export const metadata = { title: 'Chiffrage — Stratly' }
 
 export default function ChiffragePage() {
