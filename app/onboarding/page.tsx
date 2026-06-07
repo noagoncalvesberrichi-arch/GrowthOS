@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { MonEntrepriseForm } from '@/app/(dashboard)/dashboard/mon-entreprise/MonEntrepriseForm'
 import type { ProfilEntreprise } from '@/app/(dashboard)/dashboard/mon-entreprise/actions'
+import { Logo } from '@/components/Logo'
 
 export const metadata = { title: 'Configurer mon entreprise — Stratly' }
 
@@ -26,13 +27,8 @@ export default async function OnboardingPage() {
 
       {/* Top bar — logo seul */}
       <div className="px-8 py-6 flex items-center justify-center border-b border-[#D8E3FF]/60">
-        <Link href="/" className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-accent flex items-center justify-center shrink-0">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <path d="M2 11L5 5.5L8 8.5L10 5.5L12.5 11" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </div>
-          <span className="font-fraunces font-bold text-[17px] text-text tracking-tight">Stratly</span>
+        <Link href="/" className="flex items-center">
+          <Logo />
         </Link>
       </div>
 

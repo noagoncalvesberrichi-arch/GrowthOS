@@ -4,22 +4,13 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { Logo } from '@/components/Logo'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type AuthState = 'loading' | { email: string } | null
 
 // ─── Atoms ────────────────────────────────────────────────────────────────────
-
-function LogoMark() {
-  return (
-    <div className="w-7 h-7 rounded-lg bg-accent flex items-center justify-center shrink-0">
-      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-        <path d="M2 11L5 5.5L8 8.5L10 5.5L12.5 11" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    </div>
-  )
-}
 
 function HamburgerIcon() {
   return (
@@ -182,9 +173,8 @@ export function TopNav() {
         <div className="max-w-6xl mx-auto px-6 h-full flex items-center justify-between">
 
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2.5 shrink-0">
-            <LogoMark />
-            <span className="font-fraunces font-bold text-[17px] text-text tracking-tight">Stratly</span>
+          <Link href="/" className="flex items-center shrink-0">
+            <Logo />
           </Link>
 
           {/* Desktop nav */}
@@ -271,9 +261,8 @@ export function TopNav() {
 
             {/* Panel header */}
             <div className="h-16 px-6 flex items-center justify-between border-b border-border shrink-0">
-              <Link href="/" onClick={() => setMobileOpen(false)} className="flex items-center gap-2.5">
-                <LogoMark />
-                <span className="font-fraunces font-bold text-[17px] text-text">Stratly</span>
+              <Link href="/" onClick={() => setMobileOpen(false)} className="flex items-center">
+                <Logo />
               </Link>
               <button
                 onClick={() => setMobileOpen(false)}

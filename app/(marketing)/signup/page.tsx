@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { Logo } from '@/components/Logo'
 
 export default function SignupPage() {
   const router = useRouter()
@@ -50,9 +51,7 @@ export default function SignupPage() {
         {/* Header */}
         <div className="px-8 pt-8 pb-6 border-b border-[#EEF2FF] text-center">
           <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center mx-auto mb-4">
-            <svg width="18" height="18" viewBox="0 0 14 14" fill="none">
-              <path d="M2 11L5 5.5L8 8.5L10 5.5L12.5 11" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
+            <Logo symbolOnly variant="onAccent" />
           </div>
           <h1 className="font-fraunces text-[26px] text-text tracking-tight">Créer votre compte</h1>
           <p className="font-syne text-[13px] text-text-muted mt-1">3 analyses offertes — sans carte bancaire.</p>

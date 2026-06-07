@@ -4,16 +4,7 @@ import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-
-function LogoMark() {
-  return (
-    <div className="w-8 h-8 rounded-lg bg-white/15 border border-white/20 flex items-center justify-center shrink-0">
-      <svg width="15" height="15" viewBox="0 0 14 14" fill="none">
-        <path d="M2 11L5 5.5L8 8.5L10 5.5L12.5 11" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    </div>
-  )
-}
+import { Logo } from '@/components/Logo'
 
 function HomeIcon({ active }: { active: boolean }) {
   return (
@@ -137,9 +128,8 @@ export function Sidebar() {
     >
       {/* Logo */}
       <div className="px-5 py-5 border-b border-white/8">
-        <Link href="/" className="flex items-center gap-2.5">
-          <LogoMark />
-          <p className="font-fraunces font-bold text-[17px] text-white tracking-tight leading-none">Stratly</p>
+        <Link href="/" className="flex items-center">
+          <Logo variant="dark" />
         </Link>
       </div>
 
