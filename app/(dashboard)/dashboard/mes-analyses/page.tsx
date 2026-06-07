@@ -19,14 +19,14 @@ export default async function MesAnalysesPage() {
     .order('created_at', { ascending: false }) as { data: AnalyseRow[] | null }
 
   return (
-    <div className="max-w-3xl mx-auto px-8 py-14">
+    <div className="max-w-3xl mx-auto px-4 py-10 sm:px-8 sm:py-14">
 
       {/* Header */}
       <div className="mb-8">
         <p className="font-syne text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-amber mb-3">
           Historique
         </p>
-        <h1 className="font-fraunces text-[32px] text-text tracking-tight leading-tight">
+        <h1 className="font-fraunces text-[26px] sm:text-[32px] text-text tracking-tight leading-tight">
           Mes analyses
         </h1>
         <p className="font-syne text-[14px] text-text-muted mt-1.5">
@@ -35,7 +35,7 @@ export default async function MesAnalysesPage() {
       </div>
 
       {!analyses || analyses.length === 0 ? (
-        <div className="bg-surface border border-border rounded-2xl px-8 py-16 text-center shadow-[0_2px_16px_rgba(37,99,235,0.04)]">
+        <div className="bg-surface border border-border rounded-2xl px-5 py-12 sm:px-8 sm:py-16 text-center shadow-[0_2px_16px_rgba(37,99,235,0.04)]">
           <div
             className="w-13 h-13 rounded-xl flex items-center justify-center mx-auto mb-5"
             style={{ background: 'linear-gradient(135deg, #EFF6FF, #DBEAFE)', width: 52, height: 52 }}

@@ -31,7 +31,7 @@ export default async function AnalyseDetailPage({ params }: { params: Promise<{ 
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-8 py-14">
+    <div className="max-w-2xl mx-auto px-4 py-10 sm:px-8 sm:py-14">
 
       {/* Back */}
       <Link
@@ -58,7 +58,9 @@ export default async function AnalyseDetailPage({ params }: { params: Promise<{ 
       </div>
 
       {/* Résultat — NE PAS MODIFIER */}
-      <AOResultDisplay data={data.resultat as AOResult} meta={meta} />
+      <div className="overflow-x-auto">
+        <AOResultDisplay data={data.resultat as AOResult} meta={meta} />
+      </div>
     </div>
   )
 }

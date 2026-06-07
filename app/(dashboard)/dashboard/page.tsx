@@ -9,14 +9,14 @@ export default async function DashboardPage() {
   const firstName = user?.email?.split('@')[0] ?? 'toi'
 
   return (
-    <div className="max-w-3xl mx-auto px-8 py-14">
+    <div className="max-w-3xl mx-auto px-4 py-10 sm:px-8 sm:py-14">
 
       {/* Header */}
       <div className="mb-10">
         <p className="font-syne text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-amber mb-3">
           Tableau de bord
         </p>
-        <h1 className="font-fraunces text-[36px] text-text tracking-tight leading-tight mb-2">
+        <h1 className="font-fraunces text-[28px] sm:text-[36px] text-text tracking-tight leading-tight mb-2">
           Bonjour, {firstName}&nbsp;👋
         </h1>
         <p className="font-syne text-[15px] text-text-muted">
@@ -28,7 +28,7 @@ export default async function DashboardPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
         <Link
           href="/dashboard/analyser"
-          className="group bg-surface border border-border hover:border-accent/40 rounded-2xl p-7 transition-all duration-200 hover:shadow-[0_8px_32px_rgba(37,99,235,0.1)]"
+          className="group bg-surface border border-border hover:border-accent/40 rounded-2xl p-5 sm:p-7 transition-all duration-200 hover:shadow-[0_8px_32px_rgba(37,99,235,0.1)]"
         >
           <div
             className="w-11 h-11 rounded-xl flex items-center justify-center mb-5"
@@ -52,7 +52,7 @@ export default async function DashboardPage() {
 
         <Link
           href="/dashboard/mes-analyses"
-          className="group bg-surface border border-border hover:border-accent/40 rounded-2xl p-7 transition-all duration-200 hover:shadow-[0_8px_32px_rgba(37,99,235,0.1)]"
+          className="group bg-surface border border-border hover:border-accent/40 rounded-2xl p-5 sm:p-7 transition-all duration-200 hover:shadow-[0_8px_32px_rgba(37,99,235,0.1)]"
         >
           <div
             className="w-11 h-11 rounded-xl flex items-center justify-center mb-5"

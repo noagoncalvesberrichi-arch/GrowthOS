@@ -44,7 +44,7 @@ export function UploadForm() {
         {/* Drop zone */}
         <div
           onClick={() => !isPending && inputRef.current?.click()}
-          className={`rounded-2xl border-2 border-dashed px-8 py-12 flex flex-col items-center justify-center text-center transition-all duration-200
+          className={`rounded-2xl border-2 border-dashed px-5 py-10 sm:px-8 sm:py-12 flex flex-col items-center justify-center text-center transition-all duration-200
             ${isPending
               ? 'border-border bg-background cursor-not-allowed opacity-60'
               : 'cursor-pointer border-border bg-surface hover:border-accent hover:bg-accent-subtle/30 hover:shadow-[0_0_0_4px_rgba(37,99,235,0.06)]'
@@ -191,7 +191,11 @@ export function UploadForm() {
       )}
 
       {/* Résultat — NE PAS MODIFIER */}
-      {result && 'data' in result && <AOResultDisplay data={result.data} meta={result.meta} />}
+      {result && 'data' in result && (
+        <div className="overflow-x-auto">
+          <AOResultDisplay data={result.data} meta={result.meta} />
+        </div>
+      )}
     </div>
   )
 }

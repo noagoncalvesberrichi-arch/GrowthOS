@@ -26,20 +26,20 @@ export default async function OnboardingPage() {
     <div className="min-h-screen" style={{ backgroundColor: '#EEF2FF' }}>
 
       {/* Top bar — logo seul */}
-      <div className="px-8 py-6 flex items-center justify-center border-b border-[#D8E3FF]/60">
+      <div className="px-5 py-4 sm:px-8 sm:py-6 flex items-center justify-center border-b border-[#D8E3FF]/60">
         <Link href="/" className="flex items-center">
           <Logo />
         </Link>
       </div>
 
-      <div className="max-w-2xl mx-auto px-6 pt-12 pb-20">
+      <div className="max-w-2xl mx-auto px-4 pt-10 pb-16 sm:px-6 sm:pt-12 sm:pb-20">
 
         {/* En-tête de bienvenue */}
         <div className="text-center mb-10">
           <p className="font-syne text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-amber mb-4">
             Configuration initiale
           </p>
-          <h1 className="font-fraunces text-[36px] text-text tracking-tight leading-tight mb-3">
+          <h1 className="font-fraunces text-[28px] sm:text-[36px] text-text tracking-tight leading-tight mb-3">
             Bienvenue sur Stratly&nbsp;!
           </h1>
           <p className="font-syne text-[15px] text-text-muted leading-relaxed max-w-md mx-auto">
