@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 
 function LogoMark() {
   return (
-    <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center shrink-0">
+    <div className="w-8 h-8 rounded-lg bg-white/15 border border-white/20 flex items-center justify-center shrink-0">
       <svg width="15" height="15" viewBox="0 0 14 14" fill="none">
         <path d="M2 11L5 5.5L8 8.5L10 5.5L12.5 11" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
@@ -123,19 +123,23 @@ export function Sidebar() {
 
   const navItemClass = (active: boolean) =>
     `relative flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-150 border-l-[3px] pl-[9px] group
-     ${active ? 'bg-accent-subtle text-accent-fg border-accent' : 'text-text-muted hover:bg-background hover:text-text border-transparent'}`
+     ${active
+       ? 'bg-white/10 text-white border-brand-amber'
+       : 'text-white/50 hover:bg-white/6 hover:text-white/80 border-transparent'}`
 
   const iconClass = (active: boolean) =>
-    `shrink-0 transition-colors duration-150 ${active ? 'text-accent' : 'text-text-subtle group-hover:text-text-muted'}`
+    `shrink-0 transition-colors duration-150 ${active ? 'text-white' : 'text-white/35 group-hover:text-white/60'}`
 
   return (
-    <aside className="w-[240px] min-h-screen border-r border-border flex flex-col shrink-0 bg-surface">
-
+    <aside
+      className="w-[240px] min-h-screen flex flex-col shrink-0 border-r border-white/8"
+      style={{ background: 'linear-gradient(180deg, #0C1647 0%, #0F1B4D 100%)' }}
+    >
       {/* Logo */}
-      <div className="px-5 py-5 border-b border-border">
+      <div className="px-5 py-5 border-b border-white/8">
         <Link href="/" className="flex items-center gap-2.5">
           <LogoMark />
-          <p className="font-syne font-bold text-[15px] text-text tracking-tight leading-none">Stratly</p>
+          <p className="font-fraunces font-bold text-[17px] text-white tracking-tight leading-none">Stratly</p>
         </Link>
       </div>
 
@@ -152,7 +156,7 @@ export function Sidebar() {
                 </span>
                 <div className="min-w-0">
                   <p className="font-syne text-[13px] font-semibold leading-none">Vue d&apos;ensemble</p>
-                  <p className="font-syne text-[11px] text-text-subtle mt-0.5">Accueil</p>
+                  <p className="font-syne text-[11px] text-white/30 mt-0.5">Accueil</p>
                 </div>
               </Link>
             </li>
@@ -161,7 +165,7 @@ export function Sidebar() {
 
         {/* Mon espace */}
         <div>
-          <p className="text-[10px] font-semibold text-text-subtle uppercase tracking-widest px-3 mb-2 font-syne">
+          <p className="text-[10px] font-semibold text-white/25 uppercase tracking-widest px-3 mb-2 font-syne">
             Mon espace
           </p>
           <ul className="space-y-0.5">
@@ -173,20 +177,20 @@ export function Sidebar() {
                     <span className={iconClass(active)}>{link.icon(active)}</span>
                     <div className="min-w-0">
                       <p className="font-syne text-[13px] font-semibold leading-none">{link.label}</p>
-                      <p className="font-syne text-[11px] text-text-subtle mt-0.5">{link.description}</p>
+                      <p className="font-syne text-[11px] text-white/30 mt-0.5">{link.description}</p>
                     </div>
                   </Link>
                 </li>
               )
             })}
             <li>
-              <div className="relative flex items-center gap-3 px-3 py-2.5 rounded-lg border-l-[3px] border-transparent opacity-50 cursor-not-allowed pl-[9px]">
-                <span className="shrink-0 text-text-subtle"><SettingsIcon /></span>
+              <div className="relative flex items-center gap-3 px-3 py-2.5 rounded-lg border-l-[3px] border-transparent opacity-40 cursor-not-allowed pl-[9px]">
+                <span className="shrink-0 text-white/35"><SettingsIcon /></span>
                 <div className="min-w-0 flex-1">
-                  <p className="font-syne text-[13px] font-semibold leading-none text-text-muted">Paramètres</p>
-                  <p className="font-syne text-[11px] text-text-subtle mt-0.5 truncate">Compte &amp; profil</p>
+                  <p className="font-syne text-[13px] font-semibold leading-none text-white/60">Paramètres</p>
+                  <p className="font-syne text-[11px] text-white/30 mt-0.5 truncate">Compte &amp; profil</p>
                 </div>
-                <span className="font-syne text-[9px] font-bold text-text-subtle bg-background border border-border px-1.5 py-0.5 rounded-full shrink-0">
+                <span className="font-syne text-[9px] font-bold text-white/30 bg-white/8 border border-white/12 px-1.5 py-0.5 rounded-full shrink-0">
                   Bientôt
                 </span>
               </div>
@@ -196,7 +200,7 @@ export function Sidebar() {
 
         {/* Secondary */}
         <div>
-          <div className="mx-1 mb-3 h-px bg-border" />
+          <div className="mx-1 mb-3 h-px bg-white/8" />
           <ul className="space-y-0.5">
             <li>
               <Link href="/pricing" className={navItemClass(isActive('/pricing'))}>
@@ -211,13 +215,13 @@ export function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <div className="px-4 py-4 border-t border-border space-y-3">
+      <div className="px-4 py-4 border-t border-white/8 space-y-3">
         {userEmail && (
-          <p className="font-syne text-[11px] text-text-subtle px-1 truncate">{userEmail}</p>
+          <p className="font-syne text-[11px] text-white/30 px-1 truncate">{userEmail}</p>
         )}
         <button
           onClick={handleLogout}
-          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg font-syne text-[12px] font-semibold text-text-subtle hover:text-red-600 hover:bg-red-50 transition-all duration-150 border border-transparent hover:border-red-100"
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg font-syne text-[12px] font-semibold text-white/40 hover:text-red-300 hover:bg-red-500/10 transition-all duration-150"
         >
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />

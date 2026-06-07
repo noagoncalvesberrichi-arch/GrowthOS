@@ -40,23 +40,27 @@ export function UploadForm() {
   return (
     <div>
       <form onSubmit={handleSubmit} className="space-y-4">
+
         {/* Drop zone */}
         <div
           onClick={() => !isPending && inputRef.current?.click()}
-          className={`border-2 border-dashed rounded-2xl px-8 py-10 flex flex-col items-center justify-center text-center transition-colors duration-200
+          className={`rounded-2xl border-2 border-dashed px-8 py-12 flex flex-col items-center justify-center text-center transition-all duration-200
             ${isPending
               ? 'border-border bg-background cursor-not-allowed opacity-60'
-              : 'cursor-pointer border-border hover:border-accent bg-background hover:bg-accent-subtle/30'
+              : 'cursor-pointer border-border bg-surface hover:border-accent hover:bg-accent-subtle/30 hover:shadow-[0_0_0_4px_rgba(37,99,235,0.06)]'
             }`}
         >
-          <div className="w-12 h-12 rounded-xl bg-surface border border-border flex items-center justify-center mb-4">
+          <div
+            className="w-13 h-13 rounded-xl flex items-center justify-center mb-4"
+            style={{ background: isPending ? undefined : 'linear-gradient(135deg, #EFF6FF, #DBEAFE)', width: 52, height: 52 }}
+          >
             {isPending ? (
               <svg className="animate-spin w-5 h-5 text-accent" viewBox="0 0 24 24" fill="none">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
             ) : (
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-text-muted">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
                 <polyline points="14 2 14 8 20 8" />
                 <line x1="12" y1="18" x2="12" y2="12" />
@@ -95,13 +99,15 @@ export function UploadForm() {
             {files.map((f) => (
               <li
                 key={f.name}
-                className="flex items-center justify-between gap-3 bg-background border border-border rounded-lg px-4 py-2.5"
+                className="flex items-center justify-between gap-3 bg-surface border border-border rounded-xl px-4 py-2.5 shadow-[0_1px_4px_rgba(0,0,0,0.04)]"
               >
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-text-muted shrink-0">
-                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
-                    <polyline points="14 2 14 8 20 8" />
-                  </svg>
+                  <div className="w-7 h-7 rounded-lg bg-accent-subtle flex items-center justify-center shrink-0">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                    </svg>
+                  </div>
                   <span className="font-syne text-[13px] text-text truncate">{f.name}</span>
                   <span className="font-syne text-[11px] text-text-subtle shrink-0">
                     {(f.size / 1024 / 1024).toFixed(2)} Mo
@@ -110,10 +116,10 @@ export function UploadForm() {
                 <button
                   type="button"
                   onClick={() => removeFile(f.name)}
-                  className="shrink-0 text-text-subtle hover:text-red-500 transition-colors duration-150"
+                  className="shrink-0 w-6 h-6 rounded-md flex items-center justify-center text-text-subtle hover:text-red-500 hover:bg-red-50 transition-all duration-150"
                   aria-label={`Retirer ${f.name}`}
                 >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="18" y1="6" x2="6" y2="18" />
                     <line x1="6" y1="6" x2="18" y2="18" />
                   </svg>
@@ -126,7 +132,7 @@ export function UploadForm() {
         <button
           type="submit"
           disabled={files.length === 0 || isPending}
-          className="group relative w-full py-3 bg-accent hover:bg-accent-dark text-white font-syne font-bold text-[14px] rounded-xl transition-all duration-200 overflow-hidden shadow-card disabled:opacity-40 disabled:cursor-not-allowed"
+          className="group relative w-full py-3.5 bg-accent hover:bg-accent-dark text-white font-syne font-bold text-[14px] rounded-xl transition-all duration-200 overflow-hidden shadow-[0_4px_16px_rgba(37,99,235,0.25)] disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none"
         >
           <span
             aria-hidden="true"
@@ -184,7 +190,7 @@ export function UploadForm() {
         </div>
       )}
 
-      {/* Résultat */}
+      {/* Résultat — NE PAS MODIFIER */}
       {result && 'data' in result && <AOResultDisplay data={result.data} meta={result.meta} />}
     </div>
   )

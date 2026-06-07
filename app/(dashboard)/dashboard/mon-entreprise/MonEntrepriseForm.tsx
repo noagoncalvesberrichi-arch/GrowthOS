@@ -6,6 +6,15 @@ import { sauvegarderProfil, type ProfilEntreprise, type ProfilFormData, type Pro
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
+function SectionHeader({ label }: { label: string }) {
+  return (
+    <div className="flex items-center gap-2.5 mb-5">
+      <div className="w-1 h-4 rounded-full bg-brand-amber" />
+      <p className="font-syne text-[11px] font-semibold text-text-muted uppercase tracking-widest">{label}</p>
+    </div>
+  )
+}
+
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
@@ -69,14 +78,14 @@ function TagInput({
           {tags.map(tag => (
             <span
               key={tag}
-              className="inline-flex items-center gap-1.5 bg-background border border-border rounded-lg px-3 py-1 font-syne text-[12px] text-text"
+              className="inline-flex items-center gap-1.5 bg-accent-subtle border border-accent/20 rounded-lg px-3 py-1 font-syne text-[12px] text-accent-fg"
             >
               {tag}
               {!disabled && (
                 <button
                   type="button"
                   onClick={() => onRemove(tag)}
-                  className="text-text-subtle hover:text-red-500 transition-colors duration-150"
+                  className="text-accent/40 hover:text-red-500 transition-colors duration-150"
                   aria-label={`Retirer ${tag}`}
                 >
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -134,121 +143,128 @@ export function MonEntrepriseForm({ profil }: { profil: ProfilEntreprise | null 
     <div className="space-y-5">
 
       {/* Identité */}
-      <div className="bg-surface border border-border rounded-2xl p-6 space-y-5">
-        <p className="font-syne text-[11px] font-semibold text-text-subtle uppercase tracking-widest">Identité</p>
+      <div className="bg-surface border border-border rounded-2xl p-6 shadow-[0_2px_12px_rgba(37,99,235,0.04)]">
+        <SectionHeader label="Identité" />
 
-        <Field label="Raison sociale">
-          <input
-            type="text"
-            value={form.raison_sociale}
-            onChange={e => update('raison_sociale', e.target.value)}
-            placeholder="Entreprise SAS"
-            disabled={isPending}
-            className={inputClass}
-          />
-        </Field>
+        <div className="space-y-5">
+          <Field label="Raison sociale">
+            <input
+              type="text"
+              value={form.raison_sociale}
+              onChange={e => update('raison_sociale', e.target.value)}
+              placeholder="Entreprise SAS"
+              disabled={isPending}
+              className={inputClass}
+            />
+          </Field>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-          <Field label="CA dernier exercice (€)">
-            <input
-              type="number"
-              value={form.ca_dernier_exercice}
-              onChange={e => update('ca_dernier_exercice', e.target.value)}
-              placeholder="500000"
-              min="0"
-              step="any"
-              disabled={isPending}
-              className={inputClass}
-            />
-          </Field>
-          <Field label="Effectif">
-            <input
-              type="number"
-              value={form.effectif}
-              onChange={e => update('effectif', e.target.value)}
-              placeholder="12"
-              min="0"
-              disabled={isPending}
-              className={inputClass}
-            />
-          </Field>
-          <Field label="Années d'expérience">
-            <input
-              type="number"
-              value={form.annees_experience}
-              onChange={e => update('annees_experience', e.target.value)}
-              placeholder="8"
-              min="0"
-              disabled={isPending}
-              className={inputClass}
-            />
-          </Field>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+            <Field label="CA dernier exercice (€)">
+              <input
+                type="number"
+                value={form.ca_dernier_exercice}
+                onChange={e => update('ca_dernier_exercice', e.target.value)}
+                placeholder="500000"
+                min="0"
+                step="any"
+                disabled={isPending}
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Effectif">
+              <input
+                type="number"
+                value={form.effectif}
+                onChange={e => update('effectif', e.target.value)}
+                placeholder="12"
+                min="0"
+                disabled={isPending}
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Années d'expérience">
+              <input
+                type="number"
+                value={form.annees_experience}
+                onChange={e => update('annees_experience', e.target.value)}
+                placeholder="8"
+                min="0"
+                disabled={isPending}
+                className={inputClass}
+              />
+            </Field>
+          </div>
         </div>
       </div>
 
       {/* Compétences */}
-      <div className="bg-surface border border-border rounded-2xl p-6 space-y-5">
-        <p className="font-syne text-[11px] font-semibold text-text-subtle uppercase tracking-widest">Compétences &amp; certifications</p>
+      <div className="bg-surface border border-border rounded-2xl p-6 shadow-[0_2px_12px_rgba(37,99,235,0.04)]">
+        <SectionHeader label="Compétences &amp; certifications" />
 
-        <Field label="Certifications" hint="QUALIBAT, ISO 9001, RGE, MASE, etc.">
-          <TagInput
-            tags={form.certifications}
-            placeholder="Ex : QUALIBAT 1511"
-            onAdd={tag => update('certifications', [...form.certifications, tag])}
-            onRemove={tag => update('certifications', form.certifications.filter(t => t !== tag))}
-            disabled={isPending}
-          />
-        </Field>
+        <div className="space-y-5">
+          <Field label="Certifications" hint="QUALIBAT, ISO 9001, RGE, MASE, etc.">
+            <TagInput
+              tags={form.certifications}
+              placeholder="Ex : QUALIBAT 1511"
+              onAdd={tag => update('certifications', [...form.certifications, tag])}
+              onRemove={tag => update('certifications', form.certifications.filter(t => t !== tag))}
+              disabled={isPending}
+            />
+          </Field>
 
-        <Field label="Domaines d'activité" hint="Gros œuvre, électricité, menuiserie, VRD…">
-          <TagInput
-            tags={form.domaines}
-            placeholder="Ex : Gros œuvre"
-            onAdd={tag => update('domaines', [...form.domaines, tag])}
-            onRemove={tag => update('domaines', form.domaines.filter(t => t !== tag))}
-            disabled={isPending}
-          />
-        </Field>
+          <Field label="Domaines d'activité" hint="Gros œuvre, électricité, menuiserie, VRD…">
+            <TagInput
+              tags={form.domaines}
+              placeholder="Ex : Gros œuvre"
+              onAdd={tag => update('domaines', [...form.domaines, tag])}
+              onRemove={tag => update('domaines', form.domaines.filter(t => t !== tag))}
+              disabled={isPending}
+            />
+          </Field>
+        </div>
       </div>
 
       {/* Capacités */}
-      <div className="bg-surface border border-border rounded-2xl p-6 space-y-5">
-        <p className="font-syne text-[11px] font-semibold text-text-subtle uppercase tracking-widest">Capacités</p>
+      <div className="bg-surface border border-border rounded-2xl p-6 shadow-[0_2px_12px_rgba(37,99,235,0.04)]">
+        <SectionHeader label="Capacités" />
 
-        <Field label="Zone géographique d'intervention">
-          <input
-            type="text"
-            value={form.zone_geographique}
-            onChange={e => update('zone_geographique', e.target.value)}
-            placeholder="Île-de-France, Hauts-de-France…"
-            disabled={isPending}
-            className={inputClass}
-          />
-        </Field>
+        <div className="space-y-5">
+          <Field label="Zone géographique d'intervention">
+            <input
+              type="text"
+              value={form.zone_geographique}
+              onChange={e => update('zone_geographique', e.target.value)}
+              placeholder="Île-de-France, Hauts-de-France…"
+              disabled={isPending}
+              className={inputClass}
+            />
+          </Field>
 
-        <div
-          onClick={() => !isPending && update('capacite_caution', !form.capacite_caution)}
-          className={`flex items-center gap-3 select-none group ${isPending ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-        >
-          <div className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-colors duration-150 shrink-0
-            ${form.capacite_caution
-              ? 'bg-accent border-accent'
-              : 'bg-background border-border group-hover:border-accent'
-            }`}
+          <div
+            onClick={() => !isPending && update('capacite_caution', !form.capacite_caution)}
+            className={`flex items-center gap-3 select-none group ${isPending ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
           >
-            {form.capacite_caution && (
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-            )}
+            <div className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-colors duration-150 shrink-0
+              ${form.capacite_caution
+                ? 'bg-accent border-accent'
+                : 'bg-background border-border group-hover:border-accent'
+              }`}
+            >
+              {form.capacite_caution && (
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              )}
+            </div>
+            <span className="font-syne text-[13px] text-text leading-none">Capacité à fournir une caution bancaire</span>
           </div>
-          <span className="font-syne text-[13px] text-text leading-none">Capacité à fournir une caution bancaire</span>
         </div>
       </div>
 
       {/* Notes */}
-      <div className="bg-surface border border-border rounded-2xl p-6">
-        <Field label="Notes complémentaires" hint="Spécificités techniques, contraintes, atouts, références pertinentes…">
+      <div className="bg-surface border border-border rounded-2xl p-6 shadow-[0_2px_12px_rgba(37,99,235,0.04)]">
+        <SectionHeader label="Notes complémentaires" />
+        <Field label="" hint="Spécificités techniques, contraintes, atouts, références pertinentes…">
           <textarea
             value={form.notes}
             onChange={e => update('notes', e.target.value)}
@@ -271,7 +287,7 @@ export function MonEntrepriseForm({ profil }: { profil: ProfilEntreprise | null 
         <button
           onClick={handleSave}
           disabled={isPending}
-          className="group relative px-6 py-3 bg-accent hover:bg-accent-dark text-white font-syne font-bold text-[14px] rounded-xl transition-all duration-200 overflow-hidden shadow-card disabled:opacity-40 disabled:cursor-not-allowed"
+          className="group relative px-6 py-3 bg-accent hover:bg-accent-dark text-white font-syne font-bold text-[14px] rounded-xl transition-all duration-200 overflow-hidden shadow-[0_4px_16px_rgba(37,99,235,0.25)] disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <span
             aria-hidden="true"

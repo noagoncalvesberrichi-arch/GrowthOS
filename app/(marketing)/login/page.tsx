@@ -31,17 +31,22 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-[calc(100vh-64px)] bg-background dot-grid flex items-center justify-center p-6">
-      <div className="bg-surface border border-border rounded-2xl shadow-card-md w-full max-w-md overflow-hidden">
+    <div
+      className="relative min-h-[calc(100vh-64px)] flex items-center justify-center p-6 overflow-hidden"
+      style={{ background: 'linear-gradient(135deg, #0C1647 0%, #1E3A8A 55%, #2563EB 100%)' }}
+    >
+      <div className="absolute inset-0 dot-grid opacity-[0.06] pointer-events-none" />
+
+      <div className="relative bg-white rounded-2xl shadow-[0_24px_80px_rgba(0,0,0,0.28)] w-full max-w-md overflow-hidden">
 
         {/* Header */}
-        <div className="px-8 pt-8 pb-6 border-b border-border text-center">
+        <div className="px-8 pt-8 pb-6 border-b border-[#EEF2FF] text-center">
           <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center mx-auto mb-4">
             <svg width="18" height="18" viewBox="0 0 14 14" fill="none">
               <path d="M2 11L5 5.5L8 8.5L10 5.5L12.5 11" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </div>
-          <h1 className="font-syne text-[22px] font-extrabold text-text">Bon retour !</h1>
+          <h1 className="font-fraunces text-[26px] text-text tracking-tight">Bon retour&nbsp;!</h1>
           <p className="font-syne text-[13px] text-text-muted mt-1">Connectez-vous à votre espace Stratly.</p>
         </div>
 
@@ -87,7 +92,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="group relative w-full py-3 bg-accent hover:bg-accent-dark text-white font-syne font-bold text-[14px] rounded-xl transition-all duration-200 overflow-hidden shadow-card mt-2"
+            className="group relative w-full py-3 bg-accent hover:bg-accent-dark text-white font-syne font-bold text-[14px] rounded-xl transition-all duration-200 overflow-hidden shadow-[0_4px_16px_rgba(37,99,235,0.25)] mt-2"
           >
             <span
               aria-hidden="true"

@@ -31,18 +31,23 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-[calc(100vh-64px)] bg-background dot-grid flex items-center justify-center p-6">
-      <div className="bg-surface border border-border rounded-2xl shadow-card-md w-full max-w-md overflow-hidden">
+    <div
+      className="relative min-h-[calc(100vh-64px)] flex items-center justify-center p-6 overflow-hidden"
+      style={{ background: 'linear-gradient(135deg, #0C1647 0%, #1E3A8A 55%, #2563EB 100%)' }}
+    >
+      <div className="absolute inset-0 dot-grid opacity-[0.06] pointer-events-none" />
+
+      <div className="relative bg-white rounded-2xl shadow-[0_24px_80px_rgba(0,0,0,0.28)] w-full max-w-md overflow-hidden">
 
         {/* Header */}
-        <div className="px-8 pt-8 pb-6 border-b border-border text-center">
+        <div className="px-8 pt-8 pb-6 border-b border-[#EEF2FF] text-center">
           <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center mx-auto mb-4">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="2" y="4" width="20" height="16" rx="2" />
               <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
             </svg>
           </div>
-          <h1 className="font-syne text-[22px] font-extrabold text-text">Mot de passe oublié</h1>
+          <h1 className="font-fraunces text-[26px] text-text tracking-tight">Mot de passe oublié</h1>
           <p className="font-syne text-[13px] text-text-muted mt-1">
             {sent
               ? 'Vérifiez votre boîte mail.'
@@ -52,8 +57,8 @@ export default function ForgotPasswordPage() {
 
         {sent ? (
           <div className="px-8 py-8 text-center">
-            <div className="w-12 h-12 rounded-full bg-accent-subtle flex items-center justify-center mx-auto mb-4">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center mx-auto mb-4">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-600">
                 <polyline points="20 6 9 17 4 12" />
               </svg>
             </div>
@@ -94,7 +99,7 @@ export default function ForgotPasswordPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="group relative w-full py-3 bg-accent hover:bg-accent-dark text-white font-syne font-bold text-[14px] rounded-xl transition-all duration-200 overflow-hidden shadow-card mt-2"
+                className="group relative w-full py-3 bg-accent hover:bg-accent-dark text-white font-syne font-bold text-[14px] rounded-xl transition-all duration-200 overflow-hidden shadow-[0_4px_16px_rgba(37,99,235,0.25)] mt-2"
               >
                 <span
                   aria-hidden="true"

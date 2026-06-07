@@ -31,10 +31,12 @@ export default async function AnalyseDetailPage({ params }: { params: Promise<{ 
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-8 py-10">
+    <div className="max-w-2xl mx-auto px-8 py-14">
+
+      {/* Back */}
       <Link
         href="/dashboard/mes-analyses"
-        className="inline-flex items-center gap-1.5 font-syne text-[12px] font-semibold text-text-muted hover:text-text transition-colors duration-150 mb-6"
+        className="inline-flex items-center gap-1.5 font-syne text-[12px] font-semibold text-text-muted hover:text-text transition-colors duration-150 mb-8"
       >
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M19 12H5M12 5l-7 7 7 7" />
@@ -42,19 +44,20 @@ export default async function AnalyseDetailPage({ params }: { params: Promise<{ 
         Mes analyses
       </Link>
 
-      <div className="mb-2">
-        <div className="flex items-center gap-2 mb-2">
-          <div className="w-2 h-2 rounded-full bg-accent" />
-          <span className="font-syne text-[12px] font-semibold text-accent uppercase tracking-wider">Analyse</span>
-        </div>
-        <h1 className="font-syne text-[24px] font-extrabold text-text tracking-tight leading-tight">
+      {/* Header */}
+      <div className="mb-6">
+        <p className="font-syne text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-amber mb-3">
+          Analyse
+        </p>
+        <h1 className="font-fraunces text-[28px] text-text tracking-tight leading-tight mb-2">
           {data.objet_marche as string}
         </h1>
-        <p className="font-syne text-[12px] text-text-muted mt-1.5">
+        <p className="font-syne text-[12px] text-text-muted">
           {data.nom_fichier as string} · {date}
         </p>
       </div>
 
+      {/* Résultat — NE PAS MODIFIER */}
       <AOResultDisplay data={data.resultat as AOResult} meta={meta} />
     </div>
   )

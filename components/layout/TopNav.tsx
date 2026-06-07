@@ -28,7 +28,7 @@ export function TopNav() {
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2.5 shrink-0">
           <LogoMark />
-          <span className="font-syne font-bold text-[15px] text-text tracking-tight">Stratly</span>
+          <span className="font-fraunces font-bold text-[17px] text-text tracking-tight">Stratly</span>
         </Link>
 
         {/* Nav links */}
@@ -56,11 +56,11 @@ export function TopNav() {
           </Link>
           <Link
             href="/signup"
-            className="group relative font-syne text-[14px] font-bold text-white bg-accent hover:bg-accent-dark px-4 py-2 rounded-lg transition-all duration-200 overflow-hidden shadow-card"
+            className="group relative font-syne text-[14px] font-bold text-[#1E3A8A] bg-brand-amber hover:bg-brand-amber-dark px-4 py-2 rounded-lg transition-all duration-200 overflow-hidden shadow-[0_2px_12px_rgba(217,119,6,0.25)]"
           >
             <span
               aria-hidden="true"
-              className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/15 to-transparent pointer-events-none"
+              className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none"
             />
             <span className="relative">Commencer →</span>
           </Link>

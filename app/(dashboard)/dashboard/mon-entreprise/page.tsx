@@ -12,13 +12,13 @@ export default async function MonEntreprisePage() {
     .maybeSingle() as { data: ProfilEntreprise | null }
 
   return (
-    <div className="max-w-2xl mx-auto px-8 py-10">
+    <div className="max-w-2xl mx-auto px-8 py-14">
+
       <div className="mb-8">
-        <div className="flex items-center gap-2 mb-2">
-          <div className="w-2 h-2 rounded-full bg-accent" />
-          <span className="font-syne text-[12px] font-semibold text-accent uppercase tracking-wider">Profil</span>
-        </div>
-        <h1 className="font-syne text-[28px] font-extrabold text-text tracking-tight leading-tight">
+        <p className="font-syne text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-amber mb-3">
+          Profil
+        </p>
+        <h1 className="font-fraunces text-[32px] text-text tracking-tight leading-tight">
           Mon entreprise
         </h1>
         <p className="font-syne text-[14px] text-text-muted mt-1.5 max-w-xl">

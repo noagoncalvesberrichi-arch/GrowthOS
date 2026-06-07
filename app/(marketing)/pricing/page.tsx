@@ -12,19 +12,27 @@ export default async function PricingPage({
   return (
     <div className="bg-background">
 
-      {/* Header */}
-      <section className="bg-surface border-b border-border py-16 px-6 text-center">
-        <div className="max-w-3xl mx-auto">
-          <div className="inline-flex items-center gap-2 bg-accent-subtle border border-accent/20 text-accent text-[12px] font-semibold px-3 py-1.5 rounded-full mb-6 font-syne">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-            </svg>
+      {/* Header — dark gradient */}
+      <section
+        className="relative overflow-hidden py-20 px-6 text-center"
+        style={{ background: 'linear-gradient(135deg, #0C1647 0%, #1E3A8A 55%, #2563EB 100%)' }}
+      >
+        <div className="absolute inset-0 dot-grid opacity-[0.06] pointer-events-none" />
+        <div
+          className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[600px] h-[200px] blur-3xl opacity-20 pointer-events-none"
+          style={{ background: 'radial-gradient(ellipse, #93C5FD, transparent 70%)' }}
+        />
+        <div className="relative max-w-3xl mx-auto">
+          <p className="font-syne text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-amber mb-4">
             Simple et transparent
-          </div>
-          <h1 className="font-syne text-[42px] font-extrabold text-text leading-tight tracking-tight mb-4">
-            Choisissez votre plan
+          </p>
+          <h1
+            className="font-fraunces text-white tracking-tight leading-tight mb-4"
+            style={{ fontSize: 'clamp(2rem, 4vw, 3rem)' }}
+          >
+            Une seule offre, claire et honnête.
           </h1>
-          <p className="font-syne text-[16px] text-text-muted">
+          <p className="font-syne text-[16px] text-white/65 max-w-lg mx-auto">
             Commencez gratuitement avec 3 analyses. Passez Pro pour analyser sans limite.
           </p>
         </div>
@@ -41,7 +49,10 @@ export default async function PricingPage({
       {/* FAQ */}
       <section className="py-14 px-6 bg-surface border-t border-border">
         <div className="max-w-2xl mx-auto">
-          <h2 className="font-syne text-[26px] font-extrabold text-text text-center mb-10">Questions fréquentes</h2>
+          <p className="font-syne text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-amber mb-4 text-center">
+            FAQ
+          </p>
+          <h2 className="font-fraunces text-[28px] text-text text-center mb-10">Questions fréquentes</h2>
           <div className="space-y-0 divide-y divide-border">
             {[
               {
