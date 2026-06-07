@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import type { KeyboardEvent } from 'react'
+import { useRouter } from 'next/navigation'
 import { sauvegarderProfil, type ProfilEntreprise, type ProfilFormData, type ProfilState } from './actions'
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -122,7 +123,14 @@ const inputClass = 'w-full bg-background border border-border rounded-lg px-3.5 
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function MonEntrepriseForm({ profil }: { profil: ProfilEntreprise | null }) {
+export function MonEntrepriseForm({
+  profil,
+  redirectOnSave,
+}: {
+  profil: ProfilEntreprise | null
+  redirectOnSave?: string
+}) {
+  const router = useRouter()
   const [form, setForm] = useState<ProfilFormData>(() => initForm(profil))
   const [state, setState] = useState<ProfilState>(null)
   const [isPending, startTransition] = useTransition()
@@ -136,6 +144,9 @@ export function MonEntrepriseForm({ profil }: { profil: ProfilEntreprise | null 
     startTransition(async () => {
       const result = await sauvegarderProfil(form)
       setState(result)
+      if (redirectOnSave && result && 'success' in result) {
+        router.push(redirectOnSave)
+      }
     })
   }
 

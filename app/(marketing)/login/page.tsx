@@ -32,7 +32,7 @@ export default function LoginPage() {
       .select('id')
       .maybeSingle()
 
-    router.push(profil ? '/dashboard' : '/dashboard/mon-entreprise')
+    router.push(profil ? '/dashboard' : '/onboarding')
     router.refresh()
   }
 

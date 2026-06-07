@@ -1,6 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
 import { MonEntrepriseForm } from './MonEntrepriseForm'
-import { OnboardingModal } from './OnboardingModal'
 import type { ProfilEntreprise } from './actions'
 
 export const metadata = { title: 'Mon entreprise — Stratly' }
@@ -12,15 +11,9 @@ export default async function MonEntreprisePage() {
     .select('*')
     .maybeSingle() as { data: ProfilEntreprise | null }
 
-  const isOnboarding = profil === null
-
   return (
     <div className="max-w-2xl mx-auto px-8 py-14">
 
-      {/* Modal d'onboarding — client component, s'ouvre automatiquement si pas de profil */}
-      <OnboardingModal isOnboarding={isOnboarding} />
-
-      {/* Header */}
       <div className="mb-8">
         <p className="font-syne text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-amber mb-3">
           Profil
