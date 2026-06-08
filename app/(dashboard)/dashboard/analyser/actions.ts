@@ -190,7 +190,7 @@ export async function analyserAO(formData: FormData): Promise<AnalyserAOState> {
     }
 
     const texteTotal = parts.join('')
-    const LIMIT = 180000
+    const LIMIT = 500000
     const tronque = texteTotal.length > LIMIT
     const texteEnvoye = tronque ? texteTotal.slice(0, LIMIT) : texteTotal
     const meta: AOMetadata = {

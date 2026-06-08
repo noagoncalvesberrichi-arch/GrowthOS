@@ -29,11 +29,30 @@ export function UploadForm() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (files.length === 0) return
+
+    // Guard: Vercel Hobby infrastructure cap ~4.5 MB
+    const MAX_UPLOAD_BYTES = 4 * 1024 * 1024
+    const totalSize = files.reduce((acc, f) => acc + f.size, 0)
+    if (totalSize > MAX_UPLOAD_BYTES) {
+      setResult({
+        error:
+          'Ce dossier est trop volumineux pour être analysé en une fois. Déposez les documents principaux (RC, CCTP, CCAP) séparément.',
+      })
+      return
+    }
+
     const fd = new FormData()
     files.forEach(f => fd.append('files', f))
     startTransition(async () => {
-      const res = await analyserAO(fd)
-      setResult(res)
+      try {
+        const res = await analyserAO(fd)
+        setResult(res)
+      } catch {
+        setResult({
+          error:
+            "L'analyse a expiré ou une erreur réseau s'est produite. Si le dossier est volumineux, déposez les documents principaux séparément et réessayez.",
+        })
+      }
     })
   }
 
