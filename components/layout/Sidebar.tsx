@@ -59,6 +59,15 @@ function SettingsIcon({ active }: { active: boolean }) {
   )
 }
 
+function SearchIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.2 : 1.8} strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="8" />
+      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </svg>
+  )
+}
+
 function ChiffrageIcon() {
   return (
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -99,6 +108,13 @@ const mainLinks = [
     description: 'Profil Go / No-Go',
     href: '/dashboard/mon-entreprise',
     icon: (active: boolean) => <BuildingIcon active={active} />,
+  },
+  {
+    id: 'appels-offres',
+    label: 'Appels d\'offres',
+    description: 'Trouver des marchés',
+    href: '/dashboard/appels-offres',
+    icon: (active: boolean) => <SearchIcon active={active} />,
   },
 ]
 
