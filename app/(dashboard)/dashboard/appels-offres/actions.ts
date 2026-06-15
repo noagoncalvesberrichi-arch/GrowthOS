@@ -1,5 +1,8 @@
 'use server'
 
+import { anthropic } from '@/lib/anthropic'
+import { createClient } from '@/lib/supabase/server'
+
 const BOAMP_URL =
   'https://boamp-datadila.opendatasoft.com/api/explore/v2.1/catalog/datasets/boamp/records'
 
@@ -146,5 +149,112 @@ export async function rechercheAppelsOffres(
       error:
         "Impossible de récupérer les appels d'offres. Vérifiez votre connexion et réessayez.",
     }
+  }
+}
+
+// ─── Level 2 : évaluation IA à la demande ────────────────────────────────────
+
+export type EvalAOInput = {
+  objet: string
+  nomacheteur: string | null
+  code_departement: string[]
+  type_marche: string[]
+  descripteur_libelle: string[]
+  dateparution: string | null
+  datelimitereponse: string | null
+}
+
+export type EvalAOData = {
+  score: number
+  categorie: 'Favorable' | 'Vigilance' | 'Défavorable'
+  points_forts: string[]
+  points_vigilance: string[]
+  explication: string
+}
+
+export type EvalAOResult = EvalAOData | { error: string }
+
+const EVAL_SYSTEM_PROMPT = `Tu es un expert en marchés publics français.
+Tu réalises une PRÉ-ÉVALUATION rapide d'un avis d'appel d'offres pour une entreprise.
+IMPORTANT : cette évaluation est PRÉLIMINAIRE — elle est basée UNIQUEMENT sur l'avis BOAMP (objet, type, lieu, descripteurs CPV). Sans le DCE complet, tu ne peux pas évaluer les conditions précises de qualification, les critères de sélection détaillés, ni les pièces à fournir.
+Réponds UNIQUEMENT avec un objet JSON valide, sans markdown ni backticks.`
+
+export async function evaluerAO(input: EvalAOInput): Promise<EvalAOResult> {
+  try {
+    const supabase = await createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) return { error: 'Vous devez être connecté.' }
+
+    const { data: profil } = await supabase
+      .from('profil_entreprise')
+      .select(
+        'raison_sociale, ca_dernier_exercice, effectif, annees_experience, certifications, domaines, zone_geographique'
+      )
+      .maybeSingle()
+
+    const profilBlock = profil
+      ? `- Raison sociale : ${profil.raison_sociale ?? 'non renseigné'}
+- Chiffre d'affaires : ${profil.ca_dernier_exercice != null ? `${profil.ca_dernier_exercice.toLocaleString('fr-FR')} €` : 'non renseigné'}
+- Effectif : ${profil.effectif != null ? `${profil.effectif} pers.` : 'non renseigné'}
+- Expérience : ${profil.annees_experience != null ? `${profil.annees_experience} ans` : 'non renseigné'}
+- Certifications : ${profil.certifications?.length ? profil.certifications.join(', ') : 'aucune renseignée'}
+- Domaines d'activité : ${profil.domaines?.length ? profil.domaines.join(', ') : 'non renseignés'}
+- Zone géographique : ${profil.zone_geographique ?? 'non renseignée'}`
+      : 'Profil non renseigné'
+
+    const userPrompt = `PROFIL ENTREPRISE :
+${profilBlock}
+
+AVIS D'APPEL D'OFFRES :
+- Objet : ${input.objet}
+- Acheteur : ${input.nomacheteur ?? 'non précisé'}
+- Type de marché : ${input.type_marche.join(', ') || 'non précisé'}
+- Département(s) : ${input.code_departement.join(', ') || 'non précisé'}
+- Publié le : ${input.dateparution ?? 'non précisé'}
+- Limite de remise des offres : ${input.datelimitereponse ?? 'non précisée'}
+- Descripteurs CPV : ${input.descripteur_libelle.join(', ') || 'non précisés'}
+
+Évalue si le profil de l'entreprise semble cohérent avec cet appel d'offres.
+Rappel : PRÉ-ÉVALUATION uniquement — l'explication doit conclure en invitant à télécharger le DCE et faire l'analyse complète avant de décider.
+
+Réponds en JSON :
+{
+  "score": <entier 0 à 100>,
+  "categorie": <"Favorable" | "Vigilance" | "Défavorable">,
+  "points_forts": [<1 à 3 strings — pourquoi ça matche>],
+  "points_vigilance": [<1 à 3 strings — ce à vérifier dans le DCE>],
+  "explication": "<2-3 phrases synthétisant le match et invitant à lire le DCE pour décider>"
+}`
+
+    const message = await anthropic.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 512,
+      system: EVAL_SYSTEM_PROMPT,
+      messages: [{ role: 'user', content: userPrompt }],
+    })
+
+    const text = message.content[0].type === 'text' ? message.content[0].text : ''
+    const firstBrace = text.indexOf('{')
+    const lastBrace = text.lastIndexOf('}')
+    if (firstBrace === -1 || lastBrace === -1) return { error: 'Réponse inattendue du modèle.' }
+
+    const data = JSON.parse(text.slice(firstBrace, lastBrace + 1))
+
+    return {
+      score: Math.min(100, Math.max(0, Number(data.score) || 0)),
+      categorie: (['Favorable', 'Vigilance', 'Défavorable'].includes(data.categorie)
+        ? data.categorie
+        : 'Vigilance') as EvalAOData['categorie'],
+      points_forts: Array.isArray(data.points_forts) ? data.points_forts.slice(0, 3) : [],
+      points_vigilance: Array.isArray(data.points_vigilance)
+        ? data.points_vigilance.slice(0, 3)
+        : [],
+      explication: String(data.explication ?? ''),
+    }
+  } catch (err) {
+    console.error('[evaluerAO]', err)
+    return { error: "Erreur lors de l'évaluation. Réessayez." }
   }
 }
