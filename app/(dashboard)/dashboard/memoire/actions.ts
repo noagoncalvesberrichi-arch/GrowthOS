@@ -115,14 +115,15 @@ INSTRUCTIONS DE GÉNÉRATION :
 - Puis une ligne vide, puis : "⚠ Document de travail — Complétez les passages [À COMPLÉTER : ...] avec vos informations réelles avant envoi."
 - Puis une ligne vide, puis les 8 sections numérotées
 - Chaque section : titre en MAJUSCULES précédé du numéro, puis le contenu sur les lignes suivantes
-- Chaque section doit faire 3 à 6 paragraphes bien rédigés, professionnels, adaptés au type de marché
+- Chaque section doit faire 2 à 4 paragraphes bien rédigés, professionnels, adaptés au type de marché
 - Utilise [À COMPLÉTER : description précise de ce qu'il faut insérer] pour : références de projets similaires, noms de collaborateurs, certifications avec numéro, dates, montants, équipements spécifiques
 - Dans la section 1 (Présentation), utilise directement les données du profil si disponibles
 - Dans la section 2 (Compréhension), reformule les enjeux du marché de façon professionnelle
 - Dans les sections 3 à 8, adapte le contenu au type de prestation détecté dans la description du marché
 - Ton professionnel, phrases complètes, sans bullet points excessifs — c'est un document de candidature
+- IMPORTANT : tu dois impérativement générer les 8 sections en intégralité, jusqu'à la dernière. Ne t'arrête pas avant d'avoir complètement terminé la section 8.
 
-Sections à inclure :
+Sections à inclure (toutes obligatoires, dans cet ordre) :
 1. PRÉSENTATION DE L'ENTREPRISE
 2. COMPRÉHENSION DU BESOIN ET DES ENJEUX DU MARCHÉ
 3. MÉTHODOLOGIE D'INTERVENTION ET ORGANISATION DE LA PRESTATION
@@ -134,13 +135,18 @@ Sections à inclure :
 
     const message = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 4096,
+      max_tokens: 8192,
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: prompt }],
     })
 
-    const trame = message.content[0].type === 'text' ? message.content[0].text : ''
+    let trame = message.content[0].type === 'text' ? message.content[0].text : ''
     if (!trame.trim()) return { error: 'Réponse vide du modèle. Réessaie.' }
+
+    // Safety net: if Claude hit the token limit, append a visible warning
+    if (message.stop_reason === 'max_tokens') {
+      trame += '\n\n⚠ GÉNÉRATION INCOMPLÈTE — La trame a été tronquée (limite de tokens atteinte). Régénérez pour obtenir le document complet.'
+    }
 
     return { trame }
   } catch (err) {
