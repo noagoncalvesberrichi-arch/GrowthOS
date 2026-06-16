@@ -6,6 +6,8 @@ import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Logo } from '@/components/Logo'
 
+// ─── Icons ────────────────────────────────────────────────────────────────────
+
 function HomeIcon({ active }: { active: boolean }) {
   return (
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.2 : 1.8} strokeLinecap="round" strokeLinejoin="round">
@@ -94,48 +96,34 @@ function ChiffrageIcon() {
 function PricingIcon({ active }: { active: boolean }) {
   return (
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.2 : 1.8} strokeLinecap="round" strokeLinejoin="round">
-      <line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" />
+      <line x1="12" y1="1" x2="12" y2="23" />
+      <path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" />
     </svg>
   )
 }
 
-const mainLinks = [
-  {
-    id: 'analyser',
-    label: 'Analyser un AO',
-    description: 'Nouveau PDF',
-    href: '/dashboard/analyser',
-    icon: (active: boolean) => <DocumentIcon active={active} />,
-  },
-  {
-    id: 'mes-analyses',
-    label: 'Mes analyses',
-    description: 'Historique',
-    href: '/dashboard/mes-analyses',
-    icon: (active: boolean) => <ListIcon active={active} />,
-  },
-  {
-    id: 'mon-entreprise',
-    label: 'Mon entreprise',
-    description: 'Profil Go / No-Go',
-    href: '/dashboard/mon-entreprise',
-    icon: (active: boolean) => <BuildingIcon active={active} />,
-  },
-  {
-    id: 'memoire',
-    label: 'Mémoire technique',
-    description: 'Générer une trame',
-    href: '/dashboard/memoire',
-    icon: (active: boolean) => <MemoireIcon active={active} />,
-  },
-  {
-    id: 'appels-offres',
-    label: "Appels d'offres",
-    description: 'Trouver des marchés',
-    href: '/dashboard/appels-offres',
-    icon: (active: boolean) => <SearchIcon active={active} />,
-  },
+// ─── Nav link definitions ─────────────────────────────────────────────────────
+
+type NavLink = {
+  id: string
+  label: string
+  href: string
+  icon: (active: boolean) => React.ReactNode
+}
+
+const outilLinks: NavLink[] = [
+  { id: 'analyser', label: 'Analyser un AO', href: '/dashboard/analyser', icon: (a) => <DocumentIcon active={a} /> },
+  { id: 'mes-analyses', label: 'Mes analyses', href: '/dashboard/mes-analyses', icon: (a) => <ListIcon active={a} /> },
+  { id: 'memoire', label: 'Mémoire technique', href: '/dashboard/memoire', icon: (a) => <MemoireIcon active={a} /> },
+  { id: 'appels-offres', label: "Appels d'offres", href: '/dashboard/appels-offres', icon: (a) => <SearchIcon active={a} /> },
 ]
+
+const secondaireLinks: NavLink[] = [
+  { id: 'mon-entreprise', label: 'Mon entreprise', href: '/dashboard/mon-entreprise', icon: (a) => <BuildingIcon active={a} /> },
+  { id: 'parametres', label: 'Paramètres', href: '/dashboard/parametres', icon: (a) => <SettingsIcon active={a} /> },
+]
+
+// ─── Sidebar ──────────────────────────────────────────────────────────────────
 
 export function Sidebar() {
   const pathname = usePathname()
@@ -167,8 +155,8 @@ export function Sidebar() {
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/')
 
-  const navItemClass = (active: boolean) =>
-    `relative flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-150 border-l-[3px] pl-[9px] group
+  const itemClass = (active: boolean) =>
+    `flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-150 border-l-[3px] pl-[9px] group
      ${active
        ? 'bg-white/10 text-white border-brand-amber'
        : 'text-white/50 hover:bg-white/6 hover:text-white/80 border-transparent'}`
@@ -176,86 +164,78 @@ export function Sidebar() {
   const iconClass = (active: boolean) =>
     `shrink-0 transition-colors duration-150 ${active ? 'text-white' : 'text-white/35 group-hover:text-white/60'}`
 
+  const sep = <div className="mx-2 my-2.5 h-px bg-white/8" />
+
+  const renderLink = (link: NavLink, onClose?: () => void) => {
+    const active = isActive(link.href)
+    return (
+      <li key={link.id}>
+        <Link href={link.href} onClick={onClose} className={itemClass(active)}>
+          <span className={iconClass(active)}>{link.icon(active)}</span>
+          <p className="font-syne text-[13px] font-semibold leading-none">{link.label}</p>
+        </Link>
+      </li>
+    )
+  }
+
   const renderNav = (onClose?: () => void) => (
     <>
-      <nav className="flex-1 px-3 pt-4 pb-3 overflow-auto space-y-4">
-        <div>
-          <ul className="space-y-0.5">
-            <li>
-              <Link href="/dashboard" onClick={onClose} className={navItemClass(pathname === '/dashboard')}>
-                <span className={iconClass(pathname === '/dashboard')}>
-                  <HomeIcon active={pathname === '/dashboard'} />
-                </span>
-                <div className="min-w-0">
-                  <p className="font-syne text-[13px] font-semibold leading-none">Vue d&apos;ensemble</p>
-                  <p className="font-syne text-[11px] text-white/30 mt-0.5">Accueil</p>
-                </div>
-              </Link>
-            </li>
-          </ul>
-        </div>
+      <nav className="flex-1 px-3 pt-3 pb-3 overflow-auto">
 
-        <div>
-          <p className="text-[10px] font-semibold text-white/25 uppercase tracking-widest px-3 mb-2 font-syne">
-            Mon espace
-          </p>
-          <ul className="space-y-0.5">
-            {mainLinks.map((link) => {
-              const active = isActive(link.href)
-              return (
-                <li key={link.id}>
-                  <Link href={link.href} onClick={onClose} className={navItemClass(active)}>
-                    <span className={iconClass(active)}>{link.icon(active)}</span>
-                    <div className="min-w-0">
-                      <p className="font-syne text-[13px] font-semibold leading-none">{link.label}</p>
-                      <p className="font-syne text-[11px] text-white/30 mt-0.5">{link.description}</p>
-                    </div>
-                  </Link>
-                </li>
-              )
-            })}
-            <li>
-              <div className="relative flex items-center gap-3 px-3 py-2.5 rounded-lg border-l-[3px] border-transparent opacity-40 cursor-not-allowed pl-[9px]">
-                <span className="shrink-0 text-white/35"><ChiffrageIcon /></span>
-                <div className="min-w-0 flex-1">
-                  <p className="font-syne text-[13px] font-semibold leading-none text-white/60">Chiffrage</p>
-                  <p className="font-syne text-[11px] text-white/30 mt-0.5 truncate">Extraire la nomenclature</p>
-                </div>
-                <span className="font-syne text-[9px] font-bold text-white/30 bg-white/8 border border-white/12 px-1.5 py-0.5 rounded-full shrink-0">
-                  Bientôt
-                </span>
-              </div>
-            </li>
-            <li>
-              <Link href="/dashboard/parametres" onClick={onClose} className={navItemClass(isActive('/dashboard/parametres'))}>
-                <span className={iconClass(isActive('/dashboard/parametres'))}>
-                  <SettingsIcon active={isActive('/dashboard/parametres')} />
-                </span>
-                <div className="min-w-0">
-                  <p className="font-syne text-[13px] font-semibold leading-none">Paramètres</p>
-                  <p className="font-syne text-[11px] text-white/30 mt-0.5">Compte &amp; profil</p>
-                </div>
-              </Link>
-            </li>
-          </ul>
-        </div>
+        {/* Home */}
+        <ul className="space-y-0.5 mb-1">
+          <li>
+            <Link href="/dashboard" onClick={onClose} className={itemClass(pathname === '/dashboard')}>
+              <span className={iconClass(pathname === '/dashboard')}>
+                <HomeIcon active={pathname === '/dashboard'} />
+              </span>
+              <p className="font-syne text-[13px] font-semibold leading-none">Vue d&apos;ensemble</p>
+            </Link>
+          </li>
+        </ul>
 
-        <div>
-          <div className="mx-1 mb-3 h-px bg-white/8" />
-          <ul className="space-y-0.5">
-            <li>
-              <Link href="/pricing" onClick={onClose} className={navItemClass(isActive('/pricing'))}>
-                <span className={iconClass(isActive('/pricing'))}>
-                  <PricingIcon active={isActive('/pricing')} />
-                </span>
-                <p className="font-syne text-[13px] font-semibold">Tarifs</p>
-              </Link>
-            </li>
-          </ul>
-        </div>
+        {sep}
+
+        {/* Outils principaux */}
+        <ul className="space-y-0.5">
+          {outilLinks.map((link) => renderLink(link, onClose))}
+          {/* Chiffrage — Bientôt */}
+          <li>
+            <div className="flex items-center gap-3 px-3 py-2 rounded-lg border-l-[3px] border-transparent opacity-35 cursor-not-allowed pl-[9px]">
+              <span className="shrink-0 text-white/35"><ChiffrageIcon /></span>
+              <p className="font-syne text-[13px] font-semibold leading-none text-white/60 flex-1">Chiffrage</p>
+              <span className="font-syne text-[9px] font-bold text-white/30 bg-white/8 border border-white/12 px-1.5 py-0.5 rounded-full">
+                Bientôt
+              </span>
+            </div>
+          </li>
+        </ul>
+
+        {sep}
+
+        {/* Secondaire */}
+        <ul className="space-y-0.5">
+          {secondaireLinks.map((link) => renderLink(link, onClose))}
+        </ul>
+
+        {sep}
+
+        {/* Tarifs */}
+        <ul className="space-y-0.5">
+          <li>
+            <Link href="/pricing" onClick={onClose} className={itemClass(isActive('/pricing'))}>
+              <span className={iconClass(isActive('/pricing'))}>
+                <PricingIcon active={isActive('/pricing')} />
+              </span>
+              <p className="font-syne text-[13px] font-semibold leading-none">Tarifs</p>
+            </Link>
+          </li>
+        </ul>
+
       </nav>
 
-      <div className="px-4 py-4 border-t border-white/8 space-y-3 shrink-0">
+      {/* Footer */}
+      <div className="px-4 py-4 border-t border-white/8 space-y-2.5 shrink-0">
         {userEmail && (
           <p className="font-syne text-[11px] text-white/30 px-1 truncate">{userEmail}</p>
         )}
@@ -280,10 +260,10 @@ export function Sidebar() {
     <>
       {/* ── Desktop sidebar (md+) ── */}
       <aside
-        className="hidden md:flex w-[240px] min-h-screen flex-col shrink-0 border-r border-white/8"
+        className="hidden md:flex w-[220px] min-h-screen flex-col shrink-0 border-r border-white/8"
         style={navBg}
       >
-        <div className="px-5 py-5 border-b border-white/8">
+        <div className="px-5 py-4 border-b border-white/8">
           <Link href="/" className="flex items-center">
             <Logo variant="dark" />
           </Link>
@@ -320,7 +300,7 @@ export function Sidebar() {
             onClick={() => setDrawerOpen(false)}
           />
           <div
-            className="absolute left-0 top-0 bottom-0 w-[280px] flex flex-col border-r border-white/8"
+            className="absolute left-0 top-0 bottom-0 w-[260px] flex flex-col border-r border-white/8"
             style={navBg}
           >
             <div className="px-5 py-4 border-b border-white/8 flex items-center justify-between shrink-0">
