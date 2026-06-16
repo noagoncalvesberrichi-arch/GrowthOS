@@ -3,7 +3,20 @@ import Link from 'next/link'
 export const metadata = {
   title: "Stratly — Analysez vos appels d'offres en quelques minutes",
   description:
-    "Stratly analyse automatiquement vos dossiers DCE, extrait les points clés et vous donne un avis Go/No-Go selon le profil de votre entreprise.",
+    "Stratly analyse automatiquement vos dossiers DCE, extrait les points clés et vous donne un avis Go/No-Go selon le profil de votre entreprise BTP. Essayez gratuitement.",
+  openGraph: {
+    title: "Stratly — Analysez vos appels d'offres en quelques minutes",
+    description:
+      "Analyse automatique de DCE, avis Go/No-Go personnalisé, mémoire technique en un clic. La plateforme pour les entreprises BTP qui répondent aux marchés publics.",
+    url: 'https://stratly.fr',
+    type: 'website' as const,
+  },
+  twitter: {
+    card: 'summary_large_image' as const,
+    title: "Stratly — Analysez vos appels d'offres en quelques minutes",
+    description:
+      "Analyse automatique de DCE, avis Go/No-Go personnalisé, mémoire technique en un clic.",
+  },
 }
 
 // ─── Browser frame ────────────────────────────────────────────────────────────

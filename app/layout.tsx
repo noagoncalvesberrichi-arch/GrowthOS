@@ -22,8 +22,32 @@ const fraunces = Fraunces({
 })
 
 export const metadata: Metadata = {
-  title: 'Stratly — Growth Intelligence',
-  description: 'AI-powered growth modules for B2B and creators',
+  title: {
+    default: 'Stratly — Analysez vos appels d\'offres avec l\'IA',
+    template: '%s | Stratly',
+  },
+  description:
+    'Stratly analyse automatiquement vos dossiers DCE, extrait les informations clés et vous donne un avis Go/No-Go personnalisé selon le profil de votre entreprise BTP.',
+  metadataBase: new URL('https://stratly.fr'),
+  openGraph: {
+    siteName: 'Stratly',
+    type: 'website',
+    locale: 'fr_FR',
+    title: 'Stratly — Analysez vos appels d\'offres avec l\'IA',
+    description:
+      'Stratly analyse automatiquement vos dossiers DCE, extrait les informations clés et vous donne un avis Go/No-Go personnalisé selon le profil de votre entreprise BTP.',
+    url: 'https://stratly.fr',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Stratly — Analysez vos appels d\'offres avec l\'IA',
+    description:
+      'Analyse automatique de DCE, avis Go/No-Go personnalisé, mémoire technique en un clic. La plateforme pour les entreprises BTP qui répondent aux marchés publics.',
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
