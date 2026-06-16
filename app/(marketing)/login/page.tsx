@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Logo } from '@/components/Logo'
+import { verifierEtEnvoyerBienvenue } from './actions'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -32,6 +33,9 @@ export default function LoginPage() {
       .from('profil_entreprise')
       .select('id')
       .maybeSingle()
+
+    // Fire-and-forget — n'attend pas le résultat, ne bloque pas la navigation
+    verifierEtEnvoyerBienvenue().catch(() => {})
 
     router.push(profil ? '/dashboard' : '/onboarding')
     router.refresh()
