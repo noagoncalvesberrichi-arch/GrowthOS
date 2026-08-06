@@ -25,6 +25,7 @@ export type AOResult = {
   objet: string
   type_procedure: string
   acheteur: string
+  siret_acheteur: string | null
   lots: { numero: string; designation: string; estimation: string | null }[]
   criteres_notation: { critere: string; ponderation: string }[]
   pieces_a_fournir: string[]
@@ -126,6 +127,7 @@ Retourne UNIQUEMENT ce JSON (toutes les clés sont requises, utilise null si l'i
   "objet": "string — objet ou intitulé du marché",
   "type_procedure": "string — ex: procédure adaptée, appel d'offres ouvert, etc.",
   "acheteur": "string — nom du pouvoir adjudicateur",
+  "siret_acheteur": "string ou null — SIRET (14 chiffres) du pouvoir adjudicateur si mentionné dans le DCE, sinon null",
   "lots": [
     { "numero": "string", "designation": "string", "estimation": "string ou null" }
   ],

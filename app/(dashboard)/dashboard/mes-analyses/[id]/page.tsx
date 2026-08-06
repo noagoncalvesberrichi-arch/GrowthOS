@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { AOResultDisplay } from '../../analyser/AOResultDisplay'
+import { HistoriqueAcheteur } from '@/components/HistoriqueAcheteur'
 import type { AOResult, AOMetadata } from '../../analyser/actions'
 
 export default async function AnalyseDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -31,7 +32,7 @@ export default async function AnalyseDetailPage({ params }: { params: Promise<{ 
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-10 sm:px-8 sm:py-14">
+    <div className="max-w-3xl mx-auto px-4 py-10 sm:px-8 sm:py-14">
 
       {/* Back */}
       <Link
@@ -61,6 +62,13 @@ export default async function AnalyseDetailPage({ params }: { params: Promise<{ 
       <div className="overflow-x-auto">
         <AOResultDisplay data={data.resultat as AOResult} meta={meta} />
       </div>
+
+      {/* Historique acheteur */}
+      {(data.resultat as AOResult)?.siret_acheteur && (
+        <div className="mt-8">
+          <HistoriqueAcheteur siret={(data.resultat as AOResult).siret_acheteur!} />
+        </div>
+      )}
     </div>
   )
 }
