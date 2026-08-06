@@ -4,7 +4,7 @@ export const metadata = { title: "Analyser un appel d'offres — Stratly" }
 
 export default function AnalyserPage() {
   return (
-    <div className="max-w-2xl mx-auto px-4 py-10 sm:px-8 sm:py-14">
+    <div className="max-w-3xl mx-auto px-4 py-10 sm:px-8 sm:py-14">
 
       <div className="mb-8">
         <p className="font-syne text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-amber mb-3">

@@ -3,6 +3,7 @@
 import { useState, useTransition, useRef } from 'react'
 import { analyserAO, type AnalyserAOState } from './actions'
 import { AOResultDisplay } from './AOResultDisplay'
+import { HistoriqueAcheteur } from '@/components/HistoriqueAcheteur'
 
 export function UploadForm() {
   const [files, setFiles] = useState<File[]>([])
@@ -211,9 +212,16 @@ export function UploadForm() {
 
       {/* Résultat — NE PAS MODIFIER */}
       {result && 'data' in result && (
-        <div className="overflow-x-auto">
-          <AOResultDisplay data={result.data} meta={result.meta} />
-        </div>
+        <>
+          <div className="overflow-x-auto">
+            <AOResultDisplay data={result.data} meta={result.meta} />
+          </div>
+          {result.data.siret_acheteur && (
+            <div className="mt-8">
+              <HistoriqueAcheteur siret={result.data.siret_acheteur} />
+            </div>
+          )}
+        </>
       )}
     </div>
   )
