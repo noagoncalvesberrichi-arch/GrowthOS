@@ -1,0 +1,27 @@
+name: Ingestion DECP hebdomadaire
+
+on:
+  schedule:
+    - cron: "0 3 * * 1" # chaque lundi à 3h00 UTC
+  workflow_dispatch: {} # permet aussi de lancer à la main depuis l'onglet Actions
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install pandas pyarrow supabase
+
+      - name: Run ingestion
+        env:
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: python scripts/ingest_decp.py
