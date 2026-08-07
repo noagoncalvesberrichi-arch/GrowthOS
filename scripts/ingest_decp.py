@@ -103,6 +103,11 @@ def main():
         for row in df.to_dict(orient="records")
     ]
 
+    # titulaire_id est partie de la clé primaire — ne peut pas être None
+    for r in records:
+        if r.get("titulaire_id") is None:
+            r["titulaire_id"] = ""
+
     print(f"Upsert de {len(records)} lignes vers Supabase…")
     for i in range(0, len(records), BATCH_SIZE):
         batch = records[i : i + BATCH_SIZE]
