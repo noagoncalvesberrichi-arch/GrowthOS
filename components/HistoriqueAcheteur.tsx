@@ -29,6 +29,11 @@ type HistoriqueData = {
   top_titulaires: TopTitulaire[]
 }
 
+type Scope =
+  | { type: 'precise'; prefix: string }
+  | { type: 'fallback' }
+  | { type: 'default' }
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const eur = (n: number | null) =>
@@ -56,27 +61,17 @@ function StatCard({ label, value }: { label: string; value: string }) {
   )
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="border border-border rounded-xl overflow-hidden">
-      <div className="bg-background px-5 py-3 border-b border-border">
-        <p className="font-syne text-[12px] font-bold text-text-muted uppercase tracking-wider">{title}</p>
-      </div>
-      <div className="px-5 py-4">{children}</div>
-    </div>
-  )
-}
-
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function HistoriqueAcheteur({
   siret,
-  cpvPrefix = '45',
+  cpv,
 }: {
   siret: string
-  cpvPrefix?: string
+  cpv?: string | null
 }) {
   const [data, setData] = useState<HistoriqueData | null>(null)
+  const [scope, setScope] = useState<Scope | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -84,22 +79,39 @@ export function HistoriqueAcheteur({
     const supabase = createClient()
     ;(async () => {
       try {
-        const { data: result, error: rpcError } = await supabase.rpc('get_historique_acheteur', {
-          p_siret: siret,
-          p_cpv_prefix: cpvPrefix,
-        })
-        if (rpcError) {
-          setError("Impossible de charger l'historique.")
-        } else {
-          setData(result as HistoriqueData)
+        const prefix4 = cpv && cpv.length >= 4 ? cpv.slice(0, 4) : null
+
+        if (prefix4) {
+          // Try precise 4-digit prefix first
+          const { data: result, error: rpcError } = await supabase.rpc(
+            'get_historique_acheteur',
+            { p_siret: siret, p_cpv_prefix: prefix4 }
+          )
+          if (rpcError) throw rpcError
+          const d = result as HistoriqueData
+
+          if (d.nb_marches >= 10) {
+            setData(d)
+            setScope({ type: 'precise', prefix: prefix4 })
+            return
+          }
         }
+
+        // Fallback to "45" (all BTP)
+        const { data: result45, error: rpcError45 } = await supabase.rpc(
+          'get_historique_acheteur',
+          { p_siret: siret, p_cpv_prefix: '45' }
+        )
+        if (rpcError45) throw rpcError45
+        setData(result45 as HistoriqueData)
+        setScope(prefix4 ? { type: 'fallback' } : { type: 'default' })
       } catch {
         setError("Impossible de charger l'historique.")
       } finally {
         setLoading(false)
       }
     })()
-  }, [siret, cpvPrefix])
+  }, [siret, cpv])
 
   // ── Loading ──
   if (loading) {
@@ -153,6 +165,11 @@ export function HistoriqueAcheteur({
 
   const acheteurLabel = data.acheteur_nom ?? `SIRET ${siret}`
 
+  const scopeLabel =
+    scope?.type === 'precise'
+      ? `marchés similaires (CPV ${scope.prefix}xxxx)`
+      : `ensemble des marchés de travaux de l'acheteur`
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -165,8 +182,15 @@ export function HistoriqueAcheteur({
 
       <div className="border border-border rounded-xl overflow-hidden">
         <div className="bg-background px-5 py-3 border-b border-border">
-          <p className="font-syne text-[13px] font-semibold text-text">{acheteurLabel}</p>
-          <p className="font-syne text-[11px] text-text-subtle mt-0.5">SIRET {siret}</p>
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div>
+              <p className="font-syne text-[13px] font-semibold text-text">{acheteurLabel}</p>
+              <p className="font-syne text-[11px] text-text-subtle mt-0.5">SIRET {siret}</p>
+            </div>
+            <span className="font-syne text-[11px] font-semibold text-text-subtle bg-background border border-border rounded-full px-3 py-1 shrink-0">
+              {scopeLabel}
+            </span>
+          </div>
         </div>
 
         <div className="p-5 space-y-5">

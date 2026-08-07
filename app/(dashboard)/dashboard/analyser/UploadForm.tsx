@@ -218,7 +218,7 @@ export function UploadForm() {
           </div>
           {result.data.siret_acheteur && (
             <div className="mt-8">
-              <HistoriqueAcheteur siret={result.data.siret_acheteur} />
+              <HistoriqueAcheteur siret={result.data.siret_acheteur} cpv={result.data.code_cpv} />
             </div>
           )}
         </>

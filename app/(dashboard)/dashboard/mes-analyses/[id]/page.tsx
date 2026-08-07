@@ -66,7 +66,10 @@ export default async function AnalyseDetailPage({ params }: { params: Promise<{ 
       {/* Historique acheteur */}
       {(data.resultat as AOResult)?.siret_acheteur && (
         <div className="mt-8">
-          <HistoriqueAcheteur siret={(data.resultat as AOResult).siret_acheteur!} />
+          <HistoriqueAcheteur
+            siret={(data.resultat as AOResult).siret_acheteur!}
+            cpv={(data.resultat as AOResult).code_cpv}
+          />
         </div>
       )}
     </div>
