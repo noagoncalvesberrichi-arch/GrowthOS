@@ -3,6 +3,7 @@
 import { useState, useTransition, useRef } from 'react'
 import { analyserAO, type AnalyserAOState } from './actions'
 import { AOResultDisplay } from './AOResultDisplay'
+import { RecoPrix } from '@/components/RecoPrix'
 import { HistoriqueAcheteur } from '@/components/HistoriqueAcheteur'
 
 export function UploadForm() {
@@ -216,6 +217,15 @@ export function UploadForm() {
           <div className="overflow-x-auto">
             <AOResultDisplay data={result.data} meta={result.meta} />
           </div>
+          {result.data.siret_acheteur && result.data.code_cpv && (
+            <div className="mt-8">
+              <RecoPrix
+                siret={result.data.siret_acheteur}
+                cpv={result.data.code_cpv}
+                montant={result.data.montant_estime}
+              />
+            </div>
+          )}
           {result.data.siret_acheteur && (
             <div className="mt-8">
               <HistoriqueAcheteur siret={result.data.siret_acheteur} cpv={result.data.code_cpv} />

@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { AOResultDisplay } from '../../analyser/AOResultDisplay'
+import { RecoPrix } from '@/components/RecoPrix'
 import { HistoriqueAcheteur } from '@/components/HistoriqueAcheteur'
 import type { AOResult, AOMetadata } from '../../analyser/actions'
 
@@ -62,6 +63,17 @@ export default async function AnalyseDetailPage({ params }: { params: Promise<{ 
       <div className="overflow-x-auto">
         <AOResultDisplay data={data.resultat as AOResult} meta={meta} />
       </div>
+
+      {/* Positionnement prix */}
+      {(data.resultat as AOResult)?.siret_acheteur && (data.resultat as AOResult)?.code_cpv && (
+        <div className="mt-8">
+          <RecoPrix
+            siret={(data.resultat as AOResult).siret_acheteur!}
+            cpv={(data.resultat as AOResult).code_cpv!}
+            montant={(data.resultat as AOResult).montant_estime}
+          />
+        </div>
+      )}
 
       {/* Historique acheteur */}
       {(data.resultat as AOResult)?.siret_acheteur && (

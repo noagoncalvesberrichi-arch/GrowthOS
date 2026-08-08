@@ -27,6 +27,7 @@ export type AOResult = {
   acheteur: string
   siret_acheteur: string | null
   code_cpv: string | null
+  montant_estime: number | null
   lots: { numero: string; designation: string; estimation: string | null }[]
   criteres_notation: { critere: string; ponderation: string }[]
   pieces_a_fournir: string[]
@@ -130,6 +131,7 @@ Retourne UNIQUEMENT ce JSON (toutes les clés sont requises, utilise null si l'i
   "acheteur": "string — nom du pouvoir adjudicateur",
   "siret_acheteur": "string ou null — SIRET (14 chiffres) du pouvoir adjudicateur si mentionné dans le DCE, sinon null",
   "code_cpv": "string ou null — code CPV principal du marché (8 chiffres, ex. 45214210) si mentionné dans le DCE, sinon null",
+  "montant_estime": "number ou null — montant estimé du marché ou du lot principal en € HT s'il figure dans le DCE (nombre brut sans unité, ex. 450000), sinon null",
   "lots": [
     { "numero": "string", "designation": "string", "estimation": "string ou null" }
   ],
