@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/server'
 
 type CheckoutResult = { url: string } | { error: string }
 
-export async function creerSessionCheckout(plan: 'mensuel' | 'annuel'): Promise<CheckoutResult> {
+export async function creerSessionCheckout(plan: 'essentiel' | 'pro'): Promise<CheckoutResult> {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -41,9 +41,9 @@ export async function creerSessionCheckout(plan: 'mensuel' | 'annuel'): Promise<
     const proto = headersList.get('x-forwarded-proto') ?? 'http'
     const baseUrl = `${proto}://${host}`
 
-    const priceId = plan === 'mensuel'
-      ? process.env.STRIPE_PRICE_ID_MENSUEL!
-      : process.env.STRIPE_PRICE_ID_ANNUEL!
+    const priceId = plan === 'essentiel'
+      ? process.env.STRIPE_PRICE_ID_ESSENTIEL!
+      : process.env.STRIPE_PRICE_ID_PRO!
 
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',

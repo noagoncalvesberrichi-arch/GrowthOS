@@ -10,13 +10,17 @@ export default async function AnalyseDetailPage({ params }: { params: Promise<{ 
   const { id } = await params
   const supabase = await createClient()
 
-  const { data } = await supabase
-    .from('analyses')
-    .select('id, created_at, nom_fichier, objet_marche, resultat, tronque')
-    .eq('id', id)
-    .single()
+  const [{ data }, { data: abo }] = await Promise.all([
+    supabase
+      .from('analyses')
+      .select('id, created_at, nom_fichier, objet_marche, resultat, tronque')
+      .eq('id', id)
+      .single(),
+    supabase.from('abonnements').select('plan').maybeSingle(),
+  ])
 
   if (!data) notFound()
+  const isPro = abo?.plan === 'pro'
 
   const date = new Date(data.created_at as string).toLocaleDateString('fr-FR', {
     day: 'numeric',
@@ -71,6 +75,7 @@ export default async function AnalyseDetailPage({ params }: { params: Promise<{ 
             siret={(data.resultat as AOResult).siret_acheteur!}
             cpv={(data.resultat as AOResult).code_cpv!}
             montant={(data.resultat as AOResult).montant_estime}
+            locked={!isPro}
           />
         </div>
       )}
@@ -81,6 +86,7 @@ export default async function AnalyseDetailPage({ params }: { params: Promise<{ 
           <HistoriqueAcheteur
             siret={(data.resultat as AOResult).siret_acheteur!}
             cpv={(data.resultat as AOResult).code_cpv}
+            locked={!isPro}
           />
         </div>
       )}

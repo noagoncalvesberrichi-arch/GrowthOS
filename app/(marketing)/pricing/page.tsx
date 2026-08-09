@@ -30,10 +30,10 @@ export default async function PricingPage({
             className="font-fraunces text-white tracking-tight leading-tight mb-4"
             style={{ fontSize: 'clamp(2rem, 4vw, 3rem)' }}
           >
-            Une seule offre, claire et honnête.
+            Choisissez votre plan.
           </h1>
           <p className="font-syne text-[16px] text-white/65 max-w-lg mx-auto">
-            Commencez gratuitement avec 3 analyses. Passez Pro pour analyser sans limite.
+            Commencez gratuitement. Passez à Essentiel ou Pro quand vous êtes prêt.
           </p>
         </div>
       </section>

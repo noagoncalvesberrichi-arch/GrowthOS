@@ -1,8 +1,21 @@
+import { createClient } from '@/lib/supabase/server'
 import { UploadForm } from './UploadForm'
 
 export const metadata = { title: "Analyser un appel d'offres — Stratly" }
 
-export default function AnalyserPage() {
+export default async function AnalyserPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  let isPro = false
+  if (user) {
+    const { data: abo } = await supabase
+      .from('abonnements')
+      .select('plan')
+      .maybeSingle()
+    isPro = abo?.plan === 'pro'
+  }
+
   return (
     <div className="max-w-3xl mx-auto px-4 py-10 sm:px-8 sm:py-14">
 
@@ -18,7 +31,7 @@ export default function AnalyserPage() {
         </p>
       </div>
 
-      <UploadForm />
+      <UploadForm isPro={isPro} />
 
     </div>
   )

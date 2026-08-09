@@ -6,7 +6,7 @@ import { AOResultDisplay } from './AOResultDisplay'
 import { RecoPrix } from '@/components/RecoPrix'
 import { HistoriqueAcheteur } from '@/components/HistoriqueAcheteur'
 
-export function UploadForm() {
+export function UploadForm({ isPro }: { isPro?: boolean }) {
   const [files, setFiles] = useState<File[]>([])
   const [result, setResult] = useState<AnalyserAOState>(null)
   const [isPending, startTransition] = useTransition()
@@ -223,12 +223,17 @@ export function UploadForm() {
                 siret={result.data.siret_acheteur}
                 cpv={result.data.code_cpv}
                 montant={result.data.montant_estime}
+                locked={!isPro}
               />
             </div>
           )}
           {result.data.siret_acheteur && (
             <div className="mt-8">
-              <HistoriqueAcheteur siret={result.data.siret_acheteur} cpv={result.data.code_cpv} />
+              <HistoriqueAcheteur
+                siret={result.data.siret_acheteur}
+                cpv={result.data.code_cpv}
+                locked={!isPro}
+              />
             </div>
           )}
         </>
