@@ -19,17 +19,26 @@ export async function creerSessionCheckout(plan: 'essentiel' | 'pro'): Promise<C
       .select('stripe_customer_id')
       .maybeSingle()
 
-    let customerId: string
+    let customerId: string | null = null
 
-    if (abo?.stripe_customer_id) {
-      customerId = abo.stripe_customer_id as string
-    } else {
+    const existingId = abo?.stripe_customer_id as string | undefined
+    if (existingId) {
+      try {
+        const retrieved = await stripe.customers.retrieve(existingId)
+        if (!retrieved.deleted) customerId = retrieved.id
+      } catch (err: unknown) {
+        // resource_missing = customer doesn't exist in this Stripe mode (e.g. test→live switch)
+        const code = (err as { code?: string })?.code
+        if (code !== 'resource_missing') throw err
+      }
+    }
+
+    if (!customerId) {
       const customer = await stripe.customers.create({
         email: user.email,
         metadata: { user_id: user.id },
       })
       customerId = customer.id
-
       await supabase
         .from('abonnements')
         .upsert({ user_id: user.id, stripe_customer_id: customerId }, { onConflict: 'user_id' })
