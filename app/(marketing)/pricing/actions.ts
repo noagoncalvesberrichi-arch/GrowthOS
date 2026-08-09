@@ -42,8 +42,16 @@ export async function creerSessionCheckout(plan: 'essentiel' | 'pro'): Promise<C
     const baseUrl = `${proto}://${host}`
 
     const priceId = plan === 'essentiel'
-      ? process.env.STRIPE_PRICE_ID_ESSENTIEL!
-      : process.env.STRIPE_PRICE_ID_PRO!
+      ? process.env.STRIPE_PRICE_ID_ESSENTIEL
+      : process.env.STRIPE_PRICE_ID_PRO
+
+    if (!priceId) {
+      const varName = plan === 'essentiel' ? 'STRIPE_PRICE_ID_ESSENTIEL' : 'STRIPE_PRICE_ID_PRO'
+      console.error(`[creerSessionCheckout] Variable d'environnement manquante : ${varName}`)
+      return { error: `Configuration de paiement incomplète (${varName} absent). Contacte le support.` }
+    }
+
+    console.log(`[creerSessionCheckout] plan=${plan} priceId=${priceId} customer=${customerId}`)
 
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
@@ -59,7 +67,8 @@ export async function creerSessionCheckout(plan: 'essentiel' | 'pro'): Promise<C
 
     return { url: session.url }
   } catch (err) {
-    console.error('[creerSessionCheckout]', err)
-    return { error: 'Erreur lors de la création de la session de paiement. Réessaie.' }
+    console.error('[creerSessionCheckout] erreur complète :', err)
+    const msg = err instanceof Error ? err.message : String(err)
+    return { error: `Erreur lors de la création de la session de paiement : ${msg}` }
   }
 }

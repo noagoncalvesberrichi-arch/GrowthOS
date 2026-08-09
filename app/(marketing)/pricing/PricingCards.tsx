@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState } from 'react'
 import { creerSessionCheckout } from './actions'
 
 function Check({ accent }: { accent?: boolean }) {
@@ -41,12 +41,11 @@ type Plan = 'essentiel' | 'pro'
 export function PricingCards({ success, canceled }: { success: boolean; canceled: boolean }) {
   const [error, setError] = useState<string | null>(null)
   const [loadingPlan, setLoadingPlan] = useState<Plan | null>(null)
-  const [, startTransition] = useTransition()
 
-  const handleSubscribe = (plan: Plan) => {
+  const handleSubscribe = async (plan: Plan) => {
     setError(null)
     setLoadingPlan(plan)
-    startTransition(async () => {
+    try {
       const result = await creerSessionCheckout(plan)
       if ('url' in result) {
         window.location.href = result.url
@@ -54,7 +53,11 @@ export function PricingCards({ success, canceled }: { success: boolean; canceled
         setError(result.error)
         setLoadingPlan(null)
       }
-    })
+    } catch (err) {
+      console.error('[PricingCards] erreur inattendue :', err)
+      setError('Une erreur inattendue est survenue. Réessaie ou contacte le support.')
+      setLoadingPlan(null)
+    }
   }
 
   const isLoading = loadingPlan !== null
