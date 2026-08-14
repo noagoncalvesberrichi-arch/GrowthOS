@@ -1,7 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { supabaseAdmin } from '@/lib/supabase/admin'
+import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { sendEmail } from '@/lib/email'
 
 function emailWrapper(content: string): string {
@@ -41,7 +41,7 @@ export async function verifierEtEnvoyerBienvenue(): Promise<void> {
     if (!user?.email) return
 
     // Check if welcome email was already sent for this user
-    const { data: abo } = await supabaseAdmin
+    const { data: abo } = await getSupabaseAdmin()
       .from('abonnements')
       .select('bienvenue_envoyee')
       .eq('user_id', user.id)
@@ -54,7 +54,7 @@ export async function verifierEtEnvoyerBienvenue(): Promise<void> {
 
     // Mark as sent — upsert: updates the flag if row exists, inserts with DB defaults if not
     // On conflict (row exists): only bienvenue_envoyee is updated, other columns untouched
-    await supabaseAdmin
+    await getSupabaseAdmin()
       .from('abonnements')
       .upsert({ user_id: user.id, bienvenue_envoyee: true }, { onConflict: 'user_id' })
 

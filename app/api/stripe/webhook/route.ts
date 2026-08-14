@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { stripe } from '@/lib/stripe'
-import { supabaseAdmin } from '@/lib/supabase/admin'
+import { getSupabaseAdmin } from '@/lib/supabase/admin'
 
 // ─── Resend helper (fetch natif, aucune dépendance) ───────────────────────────
 
@@ -96,7 +96,7 @@ export async function POST(request: Request) {
           break
         }
 
-        const { error } = await supabaseAdmin
+        const { error } = await getSupabaseAdmin()
           .from('abonnements')
           .update({
             plan: 'pro',
@@ -131,7 +131,7 @@ export async function POST(request: Request) {
       case 'customer.subscription.deleted': {
         const subscription = event.data.object as Stripe.Subscription
 
-        const { error } = await supabaseAdmin
+        const { error } = await getSupabaseAdmin()
           .from('abonnements')
           .update({
             plan: 'gratuit',
@@ -171,7 +171,7 @@ export async function POST(request: Request) {
 
       case 'customer.subscription.updated': {
         const subscription = event.data.object as Stripe.Subscription
-        const { error } = await supabaseAdmin
+        const { error } = await getSupabaseAdmin()
           .from('abonnements')
           .update({
             statut_paiement: subscription.status,

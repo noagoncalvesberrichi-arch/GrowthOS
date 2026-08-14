@@ -3,7 +3,7 @@
 import { extractText, getDocumentProxy } from 'unpdf'
 import { anthropic } from '@/lib/anthropic'
 import { createClient } from '@/lib/supabase/server'
-import { supabaseAdmin } from '@/lib/supabase/admin'
+import { getSupabaseAdmin } from '@/lib/supabase/admin'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -305,7 +305,7 @@ export async function analyserAO(formData: FormData): Promise<AnalyserAOState> {
       // Increment quota counter — via admin client (RLS bypassed, UPDATE policy removed)
       if (abonnement) {
         try {
-          const { error: incrError } = await supabaseAdmin
+          const { error: incrError } = await getSupabaseAdmin()
             .from('abonnements')
             .update({
               analyses_utilisees: abonnement.analyses_utilisees + 1,
