@@ -70,6 +70,7 @@ export async function creerSessionCheckout(plan: 'essentiel' | 'pro'): Promise<C
       cancel_url: `${baseUrl}/pricing?canceled=true`,
       client_reference_id: user.id,
       metadata: { user_id: user.id },
+      allow_promotion_codes: true,
     })
 
     if (!session.url) return { error: 'Impossible de créer la session de paiement.' }
