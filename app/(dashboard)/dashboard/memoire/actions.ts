@@ -14,6 +14,19 @@ type ProfilRow = {
   domaines: string[] | null
   zone_geographique: string | null
   notes: string | null
+  moyens_humains: string | null
+  moyens_materiels: string | null
+  methodologies: string | null
+}
+
+type ReferenceChantier = {
+  titre: string
+  maitre_ouvrage: string | null
+  annee: number | null
+  montant: number | null
+  description: string | null
+  domaines: string[]
+  site_occupe: boolean
 }
 
 type DatesCles = {
@@ -64,6 +77,9 @@ function buildProfilBlock(profil: ProfilRow | null): string {
       : null,
     profil.zone_geographique ? `Zone géographique : ${profil.zone_geographique}` : null,
     profil.notes ? `Informations complémentaires : ${profil.notes}` : null,
+    profil.moyens_humains ? `Moyens humains : ${profil.moyens_humains}` : null,
+    profil.moyens_materiels ? `Moyens matériels : ${profil.moyens_materiels}` : null,
+    profil.methodologies ? `Méthodologies & démarches : ${profil.methodologies}` : null,
   ].filter(Boolean).join('\n')
   return lines || 'Profil non renseigné — utiliser des formulations génériques.'
 }
@@ -109,10 +125,43 @@ function buildMarcheBlock(
   return lines.join('\n')
 }
 
+function buildReferencesBlock(refs: ReferenceChantier[]): string {
+  return refs
+    .map((ref, i) => {
+      const montantStr = ref.montant != null
+        ? `${ref.montant.toLocaleString('fr-FR')} € HT`
+        : null
+      const meta = [
+        ref.maitre_ouvrage ? `Maître d'ouvrage : ${ref.maitre_ouvrage}` : null,
+        ref.annee != null ? `Année : ${ref.annee}` : null,
+        montantStr ? `Montant : ${montantStr}` : null,
+      ].filter(Boolean).join('   ')
+
+      const domStr = ref.domaines.length > 0
+        ? `Domaines : ${ref.domaines.join(', ')}`
+        : null
+
+      const lines = [
+        `${i + 1}. ${ref.titre}`,
+        meta ? `   ${meta}` : null,
+        ref.description ? `   Description : ${ref.description}` : null,
+        [domStr, ref.site_occupe ? 'Réalisé en site occupé' : null]
+          .filter(Boolean)
+          .join('   ')
+          ? `   ${[domStr, ref.site_occupe ? 'Réalisé en site occupé' : null].filter(Boolean).join('   ')}`
+          : null,
+      ].filter(Boolean)
+
+      return lines.join('\n')
+    })
+    .join('\n\n')
+}
+
 function buildPrompt(
   profilBlock: string,
   marcheBlock: string,
-  resultat: AnalyseResultat | null
+  resultat: AnalyseResultat | null,
+  references: ReferenceChantier[]
 ): string {
   const parts: string[] = [
     "Génère une trame de mémoire technique pour le marché ci-dessous, adaptée au profil de l'entreprise.",
@@ -123,6 +172,33 @@ function buildPrompt(
     'MARCHÉ :',
     marcheBlock,
   ]
+
+  // References block
+  if (references.length > 0) {
+    parts.push(
+      '',
+      'RÉFÉRENCES CHANTIERS RÉALISÉES :',
+      buildReferencesBlock(references),
+      '',
+      "DIRECTIVE RÉFÉRENCES : utilise en priorité les références dont les domaines ou le contexte (site occupé, type d'ouvrage) correspondent au marché analysé. Cite-les nommément (titre, maître d'ouvrage, année, montant si disponible) dans l'introduction et dans les parties où elles appuient la démonstration de compétence. N'invente JAMAIS une référence qui ne figure pas dans cette liste."
+    )
+  }
+
+  // Resources block
+  const profil = profilBlock // used to check moyens fields — they're embedded in profilBlock already
+  void profil // suppress unused warning — the actual check is on the original profil object
+  // We need the actual profil object to check moyens fields; they are included in profilBlock if present.
+  // Build the resources directive based on what's in profilBlock.
+  const hasMoyensHumains = profilBlock.includes('Moyens humains :')
+  const hasMoyensMateriels = profilBlock.includes('Moyens matériels :')
+  const hasMethodologies = profilBlock.includes('Méthodologies & démarches :')
+
+  if (hasMoyensHumains || hasMoyensMateriels || hasMethodologies) {
+    parts.push(
+      '',
+      'DIRECTIVE RESSOURCES TECHNIQUES : les moyens humains, matériels et méthodologies renseignés dans le profil ci-dessus sont réels. Intègre-les dans les sections correspondantes du mémoire en remplacement des [À COMPLÉTER]. Conserve [À COMPLÉTER : ...] uniquement si une information spécifique manque.'
+    )
+  }
 
   // All vigilance points — no truncation
   const vigilance = resultat?.points_de_vigilance ?? []
@@ -142,7 +218,8 @@ function buildPrompt(
     '- Ligne vide, puis : "⚠ Document de travail — Complétez les passages [À COMPLÉTER : ...] avec vos informations réelles avant envoi."',
     '- Utilise [À COMPLÉTER : description précise] pour : références de projets similaires réalisés, noms et profils des intervenants, numéros de certifications, équipements spécifiques, dates et montants précis',
     "- Phrases complètes, ton professionnel de candidature, pas de bullet points excessifs — c'est un document de réponse à un marché public",
-    "- IMPORTANT : génère le document en intégralité jusqu'à la dernière section, sans t'arrêter."
+    "- IMPORTANT : génère le document en intégralité jusqu'à la dernière section, sans t'arrêter.",
+    "- Planning : si une date de démarrage peut être déduite des dates clés (délai de notification estimé à ~2 mois après remise des offres) et qu'une durée de travaux figure dans le DCE, calcule le mois de fin de chantier plutôt que de laisser [À COMPLÉTER : date de fin]."
   )
 
   const criteres = (resultat?.criteres_notation ?? []).filter(c => c.critere && c.ponderation)
@@ -216,11 +293,19 @@ export async function genererMemoire(
       return { error: 'Décrivez le marché (au moins 20 caractères) ou sélectionnez une analyse.' }
     }
 
-    const { data: profilData } = await supabase
-      .from('profil_entreprise')
-      .select('raison_sociale, ca_dernier_exercice, effectif, annees_experience, certifications, domaines, zone_geographique, notes')
-      .maybeSingle()
+    const [{ data: profilData }, { data: refsData }] = await Promise.all([
+      supabase
+        .from('profil_entreprise')
+        .select('raison_sociale, ca_dernier_exercice, effectif, annees_experience, certifications, domaines, zone_geographique, notes, moyens_humains, moyens_materiels, methodologies')
+        .maybeSingle(),
+      supabase
+        .from('references_chantiers')
+        .select('titre, maitre_ouvrage, annee, montant, description, domaines, site_occupe')
+        .order('annee', { ascending: false }),
+    ])
+
     const profil = profilData as ProfilRow | null
+    const references = (refsData ?? []) as ReferenceChantier[]
 
     let resultat: AnalyseResultat | null = null
     if (analyseId) {
@@ -234,7 +319,7 @@ export async function genererMemoire(
 
     const profilBlock = buildProfilBlock(profil)
     const marcheBlock = buildMarcheBlock(resultat, descriptionManuelle)
-    const prompt = buildPrompt(profilBlock, marcheBlock, resultat)
+    const prompt = buildPrompt(profilBlock, marcheBlock, resultat, references)
 
     const message = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',

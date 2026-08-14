@@ -1,15 +1,19 @@
 import { createClient } from '@/lib/supabase/server'
 import { MonEntrepriseForm } from './MonEntrepriseForm'
-import type { ProfilEntreprise } from './actions'
+import type { ProfilEntreprise, ReferenceChantier } from './actions'
 
 export const metadata = { title: 'Mon entreprise — Stratly' }
 
 export default async function MonEntreprisePage() {
   const supabase = await createClient()
-  const { data: profil } = await supabase
-    .from('profil_entreprise')
-    .select('*')
-    .maybeSingle() as { data: ProfilEntreprise | null }
+
+  const [{ data: rawProfil }, { data: rawRefs }] = await Promise.all([
+    supabase.from('profil_entreprise').select('*').maybeSingle(),
+    supabase.from('references_chantiers').select('*').order('annee', { ascending: false }),
+  ])
+
+  const profil = rawProfil as ProfilEntreprise | null
+  const references = (rawRefs ?? []) as ReferenceChantier[]
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-10 sm:px-8 sm:py-14">
@@ -26,7 +30,10 @@ export default async function MonEntreprisePage() {
         </p>
       </div>
 
-      <MonEntrepriseForm profil={profil} />
+      <MonEntrepriseForm
+        profil={profil}
+        references={references}
+      />
     </div>
   )
 }

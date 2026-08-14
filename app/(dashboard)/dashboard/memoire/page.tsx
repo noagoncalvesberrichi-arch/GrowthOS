@@ -9,6 +9,7 @@ export type AnalyseItem = {
   objet_marche: string | null
   nom_fichier: string
   created_at: string
+  go_no_go_verdict: string | null
 }
 
 export default async function MemoirePage() {
@@ -16,11 +17,19 @@ export default async function MemoirePage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: analyses } = await supabase
+  const { data: rawAnalyses } = await supabase
     .from('analyses')
-    .select('id, objet_marche, nom_fichier, created_at')
+    .select('id, objet_marche, nom_fichier, created_at, resultat')
     .order('created_at', { ascending: false })
-    .limit(20) as { data: AnalyseItem[] | null }
+    .limit(20)
+
+  const analyses: AnalyseItem[] = (rawAnalyses ?? []).map((a) => ({
+    id: a.id as string,
+    objet_marche: a.objet_marche as string | null,
+    nom_fichier: a.nom_fichier as string,
+    created_at: a.created_at as string,
+    go_no_go_verdict: (a.resultat as { go_no_go?: { verdict?: string } } | null)?.go_no_go?.verdict ?? null,
+  }))
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-10 sm:px-8 sm:py-14">
@@ -38,7 +47,7 @@ export default async function MemoirePage() {
         </p>
       </div>
 
-      <MemoireForm analyses={analyses ?? []} />
+      <MemoireForm analyses={analyses} />
     </div>
   )
 }

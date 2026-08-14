@@ -55,7 +55,7 @@ export default async function OnboardingPage() {
         </div>
 
         {/* Formulaire — redirige vers /dashboard après save */}
-        <MonEntrepriseForm profil={null} redirectOnSave="/dashboard" />
+        <MonEntrepriseForm profil={null} references={[]} redirectOnSave="/dashboard" />
       </div>
     </div>
   )

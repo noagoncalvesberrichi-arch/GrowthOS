@@ -16,9 +16,61 @@ function DownloadIcon() {
   )
 }
 
-function downloadTxt(content: string, objet: string) {
-  const filename = `trame-memoire-${objet.toLowerCase().replace(/[^a-z0-9]/g, '-').slice(0, 40)}.txt`
-  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
+function CopyIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+      <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+    </svg>
+  )
+}
+
+async function downloadDocx(content: string, objet: string) {
+  const { Document, HeadingLevel, Packer, Paragraph, TextRun } = await import('docx')
+
+  // Parse the trame into document elements
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const children: any[] = []
+
+  const lines = content.split('\n')
+  for (const line of lines) {
+    const trimmed = line.trim()
+    if (!trimmed) continue
+
+    if (trimmed === 'TRAME DE MÉMOIRE TECHNIQUE') {
+      children.push(new Paragraph({ text: trimmed, heading: HeadingLevel.HEADING_1 }))
+    } else if (trimmed.startsWith('⚠')) {
+      children.push(new Paragraph({
+        children: [new TextRun({ text: trimmed, italics: true, color: '6B7280' })],
+        spacing: { after: 160 },
+      }))
+    } else if (/^\d+\.\s+[A-ZÀÉÈÊÙÔÎÂÙŒÆ]/.test(trimmed) || /^(INTRODUCTION|CONCLUSION)\s*[—–-]/.test(trimmed)) {
+      children.push(new Paragraph({ text: trimmed, heading: HeadingLevel.HEADING_2 }))
+    } else {
+      // Detect all-caps lines (section titles in fallback plan)
+      const letters = trimmed.replace(/[^a-zA-ZÀ-ÿ]/g, '')
+      const isAllCaps = letters.length >= 4 && letters === letters.toUpperCase()
+      if (isAllCaps) {
+        children.push(new Paragraph({ text: trimmed, heading: HeadingLevel.HEADING_2 }))
+      } else {
+        children.push(new Paragraph({
+          children: [new TextRun({ text: trimmed })],
+          spacing: { after: 100 },
+        }))
+      }
+    }
+  }
+
+  const doc = new Document({ sections: [{ children }] })
+  const blob = await Packer.toBlob(doc)
+  const safe = objet
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]/g, '_')
+    .replace(/_+/g, '_')
+    .slice(0, 60)
+  const filename = `Memoire_technique_${safe}.docx`
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
@@ -40,6 +92,7 @@ export function MemoireForm({ analyses }: { analyses: AnalyseItem[] }) {
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
+  const [copied, setCopied] = useState(false)
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   // Prevents a debounce-save from firing when trame is set programmatically (load or generation)
@@ -102,9 +155,18 @@ export function MemoireForm({ analyses }: { analyses: AnalyseItem[] }) {
     })
   }
 
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(trame)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
   const canSubmit = mode === 'analyse'
     ? !!selectedAnalyseId
     : descriptionMarche.trim().length >= 20
+
+  const selectedAnalyse = analyses.find(a => a.id === selectedAnalyseId)
+  const isNoGo = mode === 'analyse' && selectedAnalyse?.go_no_go_verdict === 'NO_GO'
 
   const trameLabel = mode === 'analyse'
     ? (analyses.find(a => a.id === selectedAnalyseId)?.objet_marche ?? 'marche')
@@ -112,6 +174,16 @@ export function MemoireForm({ analyses }: { analyses: AnalyseItem[] }) {
 
   return (
     <div className="space-y-6">
+
+      {/* ── NO-GO banner ── */}
+      {isNoGo && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-start gap-3">
+          <span className="text-amber-600 mt-0.5 shrink-0">⚠</span>
+          <p className="font-syne text-[13px] text-amber-800">
+            Cette analyse est en <strong>NO-GO</strong> — vérifiez l&apos;éligibilité avant d&apos;investir du temps dans la rédaction d&apos;un mémoire.
+          </p>
+        </div>
+      )}
 
       {/* ── Sélecteur de mode ── */}
       <div className="bg-surface border border-border rounded-2xl p-6 sm:p-8 space-y-5">
@@ -164,6 +236,7 @@ export function MemoireForm({ analyses }: { analyses: AnalyseItem[] }) {
                 {analyses.map(a => (
                   <option key={a.id} value={a.id}>
                     {a.objet_marche || a.nom_fichier} · {new Date(a.created_at).toLocaleDateString('fr-FR')}
+                    {a.go_no_go_verdict === 'NO_GO' ? ' · NO-GO' : ''}
                   </option>
                 ))}
               </select>
@@ -231,7 +304,7 @@ export function MemoireForm({ analyses }: { analyses: AnalyseItem[] }) {
                 Trame générée
               </p>
               <p className="font-syne text-[12px] text-text-subtle mt-0.5">
-                Modifiez directement le texte ci-dessous, puis téléchargez.
+                Modifiez directement le texte ci-dessous, puis exportez.
               </p>
             </div>
             <div className="flex items-center gap-3">
@@ -248,11 +321,19 @@ export function MemoireForm({ analyses }: { analyses: AnalyseItem[] }) {
               )}
               <button
                 type="button"
-                onClick={() => downloadTxt(trame, trameLabel)}
+                onClick={() => downloadDocx(trame, trameLabel)}
                 className="inline-flex items-center gap-2 font-syne text-[13px] font-bold text-white bg-accent hover:bg-accent-dark px-4 py-2 rounded-xl transition-all duration-200 shadow-[0_4px_12px_rgba(37,99,235,0.2)]"
               >
                 <DownloadIcon />
-                Télécharger (.txt)
+                Exporter .docx
+              </button>
+              <button
+                type="button"
+                onClick={handleCopy}
+                className="inline-flex items-center gap-2 font-syne text-[13px] font-semibold text-text-muted bg-background border border-border hover:border-accent hover:text-accent px-4 py-2 rounded-xl transition-all duration-200"
+              >
+                <CopyIcon />
+                {copied ? 'Copié !' : 'Copier le texte'}
               </button>
             </div>
           </div>
@@ -279,14 +360,24 @@ export function MemoireForm({ analyses }: { analyses: AnalyseItem[] }) {
                 {saveStatus === 'error'  && '⚠ Erreur de sauvegarde'}
               </span>
             ) : <span />}
-            <button
-              type="button"
-              onClick={() => downloadTxt(trame, trameLabel)}
-              className="inline-flex items-center gap-2 font-syne text-[13px] font-bold text-white bg-accent hover:bg-accent-dark px-4 py-2 rounded-xl transition-all duration-200 shadow-[0_4px_12px_rgba(37,99,235,0.2)]"
-            >
-              <DownloadIcon />
-              Télécharger (.txt)
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleCopy}
+                className="inline-flex items-center gap-2 font-syne text-[13px] font-semibold text-text-muted bg-background border border-border hover:border-accent hover:text-accent px-4 py-2 rounded-xl transition-all duration-200"
+              >
+                <CopyIcon />
+                {copied ? 'Copié !' : 'Copier le texte'}
+              </button>
+              <button
+                type="button"
+                onClick={() => downloadDocx(trame, trameLabel)}
+                className="inline-flex items-center gap-2 font-syne text-[13px] font-bold text-white bg-accent hover:bg-accent-dark px-4 py-2 rounded-xl transition-all duration-200 shadow-[0_4px_12px_rgba(37,99,235,0.2)]"
+              >
+                <DownloadIcon />
+                Exporter .docx
+              </button>
+            </div>
           </div>
         </div>
       )}
