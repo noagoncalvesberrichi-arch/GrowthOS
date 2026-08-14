@@ -1,8 +1,10 @@
 'use client'
 
-import { useState, useTransition } from 'react'
-import { genererMemoire } from './actions'
+import { useState, useTransition, useRef, useEffect } from 'react'
+import { genererMemoire, sauvegarderMemoire, chargerMemoire } from './actions'
 import type { AnalyseItem } from './page'
+
+type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
 
 function DownloadIcon() {
   return (
@@ -37,10 +39,49 @@ export function MemoireForm({ analyses }: { analyses: AnalyseItem[] }) {
   const [trame, setTrame] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
+
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Prevents a debounce-save from firing when trame is set programmatically (load or generation)
+  const skipNextSaveRef = useRef(false)
+
+  // Load saved memoire when the selected analysis changes
+  useEffect(() => {
+    if (mode !== 'analyse' || !selectedAnalyseId) return
+    skipNextSaveRef.current = true
+    setTrame('')
+    setSaveStatus('idle')
+    chargerMemoire(selectedAnalyseId).then(res => {
+      if (res.contenu) setTrame(res.contenu)
+    })
+  }, [mode, selectedAnalyseId])
+
+  // Debounced auto-save on every trame edit (analyse mode only)
+  useEffect(() => {
+    if (!trame || mode !== 'analyse' || !selectedAnalyseId) return
+    if (skipNextSaveRef.current) {
+      skipNextSaveRef.current = false
+      return
+    }
+    setSaveStatus('saving')
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    saveTimerRef.current = setTimeout(async () => {
+      const res = await sauvegarderMemoire(selectedAnalyseId, trame)
+      setSaveStatus(res.ok ? 'saved' : 'error')
+    }, 1500)
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    }
+  }, [trame, mode, selectedAnalyseId])
 
   const handleGenerer = () => {
     setError(null)
     setTrame('')
+    setSaveStatus('idle')
+    // Server action will save on generation — skip the subsequent debounce
+    if (mode === 'analyse' && selectedAnalyseId) {
+      skipNextSaveRef.current = true
+    }
     startTransition(async () => {
       try {
         const res = await genererMemoire(
@@ -49,11 +90,14 @@ export function MemoireForm({ analyses }: { analyses: AnalyseItem[] }) {
         )
         if ('error' in res) {
           setError(res.error)
+          skipNextSaveRef.current = false
         } else {
           setTrame(res.trame)
+          if (mode === 'analyse' && selectedAnalyseId) setSaveStatus('saved')
         }
       } catch {
         setError("La génération a expiré ou une erreur réseau s'est produite. Réessaie.")
+        skipNextSaveRef.current = false
       }
     })
   }
@@ -62,7 +106,6 @@ export function MemoireForm({ analyses }: { analyses: AnalyseItem[] }) {
     ? !!selectedAnalyseId
     : descriptionMarche.trim().length >= 20
 
-  // Extract a short label for the filename
   const trameLabel = mode === 'analyse'
     ? (analyses.find(a => a.id === selectedAnalyseId)?.objet_marche ?? 'marche')
     : descriptionMarche.slice(0, 50)
@@ -191,14 +234,27 @@ export function MemoireForm({ analyses }: { analyses: AnalyseItem[] }) {
                 Modifiez directement le texte ci-dessous, puis téléchargez.
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() => downloadTxt(trame, trameLabel)}
-              className="inline-flex items-center gap-2 font-syne text-[13px] font-bold text-white bg-accent hover:bg-accent-dark px-4 py-2 rounded-xl transition-all duration-200 shadow-[0_4px_12px_rgba(37,99,235,0.2)]"
-            >
-              <DownloadIcon />
-              Télécharger (.txt)
-            </button>
+            <div className="flex items-center gap-3">
+              {mode === 'analyse' && selectedAnalyseId && (
+                <span className={`font-syne text-[11px] ${
+                  saveStatus === 'saving' ? 'text-text-subtle' :
+                  saveStatus === 'saved'  ? 'text-emerald-600' :
+                  saveStatus === 'error'  ? 'text-red-500' : ''
+                }`}>
+                  {saveStatus === 'saving' && 'Sauvegarde…'}
+                  {saveStatus === 'saved'  && '✓ Sauvegardé'}
+                  {saveStatus === 'error'  && '⚠ Erreur de sauvegarde'}
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={() => downloadTxt(trame, trameLabel)}
+                className="inline-flex items-center gap-2 font-syne text-[13px] font-bold text-white bg-accent hover:bg-accent-dark px-4 py-2 rounded-xl transition-all duration-200 shadow-[0_4px_12px_rgba(37,99,235,0.2)]"
+              >
+                <DownloadIcon />
+                Télécharger (.txt)
+              </button>
+            </div>
           </div>
 
           <div className="rounded-xl border border-border overflow-hidden">
@@ -211,7 +267,18 @@ export function MemoireForm({ analyses }: { analyses: AnalyseItem[] }) {
             />
           </div>
 
-          <div className="flex justify-end">
+          <div className="flex items-center justify-between">
+            {mode === 'analyse' && selectedAnalyseId ? (
+              <span className={`font-syne text-[11px] ${
+                saveStatus === 'saving' ? 'text-text-subtle' :
+                saveStatus === 'saved'  ? 'text-emerald-600' :
+                saveStatus === 'error'  ? 'text-red-500' : 'text-transparent'
+              }`}>
+                {saveStatus === 'saving' && 'Sauvegarde…'}
+                {saveStatus === 'saved'  && '✓ Sauvegardé'}
+                {saveStatus === 'error'  && '⚠ Erreur de sauvegarde'}
+              </span>
+            ) : <span />}
             <button
               type="button"
               onClick={() => downloadTxt(trame, trameLabel)}
