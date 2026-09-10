@@ -40,7 +40,7 @@ export async function sauvegarderProfil(profil: ProfilFormData): Promise<ProfilS
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return { error: 'Non authentifié. Reconnecte-toi.' }
+    if (!user) return { error: 'Non authentifié. Reconnectez-vous.' }
 
     const { error } = await supabase
       .from('profil_entreprise')
@@ -105,7 +105,7 @@ export async function ajouterReference(data: ReferenceFormData): Promise<Referen
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return { error: 'Non authentifié. Reconnecte-toi.' }
+    if (!user) return { error: 'Non authentifié. Reconnectez-vous.' }
 
     const { data: inserted, error } = await supabase
       .from('references_chantiers')
@@ -138,7 +138,7 @@ export async function modifierReference(id: string, data: ReferenceFormData): Pr
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return { error: 'Non authentifié. Reconnecte-toi.' }
+    if (!user) return { error: 'Non authentifié. Reconnectez-vous.' }
 
     const { error } = await supabase
       .from('references_chantiers')
@@ -170,7 +170,7 @@ export async function supprimerReference(id: string): Promise<ReferenceState> {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return { error: 'Non authentifié. Reconnecte-toi.' }
+    if (!user) return { error: 'Non authentifié. Reconnectez-vous.' }
 
     const { error } = await supabase
       .from('references_chantiers')

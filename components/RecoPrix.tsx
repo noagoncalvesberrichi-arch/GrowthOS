@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -14,6 +14,8 @@ type RecoPrixData = {
   nb_concurrents: number
   position: 'sous_le_marche' | 'dans_le_marche' | 'au_dessus_du_marche' | null
 }
+
+type LotOption = { numero: string; designation: string; estimation: string | null }
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
@@ -36,6 +38,12 @@ const POSITION_CFG = {
 
 const eur = (n: number) =>
   new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
+
+function parseEstimation(s: string | null): number | null {
+  if (!s) return null
+  const n = parseFloat(s.replace(/[^0-9.]/g, ''))
+  return isNaN(n) || n <= 0 ? null : n
+}
 
 // ─── Pro lock overlay ─────────────────────────────────────────────────────────
 
@@ -73,33 +81,84 @@ export function RecoPrix({
   siret,
   cpv,
   montant,
+  lots,
   locked,
 }: {
   siret: string
   cpv: string
   montant?: number | null
+  lots?: LotOption[]
   locked?: boolean
 }) {
+  const multiLot = lots && lots.length > 1
+  const [selectedLot, setSelectedLot] = useState(0)
   const [data, setData] = useState<RecoPrixData | null>(null)
   const [loading, setLoading] = useState(true)
 
+  // When a lot is selected, use its estimation as the active montant
+  const activeMontant = useMemo<number | null>(() => {
+    if (multiLot && selectedLot < lots!.length) {
+      return parseEstimation(lots![selectedLot].estimation) ?? montant ?? null
+    }
+    return montant ?? null
+  }, [multiLot, selectedLot, lots, montant])
+
   useEffect(() => {
+    // Don't fetch for locked users — no Pro data sent to browser
+    if (locked) {
+      setLoading(false)
+      return
+    }
+    let cancelled = false
     const supabase = createClient()
     ;(async () => {
       try {
         const { data: result, error } = await supabase.rpc('get_reco_prix', {
           p_siret: siret,
           p_cpv_prefix: cpv.slice(0, 4),
-          p_montant: montant ?? null,
+          p_montant: activeMontant ?? null,
         })
-        if (!error) setData(result as RecoPrixData)
+        if (!error && !cancelled) setData(result as RecoPrixData)
       } catch {
         // Silent fail — widget secondaire
       } finally {
-        setLoading(false)
+        if (!cancelled) setLoading(false)
       }
     })()
-  }, [siret, cpv, montant])
+    return () => { cancelled = true }
+  }, [siret, cpv, activeMontant, locked])
+
+  // ── Locked: show placeholder overlay without fetching real data ──
+  const isLocked = locked ?? false
+  if (isLocked) {
+    const placeholder = (
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full" style={{ background: '#2563EB' }} />
+          <p className="font-syne text-[12px] font-bold text-accent uppercase tracking-wider">
+            Positionnement prix
+          </p>
+        </div>
+        <div className="border border-border rounded-xl overflow-hidden">
+          <div className="bg-background px-5 py-3 border-b border-border">
+            <p className="font-syne text-[12px] text-text-subtle">Référentiel marché</p>
+          </div>
+          <div className="p-5 space-y-4">
+            <div className="grid grid-cols-3 gap-px bg-border rounded-xl overflow-hidden">
+              {(['1er quartile', 'Médiane', '3e quartile'] as const).map(label => (
+                <div key={label} className="bg-surface px-3 py-3 text-center">
+                  <p className="font-syne text-[10px] text-text-subtle mb-1">{label}</p>
+                  <p className="font-fraunces text-[16px] text-text leading-none">—</p>
+                </div>
+              ))}
+            </div>
+            <div className="relative h-2.5 rounded-full bg-border" />
+          </div>
+        </div>
+      </div>
+    )
+    return <ProLockOverlay>{placeholder}</ProLockOverlay>
+  }
 
   if (loading) {
     return (
@@ -116,9 +175,6 @@ export function RecoPrix({
 
   const posCfg = data.position ? POSITION_CFG[data.position] : null
 
-  // Build content, then optionally wrap with lock overlay
-  const isLocked = locked ?? false
-
   // ── Bar geometry ──────────────────────────────────────────────────────────
   const range = data.p75 > data.p25 ? data.p75 - data.p25 : 1
   const pad = range * 0.25
@@ -126,20 +182,19 @@ export function RecoPrix({
   const dMax = data.p75 + pad
   const dRange = dMax - dMin
 
-  // Returns a percentage within the bar (3%–97% to avoid edge overflow)
   const pct = (v: number) =>
     Math.min(97, Math.max(3, ((v - dMin) / dRange) * 100))
 
   const p25Pct  = pct(data.p25)
   const medPct  = pct(data.mediane)
   const p75Pct  = pct(data.p75)
-  const montantPct = montant != null ? pct(montant) : null
+  const montantPct = activeMontant != null ? pct(activeMontant) : null
 
   const scopeLabel = data.scope === 'acheteur'
     ? `Basé sur ${data.nb_marches} marchés similaires de cet acheteur`
     : `Référentiel national — acheteur peu actif sur ce type de marché (${data.nb_marches} marchés)`
 
-  const content = (
+  return (
     <div className="space-y-4">
       {/* Section header */}
       <div className="flex items-center gap-2">
@@ -150,6 +205,27 @@ export function RecoPrix({
       </div>
 
       <div className="border border-border rounded-xl overflow-hidden">
+        {/* Lot selector — only shown when AO has multiple lots */}
+        {multiLot && (
+          <div className="bg-background px-5 py-3 border-b border-border">
+            <label className="block font-syne text-[11px] font-semibold text-text-muted uppercase tracking-wider mb-2">
+              Lot visé
+            </label>
+            <select
+              value={selectedLot}
+              onChange={e => setSelectedLot(Number(e.target.value))}
+              className="w-full bg-surface border border-border rounded-lg px-3 py-2 font-syne text-[13px] text-text focus:outline-none focus:border-accent transition-colors"
+            >
+              {lots!.map((lot, i) => (
+                <option key={i} value={i}>
+                  Lot {lot.numero} — {lot.designation}
+                  {lot.estimation ? ` (${lot.estimation})` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         {/* Card header */}
         <div className="bg-background px-5 py-3 border-b border-border flex items-center justify-between gap-3 flex-wrap">
           <p className="font-syne text-[12px] text-text-subtle leading-snug">{scopeLabel}</p>
@@ -225,7 +301,7 @@ export function RecoPrix({
             </div>
 
             {/* Montant label */}
-            {montantPct !== null && montant != null && (
+            {montantPct !== null && activeMontant != null && (
               <div
                 className="relative mt-3 flex justify-center"
                 style={{ marginLeft: `${montantPct}%`, transform: 'translateX(-50%)', width: 0 }}
@@ -234,7 +310,7 @@ export function RecoPrix({
                   className="font-syne text-[11px] font-semibold whitespace-nowrap"
                   style={{ color: posCfg?.dot ?? '#6B7280' }}
                 >
-                  ▲ Votre estimation : {eur(montant)}
+                  ▲ Votre estimation : {eur(activeMontant)}
                 </span>
               </div>
             )}
@@ -244,6 +320,4 @@ export function RecoPrix({
       </div>
     </div>
   )
-
-  return isLocked ? <ProLockOverlay>{content}</ProLockOverlay> : content
 }

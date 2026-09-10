@@ -68,6 +68,14 @@ type ProfilRow = {
   capacite_caution: boolean
 }
 
+type ReferenceChantierItem = {
+  titre: string
+  maitre_ouvrage: string | null
+  annee: number | null
+  montant: number | null
+  site_occupe: boolean
+}
+
 type AbonnementRow = {
   plan: string
   analyses_utilisees: number
@@ -79,7 +87,18 @@ type AbonnementRow = {
 const SYSTEM_PROMPT = `Tu es un expert en marchés publics français. Tu analyses des appels d'offres et tu extrais les informations clés de manière structurée.
 Tu réponds UNIQUEMENT avec un objet JSON valide, sans markdown, sans backticks, sans commentaires.`
 
-function buildUserPrompt(texte: string, nbDocs: number, profil: ProfilRow | null): string {
+function buildRefsBlock(refs: ReferenceChantierItem[]): string {
+  return refs.map(r => {
+    const parts = [r.titre]
+    if (r.maitre_ouvrage) parts.push(`maître d'ouvrage : ${r.maitre_ouvrage}`)
+    if (r.annee != null) parts.push(`${r.annee}`)
+    if (r.montant != null) parts.push(`${r.montant.toLocaleString('fr-FR')} € HT`)
+    if (r.site_occupe) parts.push('site occupé')
+    return `- ${parts.join(', ')}`
+  }).join('\n')
+}
+
+function buildUserPrompt(texte: string, nbDocs: number, profil: ProfilRow | null, references: ReferenceChantierItem[]): string {
   const profilBlock = profil ? `
 
 PROFIL DE L'ENTREPRISE (pour l'analyse Go/No-Go) :
@@ -108,6 +127,11 @@ PROFIL DE L'ENTREPRISE (pour l'analyse Go/No-Go) :
   }`
     : `  "go_no_go": null`
 
+  const refsBlock = profil && references.length > 0 ? `
+
+RÉFÉRENCES CHANTIERS RÉALISÉES (pour valider l'expérience) :
+${buildRefsBlock(references)}` : ''
+
   const goNoGoRules = profil ? `
 
 RÈGLES pour go_no_go :
@@ -117,9 +141,9 @@ RÈGLES pour go_no_go :
 - verdict "VIGILANCE" si des éléments importants sont incertains ou si le DCE ne précise pas les exigences.
 - Inclure dans criteres uniquement les points pertinents (capacités financières, certifications requises, domaines, zone, caution si exigée).
 - score_eligibilite : entier de 0 (aucune chance) à 100 (toutes conditions remplies).
-- Si une info du profil est "non renseigné", marquer le critère correspondant "incertain".` : ''
+- Si une info du profil est "non renseigné", marquer le critère correspondant "incertain".${references.length > 0 ? '\n- RÉFÉRENCES : si des références ci-dessus correspondent au type de marché (domaines, ampleur similaire), les mentionner dans situation_entreprise pour justifier les critères d\'expérience.' : ''}` : ''
 
-  return `Voici le contenu d'un dossier de consultation des entreprises (DCE)${nbDocs > 1 ? ` composé de ${nbDocs} documents` : ''}. Analyse l'ensemble${nbDocs > 1 ? ' en croisant les informations de tous les documents' : ''} et extrais les informations clés en JSON.${profilBlock}
+  return `Voici le contenu d'un dossier de consultation des entreprises (DCE)${nbDocs > 1 ? ` composé de ${nbDocs} documents` : ''}. Analyse l'ensemble${nbDocs > 1 ? ' en croisant les informations de tous les documents' : ''} et extrais les informations clés en JSON.${profilBlock}${refsBlock}
 
 TEXTE DU DOSSIER :
 ${texte}
@@ -243,14 +267,22 @@ export async function analyserAO(formData: FormData): Promise<AnalyserAOState> {
       }
     }
 
-    // Load profil for Go/No-Go
+    // Load profil + references for Go/No-Go (in parallel)
     let profil: ProfilRow | null = null
+    let references: ReferenceChantierItem[] = []
     if (user) {
-      const { data: profilData } = await supabase
-        .from('profil_entreprise')
-        .select('raison_sociale, ca_dernier_exercice, effectif, annees_experience, certifications, domaines, zone_geographique, capacite_caution')
-        .maybeSingle()
+      const [{ data: profilData }, { data: refsData }] = await Promise.all([
+        supabase
+          .from('profil_entreprise')
+          .select('raison_sociale, ca_dernier_exercice, effectif, annees_experience, certifications, domaines, zone_geographique, capacite_caution')
+          .maybeSingle(),
+        supabase
+          .from('references_chantiers')
+          .select('titre, maitre_ouvrage, annee, montant, site_occupe')
+          .order('annee', { ascending: false }),
+      ])
       profil = profilData as ProfilRow | null
+      references = (refsData ?? []) as ReferenceChantierItem[]
     }
 
     // Call Claude
@@ -258,7 +290,7 @@ export async function analyserAO(formData: FormData): Promise<AnalyserAOState> {
       model: 'claude-sonnet-4-6',
       max_tokens: profil ? 8192 : 4096,
       system: SYSTEM_PROMPT,
-      messages: [{ role: 'user', content: buildUserPrompt(texteEnvoye, fichiers_lus.length, profil) }],
+      messages: [{ role: 'user', content: buildUserPrompt(texteEnvoye, fichiers_lus.length, profil, references) }],
     })
 
     const content = message.content[0].type === 'text' ? message.content[0].text : ''

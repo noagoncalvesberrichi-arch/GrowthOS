@@ -36,7 +36,7 @@ function FeatureRow({ label, locked, accent }: { label: string; locked?: boolean
   )
 }
 
-type Plan = 'essentiel' | 'pro'
+type Plan = 'essentiel' | 'pro' | 'fondateurs'
 
 export function PricingCards({ success, canceled }: { success: boolean; canceled: boolean }) {
   const [error, setError] = useState<string | null>(null)
@@ -76,7 +76,7 @@ export function PricingCards({ success, canceled }: { success: boolean; canceled
       {canceled && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl px-5 py-4">
           <p className="font-syne text-[13px] text-amber-700 text-center">
-            Paiement annulé. Tu peux réessayer quand tu veux.
+            Paiement annulé. Vous pouvez réessayer quand vous le souhaitez.
           </p>
         </div>
       )}
@@ -104,11 +104,11 @@ export function PricingCards({ success, canceled }: { success: boolean; canceled
             </p>
           </div>
           <button
-            onClick={() => handleSubscribe('pro')}
+            onClick={() => handleSubscribe('fondateurs')}
             disabled={isLoading}
             className="shrink-0 inline-flex items-center justify-center gap-2 bg-brand-amber hover:bg-[#B45309] text-white font-syne font-bold text-[14px] rounded-xl px-6 py-3 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
           >
-            {loadingPlan === 'pro' ? 'Redirection…' : "Rejoindre les fondateurs →"}
+            {loadingPlan === 'fondateurs' ? 'Redirection…' : "Rejoindre les fondateurs →"}
           </button>
         </div>
       </div>

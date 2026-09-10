@@ -6,12 +6,12 @@ import { createClient } from '@/lib/supabase/server'
 
 type CheckoutResult = { url: string } | { error: string }
 
-export async function creerSessionCheckout(plan: 'essentiel' | 'pro'): Promise<CheckoutResult> {
+export async function creerSessionCheckout(plan: 'essentiel' | 'pro' | 'fondateurs'): Promise<CheckoutResult> {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
-    if (!user) return { error: 'Connecte-toi pour souscrire à un abonnement.' }
+    if (!user) return { error: 'Connectez-vous pour souscrire à un abonnement.' }
 
     // Retrieve or create Stripe customer
     const { data: abo } = await supabase
@@ -50,6 +50,7 @@ export async function creerSessionCheckout(plan: 'essentiel' | 'pro'): Promise<C
     const proto = headersList.get('x-forwarded-proto') ?? 'http'
     const baseUrl = `${proto}://${host}`
 
+    // Both 'pro' and 'fondateurs' use the Pro price; 'fondateurs' applies a fixed coupon instead of open promo codes
     const priceId = plan === 'essentiel'
       ? process.env.STRIPE_PRICE_ID_ESSENTIEL
       : process.env.STRIPE_PRICE_ID_PRO
@@ -57,7 +58,7 @@ export async function creerSessionCheckout(plan: 'essentiel' | 'pro'): Promise<C
     if (!priceId) {
       const varName = plan === 'essentiel' ? 'STRIPE_PRICE_ID_ESSENTIEL' : 'STRIPE_PRICE_ID_PRO'
       console.error(`[creerSessionCheckout] Variable d'environnement manquante : ${varName}`)
-      return { error: `Configuration de paiement incomplète (${varName} absent). Contacte le support.` }
+      return { error: `Configuration de paiement incomplète (${varName} absent). Contactez le support.` }
     }
 
     console.log(`[creerSessionCheckout] plan=${plan} priceId=${priceId} customer=${customerId}`)
@@ -70,7 +71,12 @@ export async function creerSessionCheckout(plan: 'essentiel' | 'pro'): Promise<C
       cancel_url: `${baseUrl}/pricing?canceled=true`,
       client_reference_id: user.id,
       metadata: { user_id: user.id },
-      allow_promotion_codes: true,
+      // Fondateurs: pre-apply fixed coupon, no open promo code field
+      // Other plans: allow promo code entry at checkout
+      ...(plan === 'fondateurs'
+        ? { discounts: [{ coupon: 'FONDATEURS' }] }
+        : { allow_promotion_codes: true }
+      ),
     })
 
     if (!session.url) return { error: 'Impossible de créer la session de paiement.' }

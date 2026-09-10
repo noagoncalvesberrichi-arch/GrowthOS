@@ -84,7 +84,7 @@ async function downloadDocx(content: string, objet: string) {
 const INPUT_CLASS =
   'w-full bg-background border border-border rounded-xl px-4 py-3 font-syne text-[14px] text-text placeholder:text-text-subtle focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/10 transition-all duration-150'
 
-export function MemoireForm({ analyses }: { analyses: AnalyseItem[] }) {
+export function MemoireForm({ analyses, isLocked }: { analyses: AnalyseItem[]; isLocked?: boolean }) {
   const [mode, setMode] = useState<'analyse' | 'manuel'>(analyses.length > 0 ? 'analyse' : 'manuel')
   const [selectedAnalyseId, setSelectedAnalyseId] = useState(analyses[0]?.id ?? '')
   const [descriptionMarche, setDescriptionMarche] = useState('')
@@ -171,6 +171,39 @@ export function MemoireForm({ analyses }: { analyses: AnalyseItem[] }) {
   const trameLabel = mode === 'analyse'
     ? (analyses.find(a => a.id === selectedAnalyseId)?.objet_marche ?? 'marche')
     : descriptionMarche.slice(0, 50)
+
+  // Upsell screen for Gratuit plan (mémoire is Essentiel+)
+  if (isLocked) {
+    return (
+      <div className="bg-surface border border-border rounded-2xl p-8 text-center space-y-5">
+        <div
+          className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto"
+          style={{ background: 'linear-gradient(135deg, #EFF6FF, #DBEAFE)' }}
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><line x1="10" y1="9" x2="8" y2="9" />
+          </svg>
+        </div>
+        <div>
+          <p className="font-fraunces text-[22px] text-text mb-2">Mémoire technique</p>
+          <p className="font-syne text-[14px] text-text-muted leading-relaxed max-w-sm mx-auto">
+            La génération de mémoires techniques est disponible à partir du plan Essentiel.
+          </p>
+        </div>
+        <a
+          href="/pricing"
+          className="inline-flex items-center justify-center gap-2 bg-accent text-white font-syne font-bold text-[14px] rounded-xl px-6 py-3 hover:bg-accent/90 transition-colors shadow-[0_4px_16px_rgba(37,99,235,0.25)]"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+          </svg>
+          Passer à Essentiel →
+        </a>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -293,6 +326,24 @@ export function MemoireForm({ analyses }: { analyses: AnalyseItem[] }) {
             )}
           </span>
         </button>
+
+        {/* Loading feedback — 2-3 min warning */}
+        {isPending && (
+          <div className="flex items-center gap-3 justify-center pt-1">
+            <div className="flex gap-1">
+              {[0, 1, 2].map(i => (
+                <div
+                  key={i}
+                  className="w-1.5 h-1.5 rounded-full bg-accent animate-bounce"
+                  style={{ animationDelay: `${i * 0.15}s` }}
+                />
+              ))}
+            </div>
+            <p className="font-syne text-[12px] text-text-subtle">
+              Génération en cours — comptez 2 à 3 minutes
+            </p>
+          </div>
+        )}
       </div>
 
       {/* ── Résultat ── */}

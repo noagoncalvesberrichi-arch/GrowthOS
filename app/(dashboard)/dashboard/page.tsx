@@ -78,7 +78,7 @@ const actionCards = [
 export default async function DashboardPage() {
   const supabase = await createClient()
 
-  const [{ data: { user } }, { data: aboData }, { data: analysesData }] = await Promise.all([
+  const [{ data: { user } }, { data: aboData }, { data: analysesData }, { data: profilData }] = await Promise.all([
     supabase.auth.getUser(),
     supabase.from('abonnements').select('plan, analyses_utilisees, quota_gratuit, statut_paiement').maybeSingle(),
     supabase
@@ -86,9 +86,10 @@ export default async function DashboardPage() {
       .select('id, created_at, objet_marche, nom_fichier, resultat')
       .order('created_at', { ascending: false })
       .limit(4),
+    supabase.from('profil_entreprise').select('raison_sociale').maybeSingle(),
   ])
 
-  const firstName = user?.email?.split('@')[0] ?? 'toi'
+  const raisonSociale = (profilData as { raison_sociale?: string | null } | null)?.raison_sociale?.trim() || null
   const abo = aboData as Abonnement | null
   const analyses = (analysesData ?? []) as AnalyseRecente[]
 
@@ -107,7 +108,7 @@ export default async function DashboardPage() {
           Tableau de bord
         </p>
         <h1 className="font-fraunces text-[28px] sm:text-[34px] text-text tracking-tight leading-tight">
-          Bonjour, {firstName}&nbsp;👋
+          {raisonSociale ? `Bonjour, ${raisonSociale} 👋` : 'Bonjour 👋'}
         </h1>
       </div>
 
@@ -227,7 +228,7 @@ export default async function DashboardPage() {
               </svg>
             </div>
             <p className="font-syne text-[14px] font-semibold text-text mb-1.5">Aucune analyse pour l&apos;instant</p>
-            <p className="font-syne text-[13px] text-text-muted mb-5">Dépose ton premier DCE pour commencer.</p>
+            <p className="font-syne text-[13px] text-text-muted mb-5">Déposez votre premier DCE pour commencer.</p>
             <Link
               href="/dashboard/analyser"
               className="inline-flex items-center gap-2 bg-accent text-white font-syne text-[13px] font-semibold rounded-xl px-4 py-2.5 hover:bg-accent/90 transition-colors duration-150"

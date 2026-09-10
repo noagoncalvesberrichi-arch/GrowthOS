@@ -546,29 +546,6 @@ export function MonEntrepriseForm({
         </Field>
       </div>
 
-      {/* Footer profil */}
-      <div className="flex items-center justify-end gap-4 pt-1">
-        {state && 'success' in state && (
-          <span className="font-syne text-[13px] font-semibold text-accent">Profil enregistré ✓</span>
-        )}
-        {state && 'error' in state && (
-          <span className="font-syne text-[13px] font-semibold text-red-600">{state.error}</span>
-        )}
-        <button
-          onClick={handleSave}
-          disabled={isPending}
-          className="group relative px-6 py-3 bg-accent hover:bg-accent-dark text-white font-syne font-bold text-[14px] rounded-xl transition-all duration-200 overflow-hidden shadow-[0_4px_16px_rgba(37,99,235,0.25)] disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          <span
-            aria-hidden="true"
-            className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/15 to-transparent"
-          />
-          <span className="relative">
-            {isPending ? 'Enregistrement…' : 'Enregistrer →'}
-          </span>
-        </button>
-      </div>
-
       {/* ── Références chantiers ── */}
       <div className="bg-surface border border-border rounded-2xl p-6 shadow-[0_2px_12px_rgba(37,99,235,0.04)]">
         <SectionHeader
@@ -789,6 +766,34 @@ export function MonEntrepriseForm({
             ))}
           </div>
         )}
+      </div>
+
+      {/* Save button — after References */}
+      <div className="flex items-center justify-between gap-4 pt-1">
+        <p className="font-syne text-[11px] text-text-subtle">
+          Les références se sauvegardent automatiquement.
+        </p>
+        <div className="flex items-center gap-4">
+          {state && 'success' in state && (
+            <span className="font-syne text-[13px] font-semibold text-accent">Profil enregistré ✓</span>
+          )}
+          {state && 'error' in state && (
+            <span className="font-syne text-[13px] font-semibold text-red-600">{state.error}</span>
+          )}
+          <button
+            onClick={handleSave}
+            disabled={isPending}
+            className="group relative px-6 py-3 bg-accent hover:bg-accent-dark text-white font-syne font-bold text-[14px] rounded-xl transition-all duration-200 overflow-hidden shadow-[0_4px_16px_rgba(37,99,235,0.25)] disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <span
+              aria-hidden="true"
+              className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/15 to-transparent"
+            />
+            <span className="relative">
+              {isPending ? 'Enregistrement…' : 'Enregistrer →'}
+            </span>
+          </button>
+        </div>
       </div>
 
     </div>

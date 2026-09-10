@@ -30,7 +30,7 @@ export default async function MesAnalysesPage() {
           Mes analyses
         </h1>
         <p className="font-syne text-[14px] text-text-muted mt-1.5">
-          Retrouve ici toutes tes analyses d&apos;appels d&apos;offres.
+          Retrouvez ici toutes vos analyses d&apos;appels d&apos;offres.
         </p>
       </div>
 
@@ -50,7 +50,7 @@ export default async function MesAnalysesPage() {
           </div>
           <p className="font-fraunces text-[20px] text-text mb-2">Aucune analyse pour l&apos;instant</p>
           <p className="font-syne text-[13px] text-text-muted mb-7">
-            Analyse ton premier appel d&apos;offres pour le retrouver ici.
+            Analysez votre premier appel d&apos;offres pour le retrouver ici.
           </p>
           <Link
             href="/dashboard/analyser"

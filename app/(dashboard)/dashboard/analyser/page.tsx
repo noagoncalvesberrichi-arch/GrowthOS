@@ -27,7 +27,7 @@ export default async function AnalyserPage() {
           Analyser un appel d&apos;offres
         </h1>
         <p className="font-syne text-[14px] text-text-muted leading-relaxed max-w-lg">
-          Dépose le PDF de l&apos;appel d&apos;offres. Stratly l&apos;analyse et te retourne les informations clés : objet du marché, critères de sélection, délais, exigences techniques et points de vigilance.
+          Déposez le PDF de l&apos;appel d&apos;offres. Stratly l&apos;analyse et vous retourne les informations clés : objet du marché, critères de sélection, délais, exigences techniques et points de vigilance.
         </p>
       </div>
 

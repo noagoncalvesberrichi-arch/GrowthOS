@@ -1,5 +1,7 @@
 'use server'
 
+export const maxDuration = 300
+
 import { anthropic } from '@/lib/anthropic'
 import { createClient } from '@/lib/supabase/server'
 
@@ -355,7 +357,7 @@ export async function genererMemoire(
     return { trame }
   } catch (err) {
     console.error('[genererMemoire]', err)
-    return { error: "Erreur lors de la génération. Vérifie ta connexion et réessaie." }
+    return { error: "Erreur lors de la génération. Vérifiez votre connexion et réessayez." }
   }
 }
 

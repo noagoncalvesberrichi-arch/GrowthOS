@@ -17,11 +17,17 @@ export default async function MemoirePage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: rawAnalyses } = await supabase
-    .from('analyses')
-    .select('id, objet_marche, nom_fichier, created_at, resultat')
-    .order('created_at', { ascending: false })
-    .limit(20)
+  const [{ data: rawAnalyses }, { data: aboData }] = await Promise.all([
+    supabase
+      .from('analyses')
+      .select('id, objet_marche, nom_fichier, created_at, resultat')
+      .order('created_at', { ascending: false })
+      .limit(20),
+    supabase
+      .from('abonnements')
+      .select('plan')
+      .maybeSingle(),
+  ])
 
   const analyses: AnalyseItem[] = (rawAnalyses ?? []).map((a) => ({
     id: a.id as string,
@@ -30,6 +36,9 @@ export default async function MemoirePage() {
     created_at: a.created_at as string,
     go_no_go_verdict: (a.resultat as { go_no_go?: { verdict?: string } } | null)?.go_no_go?.verdict ?? null,
   }))
+
+  const plan = (aboData as { plan: string } | null)?.plan ?? 'gratuit'
+  const isLocked = plan === 'gratuit'
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-10 sm:px-8 sm:py-14">
@@ -42,12 +51,12 @@ export default async function MemoirePage() {
           Mémoire technique
         </h1>
         <p className="font-syne text-[14px] text-text-muted leading-relaxed max-w-lg">
-          Génère une trame structurée et pré-remplie à partir de ton analyse d&apos;AO ou d&apos;une description du marché.
-          Les passages <span className="font-semibold text-text">[À COMPLÉTER]</span> t&apos;indiquent ce que tu dois personnaliser.
+          Générez une trame structurée et pré-remplie à partir de votre analyse d&apos;AO ou d&apos;une description du marché.
+          Les passages <span className="font-semibold text-text">[À COMPLÉTER]</span> vous indiquent ce que vous devez personnaliser.
         </p>
       </div>
 
-      <MemoireForm analyses={analyses} />
+      <MemoireForm analyses={analyses} isLocked={isLocked} />
     </div>
   )
 }

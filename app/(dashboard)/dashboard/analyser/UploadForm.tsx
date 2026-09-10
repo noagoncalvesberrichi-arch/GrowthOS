@@ -1,16 +1,29 @@
 'use client'
 
-import { useState, useTransition, useRef } from 'react'
+import { useState, useTransition, useRef, useEffect } from 'react'
 import { analyserAO, type AnalyserAOState } from './actions'
 import { AOResultDisplay } from './AOResultDisplay'
 import { RecoPrix } from '@/components/RecoPrix'
 import { HistoriqueAcheteur } from '@/components/HistoriqueAcheteur'
+
+function formatSize(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} Ko`
+  return `${(bytes / 1024 / 1024).toFixed(1)} Mo`
+}
 
 export function UploadForm({ isPro }: { isPro?: boolean }) {
   const [files, setFiles] = useState<File[]>([])
   const [result, setResult] = useState<AnalyserAOState>(null)
   const [isPending, startTransition] = useTransition()
   const inputRef = useRef<HTMLInputElement>(null)
+  const resultRef = useRef<HTMLDivElement>(null)
+
+  // Auto-scroll to result when it appears
+  useEffect(() => {
+    if (result && 'data' in result) {
+      resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, [result])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newFiles = Array.from(e.target.files ?? [])
@@ -58,6 +71,9 @@ export function UploadForm({ isPro }: { isPro?: boolean }) {
     })
   }
 
+  // Disable Analyser button once a result is showing (re-enabled when files change)
+  const hasResult = !!(result && 'data' in result)
+
   return (
     <div>
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -95,7 +111,7 @@ export function UploadForm({ isPro }: { isPro?: boolean }) {
           ) : (
             <>
               <p className="font-syne text-[14px] font-semibold text-text">
-                {files.length > 0 ? "Ajouter d'autres fichiers" : 'Dépose tes PDFs ici ou clique pour sélectionner'}
+                {files.length > 0 ? "Ajouter d'autres fichiers" : 'Déposez vos PDFs ici ou cliquez pour sélectionner'}
               </p>
               <p className="font-syne text-[12px] text-text-subtle mt-1">
                 PDF uniquement · Plusieurs fichiers acceptés (RC, CCTP, CCAP…)
@@ -131,7 +147,7 @@ export function UploadForm({ isPro }: { isPro?: boolean }) {
                   </div>
                   <span className="font-syne text-[13px] text-text truncate">{f.name}</span>
                   <span className="font-syne text-[11px] text-text-subtle shrink-0">
-                    {(f.size / 1024 / 1024).toFixed(2)} Mo
+                    {formatSize(f.size)}
                   </span>
                 </div>
                 <button
@@ -152,7 +168,7 @@ export function UploadForm({ isPro }: { isPro?: boolean }) {
 
         <button
           type="submit"
-          disabled={files.length === 0 || isPending}
+          disabled={files.length === 0 || isPending || hasResult}
           className="group relative w-full py-3.5 bg-accent hover:bg-accent-dark text-white font-syne font-bold text-[14px] rounded-xl transition-all duration-200 overflow-hidden shadow-[0_4px_16px_rgba(37,99,235,0.25)] disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none"
         >
           <span
@@ -184,7 +200,7 @@ export function UploadForm({ isPro }: { isPro?: boolean }) {
             Quota d&apos;analyses atteint
           </p>
           <p className="font-syne text-[13px] text-amber-700">
-            Tu as utilisé {result.analyses_utilisees} analyse{result.analyses_utilisees > 1 ? 's' : ''} sur {result.quota_gratuit} disponibles dans le plan gratuit.
+            Vous avez utilisé {result.analyses_utilisees} analyse{result.analyses_utilisees > 1 ? 's' : ''} sur {result.quota_gratuit} disponibles dans le plan gratuit.
           </p>
           <a
             href="/pricing"
@@ -204,16 +220,16 @@ export function UploadForm({ isPro }: { isPro?: boolean }) {
           </svg>
           <p className="font-syne text-[12px] text-amber-800">
             {result.analyses_restantes === 0
-              ? <>C&apos;était ta dernière analyse gratuite. <a href="/pricing" className="font-semibold underline underline-offset-2 hover:text-amber-900">Passe au Pro</a> pour continuer.</>
-              : <>Il te reste <span className="font-semibold">1 analyse gratuite</span>. <a href="/pricing" className="font-semibold underline underline-offset-2 hover:text-amber-900">Voir les offres</a>.</>
+              ? <>C&apos;était votre dernière analyse gratuite. <a href="/pricing" className="font-semibold underline underline-offset-2 hover:text-amber-900">Passer au Pro</a> pour continuer.</>
+              : <>Il vous reste <span className="font-semibold">1 analyse gratuite</span>. <a href="/pricing" className="font-semibold underline underline-offset-2 hover:text-amber-900">Voir les offres</a>.</>
             }
           </p>
         </div>
       )}
 
-      {/* Résultat — NE PAS MODIFIER */}
+      {/* Résultat */}
       {result && 'data' in result && (
-        <>
+        <div ref={resultRef} className="scroll-mt-8">
           <div className="overflow-x-auto">
             <AOResultDisplay data={result.data} meta={result.meta} />
           </div>
@@ -223,6 +239,7 @@ export function UploadForm({ isPro }: { isPro?: boolean }) {
                 siret={result.data.siret_acheteur}
                 cpv={result.data.code_cpv}
                 montant={result.data.montant_estime}
+                lots={result.data.lots}
                 locked={!isPro}
               />
             </div>
@@ -236,7 +253,7 @@ export function UploadForm({ isPro }: { isPro?: boolean }) {
               />
             </div>
           )}
-        </>
+        </div>
       )}
     </div>
   )

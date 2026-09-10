@@ -108,13 +108,18 @@ export function HistoriqueAcheteur({
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    // Don't fetch for locked users — no Pro data sent to browser
+    if (locked) {
+      setLoading(false)
+      return
+    }
+    let cancelled = false
     const supabase = createClient()
     ;(async () => {
       try {
         const prefix4 = cpv && cpv.length >= 4 ? cpv.slice(0, 4) : null
 
         if (prefix4) {
-          // Try precise 4-digit prefix first
           const { data: result, error: rpcError } = await supabase.rpc(
             'get_historique_acheteur',
             { p_siret: siret, p_cpv_prefix: prefix4 }
@@ -123,8 +128,10 @@ export function HistoriqueAcheteur({
           const d = result as HistoriqueData
 
           if (d.nb_marches >= 10) {
-            setData(d)
-            setScope({ type: 'precise', prefix: prefix4 })
+            if (!cancelled) {
+              setData(d)
+              setScope({ type: 'precise', prefix: prefix4 })
+            }
             return
           }
         }
@@ -135,15 +142,47 @@ export function HistoriqueAcheteur({
           { p_siret: siret, p_cpv_prefix: '45' }
         )
         if (rpcError45) throw rpcError45
-        setData(result45 as HistoriqueData)
-        setScope(prefix4 ? { type: 'fallback' } : { type: 'default' })
+        if (!cancelled) {
+          setData(result45 as HistoriqueData)
+          setScope(prefix4 ? { type: 'fallback' } : { type: 'default' })
+        }
       } catch {
-        setError("Impossible de charger l'historique.")
+        if (!cancelled) setError("Impossible de charger l'historique.")
       } finally {
-        setLoading(false)
+        if (!cancelled) setLoading(false)
       }
     })()
-  }, [siret, cpv])
+    return () => { cancelled = true }
+  }, [siret, cpv, locked])
+
+  // ── Locked: show placeholder overlay without fetching real data ──
+  const isLocked = locked ?? false
+  if (isLocked) {
+    const placeholder = (
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-brand-amber" />
+          <p className="font-syne text-[12px] font-bold text-brand-amber uppercase tracking-wider">
+            Historique de l&apos;acheteur
+          </p>
+        </div>
+        <div className="border border-border rounded-xl overflow-hidden">
+          <div className="bg-background px-5 py-3 border-b border-border">
+            <p className="font-syne text-[13px] font-semibold text-text">Acheteur</p>
+            <p className="font-syne text-[11px] text-text-subtle mt-0.5">SIRET {siret}</p>
+          </div>
+          <div className="p-5 space-y-5">
+            <div className="grid grid-cols-3 gap-3">
+              <StatCard label="Marchés attribués" value="—" />
+              <StatCard label="Montant médian" value="—" />
+              <StatCard label="Montant moyen" value="—" />
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+    return <ProLockOverlay>{placeholder}</ProLockOverlay>
+  }
 
   // ── Loading ──
   if (loading) {
@@ -202,9 +241,7 @@ export function HistoriqueAcheteur({
       ? `marchés similaires (CPV ${scope.prefix}xxxx)`
       : `ensemble des marchés de travaux de l'acheteur`
 
-  const isLocked = locked ?? false
-
-  const content = (
+  return (
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center gap-2">
@@ -311,6 +348,4 @@ export function HistoriqueAcheteur({
       </div>
     </div>
   )
-
-  return isLocked ? <ProLockOverlay>{content}</ProLockOverlay> : content
 }
