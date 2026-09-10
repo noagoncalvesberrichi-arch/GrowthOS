@@ -97,7 +97,7 @@ export function PricingCards({ success, canceled }: { success: boolean; canceled
               </span>
             </div>
             <p className="font-fraunces text-[19px] sm:text-[22px] text-text leading-snug">
-              Le plan Pro à <span className="text-brand-amber">190€&nbsp;/mois à vie</span>
+              Le plan Pro à <span className="text-brand-amber">190€&nbsp;HT&nbsp;/mois à vie</span>
             </p>
             <p className="font-syne text-[13px] text-text-muted mt-1 leading-relaxed">
               Toutes les fonctionnalités Pro, tarif bloqué pour toujours. Réservé aux 15 premiers clients.
@@ -148,7 +148,7 @@ export function PricingCards({ success, canceled }: { success: boolean; canceled
           <div className="mb-5">
             <div className="flex items-baseline gap-1">
               <span className="font-fraunces text-[38px] text-text leading-none tracking-tight">190€</span>
-              <span className="font-syne text-[13px] text-text-subtle">/mois</span>
+              <span className="font-syne text-[13px] text-text-subtle">HT/mois</span>
             </div>
             <p className="font-syne text-[12px] text-text-subtle mt-1">Sans engagement</p>
           </div>
@@ -185,7 +185,7 @@ export function PricingCards({ success, canceled }: { success: boolean; canceled
             <div>
               <div className="flex items-baseline gap-1">
                 <span className="font-fraunces text-[38px] font-bold text-white leading-none tracking-tight">390€</span>
-                <span className="font-syne text-[13px] text-white/50">/mois</span>
+                <span className="font-syne text-[13px] text-white/50">HT/mois</span>
               </div>
               <p className="font-syne text-[12px] text-white/40 mt-1">Sans engagement</p>
             </div>

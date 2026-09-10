@@ -68,12 +68,8 @@ export default async function PricingPage({
                 a: 'Oui. Vous pouvez déposer l\'ensemble du DCE (RC, CCTP, CCAP, DPGF…) en une seule fois. Stratly croise l\'ensemble des documents pour une analyse complète.',
               },
               {
-                q: 'Comment fonctionne l\'abonnement annuel ?',
-                a: '1 500€ facturés en une fois pour 12 mois, soit 125€/mois. C\'est l\'équivalent de 10 mois au tarif mensuel — 2 mois offerts.',
-              },
-              {
                 q: 'Puis-je annuler à tout moment ?',
-                a: 'Oui. L\'abonnement mensuel est sans engagement : vous pouvez résilier à tout moment depuis votre espace Stripe. L\'annuel prend fin à échéance.',
+                a: 'Oui. L\'abonnement est sans engagement : vous pouvez résilier à tout moment depuis votre espace de facturation Stripe. Votre accès reste actif jusqu\'à la fin de la période en cours.',
               },
             ].map((faq) => (
               <div key={faq.q} className="py-5">

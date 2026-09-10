@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { EMAIL_CONTACT } from '@/lib/legal'
 
 const faqs = [
   {
@@ -22,19 +23,27 @@ const faqs = [
   },
   {
     q: "C'est payant ?",
-    a: "Stratly propose 3 analyses complètes gratuitement, sans limite de temps, pour vous permettre de tester l'outil sur vos premiers appels d'offres. Au-delà, un abonnement Pro (150 €/mois ou 1 500 €/an, soit 2 mois offerts) donne accès à des analyses illimitées.",
+    a: "Stratly propose 3 analyses complètes gratuitement, sans limite de temps, pour vous permettre de tester l'outil sur vos premiers appels d'offres. Au-delà, le plan Essentiel (190 € HT/mois) donne accès aux analyses illimitées et au mémoire technique ; le plan Pro (390 € HT/mois) ajoute l'historique de l'acheteur, le positionnement prix et le support prioritaire. Les deux plans sont sans engagement.",
   },
   {
     q: "Stratly remplit-il le dossier de candidature à ma place ?",
-    a: "Non — Stratly analyse et synthétise le dossier pour vous aider à décider rapidement si vous répondez à un appel d'offres, et à préparer votre candidature en connaissance de cause. La rédaction automatique des pièces de candidature est une fonctionnalité que nous envisageons pour une prochaine version.",
+    a: "Stratly génère une trame de mémoire technique structurée sur la grille de notation du DCE, enrichie par vos références chantier. Cette trame est disponible sur les plans Essentiel et Pro. Elle vous fait gagner plusieurs heures de rédaction — c'est à vous de la personnaliser et de la compléter avant dépôt.",
   },
   {
     q: "Faut-il une carte bancaire pour l'essai gratuit ?",
-    a: "Non. Vous pouvez créer un compte et utiliser vos 3 analyses gratuites sans renseigner de moyen de paiement. La carte bancaire n'est demandée que si vous souhaitez souscrire à l'abonnement Pro.",
+    a: "Non. Vous pouvez créer un compte et utiliser vos 3 analyses gratuites sans renseigner de moyen de paiement. La carte bancaire n'est demandée que si vous souhaitez souscrire à un abonnement payant.",
   },
   {
     q: "Puis-je annuler à tout moment ?",
-    a: "Oui. L'abonnement mensuel est sans engagement : vous pouvez le résilier à tout moment depuis votre espace de facturation Stripe, et votre accès reste actif jusqu'à la fin de la période en cours. L'abonnement annuel prend fin à l'échéance de la période souscrite.",
+    a: "Oui. L'abonnement est sans engagement : vous pouvez le résilier à tout moment depuis votre espace de facturation Stripe, et votre accès reste actif jusqu'à la fin de la période en cours.",
+  },
+  {
+    q: "D'où viennent les données de l'historique acheteur ?",
+    a: "Les données d'historique proviennent des données essentielles de la commande publique (DECP), publiées par l'État français sur data.gouv.fr. Elles couvrent plus d'un million de marchés dans les secteurs BTP et sont mises à jour chaque semaine. Ces données sont indicatives — elles peuvent ne pas refléter l'intégralité des attributions d'un acheteur.",
+  },
+  {
+    q: "Quelle différence entre Essentiel et Pro ?",
+    a: "Le plan Essentiel (190 € HT/mois) donne accès aux analyses illimitées, à l'analyse Go/No-Go personnalisée et au mémoire technique. Le plan Pro (390 € HT/mois) ajoute l'historique des attributions de chaque acheteur public, le positionnement prix (fourchette p25/médiane/p75) et le support prioritaire.",
   },
 ]
 
@@ -119,12 +128,20 @@ export default function FaqPage() {
           <p className="font-syne text-[13px] sm:text-[14px] text-text-muted mb-6">
             Contactez-nous ou essayez Stratly directement avec vos premiers dossiers.
           </p>
-          <Link
-            href="/signup"
-            className="inline-flex items-center gap-2 font-syne font-bold text-[14px] text-[#1E3A8A] bg-brand-amber hover:bg-brand-amber-dark px-6 py-3 rounded-xl transition-colors duration-200 shadow-[0_4px_16px_rgba(217,119,6,0.25)]"
-          >
-            Essayer gratuitement →
-          </Link>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <a
+              href={`mailto:${EMAIL_CONTACT}`}
+              className="inline-flex items-center gap-2 font-syne font-bold text-[14px] text-text-muted border border-border hover:border-accent/40 hover:text-accent px-6 py-3 rounded-xl transition-colors duration-200"
+            >
+              Contactez-nous →
+            </a>
+            <Link
+              href="/signup"
+              className="inline-flex items-center gap-2 font-syne font-bold text-[14px] text-[#1E3A8A] bg-brand-amber hover:bg-brand-amber-dark px-6 py-3 rounded-xl transition-colors duration-200 shadow-[0_4px_16px_rgba(217,119,6,0.25)]"
+            >
+              Essayer gratuitement →
+            </Link>
+          </div>
         </div>
       </section>
 

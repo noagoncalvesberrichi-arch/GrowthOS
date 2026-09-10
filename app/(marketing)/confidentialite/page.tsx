@@ -1,5 +1,14 @@
 // Document à faire valider juridiquement avant mise en production.
 
+import {
+  RAISON_SOCIALE,
+  STATUT_JURIDIQUE,
+  SIRET,
+  ADRESSE,
+  EMAIL_CONTACT,
+  DATE_MAJ,
+} from '@/lib/legal'
+
 export const metadata = { title: 'Politique de confidentialité — Stratly' }
 
 function Section({ num, title, children }: { num: string; title: string; children: React.ReactNode }) {
@@ -43,7 +52,7 @@ export default function ConfidentialitePage() {
         <div className="max-w-2xl mx-auto">
 
           <p className="font-syne text-[14px] text-text-muted leading-relaxed mb-10 border-l-4 border-brand-amber/40 pl-4">
-            [RAISON SOCIALE], éditeur de Stratly, s&apos;engage à protéger la vie privée des utilisateurs de sa plateforme. La présente politique décrit quelles données sont collectées, pour quelles finalités, sur quelle base légale, et quels droits vous pouvez exercer conformément au Règlement général sur la protection des données (RGPD — Règlement UE 2016/679).
+            {RAISON_SOCIALE}, éditeur de Stratly, s&apos;engage à protéger la vie privée des utilisateurs de sa plateforme. La présente politique décrit quelles données sont collectées, pour quelles finalités, sur quelle base légale, et quels droits vous pouvez exercer conformément au Règlement général sur la protection des données (RGPD — Règlement UE 2016/679).
           </p>
 
           <Section num="1" title="Responsable du traitement">
@@ -51,10 +60,13 @@ export default function ConfidentialitePage() {
               Le responsable du traitement des données personnelles collectées via Stratly est :
             </p>
             <p>
-              <span className="font-semibold text-text">[RAISON SOCIALE]</span> — [STATUT JURIDIQUE], SIRET [SIRET], dont le siège social est situé [ADRESSE COMPLÈTE].
+              <span className="font-semibold text-text">{RAISON_SOCIALE}</span> — {STATUT_JURIDIQUE}, SIRET {SIRET}, dont le siège social est situé {ADRESSE}.
             </p>
             <p>
-              Pour toute question relative à vos données : <span className="font-semibold text-text">[EMAIL DE CONTACT DPO OU RESPONSABLE]</span>
+              Pour toute question relative à vos données :{' '}
+              <a href={`mailto:${EMAIL_CONTACT}`} className="font-semibold text-accent hover:underline underline-offset-2">
+                {EMAIL_CONTACT}
+              </a>
             </p>
           </Section>
 
@@ -143,7 +155,7 @@ export default function ConfidentialitePage() {
             <ul className="list-disc list-inside space-y-2 pl-1">
               <li><span className="font-semibold text-text">Données de compte</span> : conservées pendant toute la durée de l&apos;abonnement actif, puis pendant 3 ans après la dernière activité ou la résiliation (prospection commerciale).</li>
               <li><span className="font-semibold text-text">Profil entreprise</span> : conservé tant que le compte est actif. Supprimé sur demande.</li>
-              <li><span className="font-semibold text-text">Dossiers d&apos;appels d&apos;offres et analyses</span> : conservés pendant la durée de l&apos;abonnement actif. [DURÉE À PRÉCISER SELON POLITIQUE DE RÉTENTION]</li>
+              <li><span className="font-semibold text-text">Dossiers d&apos;appels d&apos;offres et analyses</span> : conservés pendant la durée de l&apos;abonnement actif. Supprimés à la résiliation du compte ou sur demande.</li>
               <li><span className="font-semibold text-text">Données de facturation</span> : conservées 10 ans conformément aux obligations comptables légales.</li>
               <li><span className="font-semibold text-text">Journaux de connexion</span> : conservés 12 mois conformément à la législation française.</li>
             </ul>
@@ -163,7 +175,7 @@ export default function ConfidentialitePage() {
                 },
                 {
                   nom: 'Vercel Inc.',
-                  role: 'Hébergement de l&apos;application (infrastructure front-end et back-end)',
+                  role: "Hébergement de l'application (infrastructure front-end et back-end)",
                   localisation: 'États-Unis / régions AWS/Cloudflare',
                   garantie: 'DPA conforme RGPD, clauses contractuelles types CE',
                 },
@@ -171,20 +183,20 @@ export default function ConfidentialitePage() {
                   nom: 'Stripe Payments Europe Ltd',
                   role: 'Traitement des paiements et gestion des abonnements',
                   localisation: 'Irlande (UE)',
-                  garantie: 'Entité basée dans l&apos;UE, certifiée PCI-DSS',
+                  garantie: "Entité basée dans l'UE, certifiée PCI-DSS",
                 },
                 {
                   nom: 'Anthropic PBC',
-                  role: 'Moteur d&apos;intelligence artificielle pour l&apos;analyse des dossiers',
+                  role: "Moteur d'intelligence artificielle pour l'analyse des dossiers",
                   localisation: 'États-Unis',
-                  garantie: 'DPA disponible — vos données ne sont pas utilisées pour entraîner les modèles (API usage policy)',
+                  garantie: "DPA disponible — vos données ne sont pas utilisées pour entraîner les modèles (API usage policy)",
                 },
               ].map((st) => (
                 <div key={st.nom} className="bg-surface border border-border rounded-xl p-4">
                   <p className="font-semibold text-text text-[13px] mb-1">{st.nom}</p>
-                  <p className="text-[12px] text-text-muted mb-1"><span className="font-medium">Rôle :</span> <span dangerouslySetInnerHTML={{ __html: st.role }} /></p>
+                  <p className="text-[12px] text-text-muted mb-1"><span className="font-medium">Rôle :</span> {st.role}</p>
                   <p className="text-[12px] text-text-muted mb-1"><span className="font-medium">Localisation :</span> {st.localisation}</p>
-                  <p className="text-[12px] text-text-muted"><span className="font-medium">Garanties :</span> <span dangerouslySetInnerHTML={{ __html: st.garantie }} /></p>
+                  <p className="text-[12px] text-text-muted"><span className="font-medium">Garanties :</span> {st.garantie}</p>
                 </div>
               ))}
             </div>
@@ -199,12 +211,12 @@ export default function ConfidentialitePage() {
             </p>
             <ul className="space-y-2">
               {[
-                ['Droit d\'accès', 'obtenir une copie des données que nous détenons sur vous'],
+                ["Droit d'accès", 'obtenir une copie des données que nous détenons sur vous'],
                 ['Droit de rectification', 'corriger des données inexactes ou incomplètes'],
-                ['Droit à l\'effacement (« droit à l\'oubli »)', 'demander la suppression de vos données (sous réserve d\'obligations légales)'],
+                ["Droit à l'effacement (« droit à l'oubli »)", "demander la suppression de vos données (sous réserve d'obligations légales)"],
                 ['Droit à la limitation', 'restreindre temporairement le traitement de vos données'],
                 ['Droit à la portabilité', 'recevoir vos données dans un format structuré et lisible par machine'],
-                ['Droit d\'opposition', 'vous opposer à un traitement fondé sur l\'intérêt légitime'],
+                ["Droit d'opposition", "vous opposer à un traitement fondé sur l'intérêt légitime"],
               ].map(([droit, desc]) => (
                 <li key={droit} className="flex gap-2">
                   <span className="text-brand-amber shrink-0 mt-0.5">→</span>
@@ -213,7 +225,10 @@ export default function ConfidentialitePage() {
               ))}
             </ul>
             <p>
-              Pour exercer vos droits, contactez-nous à : <span className="font-semibold text-text">[EMAIL DE CONTACT DPO]</span>. Nous nous engageons à répondre dans un délai d&apos;un mois.
+              Pour exercer vos droits, contactez-nous à :{' '}
+              <a href={`mailto:${EMAIL_CONTACT}`} className="font-semibold text-accent hover:underline underline-offset-2">
+                {EMAIL_CONTACT}
+              </a>. Nous nous engageons à répondre dans un délai d&apos;un mois.
             </p>
             <p>
               Vous avez également le droit d&apos;introduire une réclamation auprès de la CNIL (Commission nationale de l&apos;informatique et des libertés — <span className="font-semibold text-text">www.cnil.fr</span>).
@@ -222,7 +237,7 @@ export default function ConfidentialitePage() {
 
           <Section num="7" title="Cookies et traceurs">
             <p>
-              Stratly utilise uniquement des cookies techniques strictement nécessaires au fonctionnement du service (session d&apos;authentification). Aucun cookie publicitaire ou de traçage à des fins marketing n&apos;est déposé. [COMPLÉTER SI OUTILS D&apos;ANALYTICS AJOUTÉS]
+              Stratly utilise uniquement des cookies techniques strictement nécessaires au fonctionnement du service (session d&apos;authentification). Aucun cookie publicitaire ou de traçage à des fins marketing n&apos;est déposé.
             </p>
           </Section>
 
@@ -239,7 +254,7 @@ export default function ConfidentialitePage() {
           </Section>
 
           <p className="font-syne text-[12px] text-text-subtle mt-8">
-            Dernière mise à jour : [DATE]
+            Dernière mise à jour : {DATE_MAJ}
           </p>
         </div>
       </section>

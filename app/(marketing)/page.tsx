@@ -1,21 +1,21 @@
 import Link from 'next/link'
 
 export const metadata = {
-  title: "Stratly — Analysez vos appels d'offres en quelques minutes",
+  title: "Stratly — Analysez vos appels d'offres, sachez ce que vos acheteurs paient",
   description:
-    "Stratly analyse automatiquement vos dossiers DCE, extrait les points clés et vous donne un avis Go/No-Go selon le profil de votre entreprise BTP. Essayez gratuitement.",
+    "Stratly analyse automatiquement vos DCE, consulte l'historique réel de l'acheteur et vous donne un Go/No-Go selon le profil de votre entreprise BTP. Essayez gratuitement.",
   openGraph: {
-    title: "Stratly — Analysez vos appels d'offres en quelques minutes",
+    title: "Stratly — Analysez vos appels d'offres, sachez ce que vos acheteurs paient",
     description:
-      "Analyse automatique de DCE, avis Go/No-Go personnalisé, mémoire technique en un clic. La plateforme pour les entreprises BTP qui répondent aux marchés publics.",
+      "Analyse DCE en 2 minutes, historique acheteur DECP, positionnement prix, mémoire technique. La plateforme pour les entreprises BTP qui répondent aux marchés publics.",
     url: 'https://stratly.fr',
     type: 'website' as const,
   },
   twitter: {
     card: 'summary_large_image' as const,
-    title: "Stratly — Analysez vos appels d'offres en quelques minutes",
+    title: "Stratly — Analysez vos appels d'offres, sachez ce que vos acheteurs paient",
     description:
-      "Analyse automatique de DCE, avis Go/No-Go personnalisé, mémoire technique en un clic.",
+      "Analyse DCE en 2 minutes, historique acheteur DECP, positionnement prix, mémoire technique.",
   },
 }
 
@@ -127,26 +127,109 @@ function IconLayers() {
   )
 }
 
+function IconChart() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="20" x2="18" y2="10" />
+      <line x1="12" y1="20" x2="12" y2="4" />
+      <line x1="6" y1="20" x2="6" y2="14" />
+    </svg>
+  )
+}
+
+function IconBookOpen() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z" />
+      <path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z" />
+    </svg>
+  )
+}
+
+function HistoriqueMockup() {
+  return (
+    <div className="rounded-2xl overflow-hidden shadow-[0_16px_56px_rgba(0,0,0,0.45)]">
+      <div className="bg-[#E8EAED] px-4 py-2.5 flex items-center gap-3 border-b border-[#CDD0D6] shrink-0">
+        <div className="flex gap-1.5 shrink-0">
+          <div className="w-3 h-3 rounded-full bg-[#FF5F57]" />
+          <div className="w-3 h-3 rounded-full bg-[#FFBD2E]" />
+          <div className="w-3 h-3 rounded-full bg-[#28CA41]" />
+        </div>
+        <div className="flex-1 bg-white/80 rounded-md h-5 flex items-center px-3 overflow-hidden">
+          <span className="font-mono text-[10px] text-[#AAA] truncate">app.stratly.fr</span>
+        </div>
+      </div>
+      <div className="bg-white p-4">
+        <div className="flex items-start justify-between mb-3">
+          <div>
+            <p className="font-syne text-[10px] font-semibold uppercase tracking-widest text-[#2563EB] mb-0.5">Historique acheteur</p>
+            <p className="font-fraunces text-[15px] text-[#0F1B4D]">Bordeaux Métropole</p>
+          </div>
+          <div className="text-right">
+            <p className="font-syne text-[10px] text-[#6B7280]">42 marchés BTP</p>
+            <p className="font-syne text-[10px] text-[#9CA3AF]">Màj il y a 3 j</p>
+          </div>
+        </div>
+        <div className="space-y-0 mb-3 border border-[#F3F4F6] rounded-lg overflow-hidden">
+          {[
+            { objet: 'Terrassement VRD', montant: '285 000 €', attributaire: 'BTP Atlantique' },
+            { objet: 'Réseaux EU/EP', montant: '142 000 €', attributaire: 'Canalisation Sud' },
+            { objet: 'Génie civil', montant: '610 000 €', attributaire: 'Gironde TP' },
+          ].map((row, i) => (
+            <div key={row.objet} className={`flex items-center justify-between px-3 py-2 text-[11px] ${i < 2 ? 'border-b border-[#F3F4F6]' : ''}`}>
+              <span className="font-syne text-[#374151] truncate max-w-[110px]">{row.objet}</span>
+              <span className="font-syne font-semibold text-[#0F1B4D] shrink-0 mx-2">{row.montant}</span>
+              <span className="font-syne text-[#9CA3AF] truncate max-w-[80px] text-right">{row.attributaire}</span>
+            </div>
+          ))}
+        </div>
+        <div className="bg-[#F9FAFB] rounded-lg p-3">
+          <p className="font-syne text-[10px] text-[#9CA3AF] mb-1.5">Positionnement prix — p25 / médiane / p75</p>
+          <div className="flex items-center gap-2">
+            <span className="font-syne text-[10px] text-[#6B7280]">130k</span>
+            <div className="flex-1 h-2 bg-[#E5E7EB] rounded-full relative">
+              <div className="absolute inset-y-0 left-[22%] right-[22%] bg-[#DBEAFE] rounded-full" />
+              <div
+                className="absolute top-1/2 left-[52%] -translate-y-1/2 w-2.5 h-2.5 bg-[#2563EB] rounded-full"
+                style={{ boxShadow: '0 0 0 2px white, 0 0 0 3px #2563EB' }}
+              />
+            </div>
+            <span className="font-syne text-[10px] text-[#6B7280]">620k</span>
+          </div>
+          <div className="flex justify-between mt-1.5">
+            <span className="font-syne text-[9px] text-[#9CA3AF]">p25 : 180k€</span>
+            <span className="font-syne text-[9px] font-semibold text-[#2563EB]">médiane : 310k€</span>
+            <span className="font-syne text-[9px] text-[#9CA3AF]">p75 : 490k€</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Data ─────────────────────────────────────────────────────────────────────
 
-const steps = [
+const pillars = [
   {
     num: '01',
-    icon: <IconFile />,
-    title: "Déposez les documents du DCE",
-    sub: "RC, CCTP, CCAP, DPGF… Un ou plusieurs PDFs, Stratly les lit tous en une seule fois.",
+    icon: <IconScan />,
+    title: "Analyse du DCE en 2 minutes",
+    badge: undefined as string | undefined,
+    sub: "Déposez les PDFs du dossier. Stratly extrait l'objet du marché, les critères, les délais, les pièces à fournir et les points de vigilance — et compare les exigences au profil de votre entreprise pour un Go/No-Go clair.",
   },
   {
     num: '02',
-    icon: <IconScan />,
-    title: "Stratly analyse et synthétise",
-    sub: "L'outil extrait l'objet du marché, les critères de notation, les dates clés, les pièces à fournir et les points de vigilance.",
+    icon: <IconChart />,
+    title: "Historique & prix de l'acheteur",
+    badge: "Nouveau" as string | undefined,
+    sub: "Accédez aux attributions réelles de chaque acheteur public : entreprises retenues, montants, lots. Issues des données DECP, plus d'un million de marchés BTP mis à jour chaque semaine. Et la fourchette p25/médiane/p75 pour chiffrer juste.",
   },
   {
     num: '03',
-    icon: <IconThumb />,
-    title: "Recevez votre avis Go / No-Go",
-    sub: "Stratly compare les exigences du marché aux capacités de votre entreprise et vous donne une recommandation claire.",
+    icon: <IconBookOpen />,
+    title: "Mémoire technique sur mesure",
+    badge: undefined as string | undefined,
+    sub: "Générez une trame structurée sur la grille de notation du DCE, enrichie automatiquement par vos références chantier. Export Word en un clic.",
   },
 ]
 
@@ -163,13 +246,13 @@ const benefits = [
   },
   {
     icon: <IconZap />,
-    title: "Une décision rapide",
-    description: "Go ou No-Go ? Stratly croise les exigences du marché avec votre profil d'entreprise pour vous aider à prioriser.",
+    title: "Acheteurs connus avant de chiffrer",
+    description: "Consultez l'historique des attributions de chaque acheteur et la fourchette p25/médiane/p75 pour calibrer votre offre.",
   },
   {
     icon: <IconLayers />,
-    title: "Tout le DCE d'un coup",
-    description: "Analysez plusieurs PDFs en une seule fois : le RC, le CCTP et le CCAP ensemble pour une analyse croisée complète.",
+    title: "Mémoire technique en 2 minutes",
+    description: "Générez une trame structurée sur la grille de notation du DCE, nourrie par vos références chantier. Export Word en un clic.",
   },
 ]
 
@@ -201,12 +284,11 @@ export default function HomePage() {
               className="font-fraunces text-white tracking-tight leading-[1.08] mb-5"
               style={{ fontSize: 'clamp(1.75rem, 5vw, 3.4rem)' }}
             >
-              Analysez un dossier d&apos;appel d&apos;offres en quelques minutes.
+              Analysez vos appels d&apos;offres, sachez ce que vos acheteurs paient
             </h1>
             <p className="font-syne text-[15px] sm:text-[17px] text-white/70 leading-relaxed mb-7 sm:mb-10 max-w-lg">
-              Déposez vos PDFs. Stratly extrait l&apos;essentiel — objet du marché, critères de
-              notation, dates, pièces à fournir — et vous donne un avis Go&nbsp;/&nbsp;No-Go
-              selon le profil de votre entreprise.
+              Déposez vos PDFs. Stratly analyse le DCE, consulte l&apos;historique réel de
+              l&apos;acheteur et vous donne un Go&nbsp;/&nbsp;No-Go selon le profil de votre entreprise.
             </p>
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
               <Link
@@ -299,43 +381,58 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── COMMENT ÇA MARCHE ───────────────────────────────────────────────── */}
+      {/* ── FONCTIONNALITÉS ─────────────────────────────────────────────────── */}
       <section className="py-14 px-5 sm:px-6 md:py-24 overflow-hidden" style={{ backgroundColor: '#0F1B4D' }}>
         <div className="max-w-5xl mx-auto">
           <p className="font-syne text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-amber mb-4">
-            Fonctionnement
+            Fonctionnalités
           </p>
           <h2
             className="font-fraunces text-white tracking-tight leading-tight mb-10 md:mb-16"
             style={{ fontSize: 'clamp(1.6rem, 3vw, 2.5rem)' }}
           >
-            Trois étapes, c&apos;est tout.
+            Tout ce qu&apos;il vous faut pour répondre.
           </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10 md:gap-12 md:mb-16">
-            {steps.map((step) => (
-              <div key={step.num}>
+            {pillars.map((pillar) => (
+              <div key={pillar.num}>
                 <p className="font-fraunces font-bold text-[40px] md:text-[56px] leading-none text-white/10 select-none tabular-nums">
-                  {step.num}
+                  {pillar.num}
                 </p>
                 <div className="w-10 h-10 rounded-xl bg-white/10 text-white flex items-center justify-center mt-4 mb-4">
-                  {step.icon}
+                  {pillar.icon}
                 </div>
-                <h3 className="font-syne text-[16px] sm:text-[17px] font-bold text-white mb-2">{step.title}</h3>
-                <p className="font-syne text-[13px] text-white/55 leading-relaxed">{step.sub}</p>
+                <div className="flex items-center gap-2 flex-wrap mb-2">
+                  <h3 className="font-syne text-[16px] sm:text-[17px] font-bold text-white">{pillar.title}</h3>
+                  {pillar.badge && (
+                    <span className="font-syne text-[9px] font-bold uppercase tracking-wider text-[#1E3A8A] bg-brand-amber rounded-full px-2 py-0.5">
+                      {pillar.badge}
+                    </span>
+                  )}
+                </div>
+                <p className="font-syne text-[13px] text-white/55 leading-relaxed">{pillar.sub}</p>
               </div>
             ))}
           </div>
 
-          <div className="max-w-2xl mx-auto overflow-hidden">
-            <BrowserFrame
-              src="/screenshots/screenshot-dates.png"
-              alt="Dates clés extraites du DCE — limite de remise, visite, validité des offres"
-              className="-rotate-[0.3deg] shadow-[0_16px_56px_rgba(0,0,0,0.45)]"
-            />
-            <p className="font-syne text-[11px] text-white/30 text-center mt-3">
-              Exemple de dates clés extraites automatiquement
-            </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto overflow-hidden">
+            <div>
+              <BrowserFrame
+                src="/screenshots/screenshot-gonogo.png"
+                alt="Verdict Go/No-Go — score et critères de sélection"
+                className="-rotate-[0.3deg] shadow-[0_16px_56px_rgba(0,0,0,0.45)]"
+              />
+              <p className="font-syne text-[11px] text-white/30 text-center mt-3">
+                Analyse Go/No-Go personnalisée
+              </p>
+            </div>
+            <div>
+              <HistoriqueMockup />
+              <p className="font-syne text-[11px] text-white/30 text-center mt-3">
+                Historique DECP — 1M+ marchés BTP
+              </p>
+            </div>
           </div>
         </div>
       </section>

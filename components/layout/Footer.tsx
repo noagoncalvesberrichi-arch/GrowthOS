@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { Logo } from '@/components/Logo'
+import { EMAIL_CONTACT } from '@/lib/legal'
 
 const navLinks = [
   { href: '/', label: 'Accueil' },
@@ -30,6 +31,12 @@ export function Footer() {
             <p className="font-syne text-[13px] text-white/40 leading-relaxed max-w-[220px]">
               L&apos;outil d&apos;analyse pour les appels d&apos;offres publics.
             </p>
+            <a
+              href={`mailto:${EMAIL_CONTACT}`}
+              className="font-syne text-[13px] text-white/40 hover:text-white/65 transition-colors duration-150 mt-3 block"
+            >
+              {EMAIL_CONTACT}
+            </a>
           </div>
 
           {/* Navigation */}

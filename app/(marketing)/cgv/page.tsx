@@ -1,5 +1,12 @@
 // Document à faire valider juridiquement avant mise en production.
 
+import {
+  RAISON_SOCIALE,
+  EMAIL_CONTACT,
+  VILLE,
+  DATE_MAJ,
+} from '@/lib/legal'
+
 export const metadata = { title: 'Conditions générales de vente — Stratly' }
 
 function Section({ num, title, children }: { num: string; title: string; children: React.ReactNode }) {
@@ -43,7 +50,7 @@ export default function CgvPage() {
         <div className="max-w-2xl mx-auto">
 
           <p className="font-syne text-[14px] text-text-muted leading-relaxed mb-10 border-l-4 border-brand-amber/40 pl-4">
-            Les présentes conditions générales de vente (CGV) régissent les relations contractuelles entre [RAISON SOCIALE] (ci-après « Stratly » ou le « Prestataire ») et tout utilisateur qui souscrit à un abonnement payant via la plateforme accessible à l&apos;adresse stratly.fr.
+            Les présentes conditions générales de vente (CGV) régissent les relations contractuelles entre {RAISON_SOCIALE} (ci-après « Stratly » ou le « Prestataire ») et tout utilisateur qui souscrit à un abonnement payant via la plateforme accessible à l&apos;adresse stratly.fr.
           </p>
 
           <Section num="1" title="Objet">
@@ -62,10 +69,16 @@ export default function CgvPage() {
               <li>les dates et délais clés ;</li>
               <li>la liste des pièces à fournir ;</li>
               <li>les points de vigilance ;</li>
-              <li>un avis Go / No-Go basé sur le profil de l&apos;entreprise utilisatrice.</li>
+              <li>un avis Go / No-Go basé sur le profil de l&apos;entreprise utilisatrice ;</li>
+              <li>l&apos;historique des attributions de l&apos;acheteur public (plans Essentiel et Pro) ;</li>
+              <li>le positionnement prix (fourchette p25/médiane/p75) de l&apos;acheteur (plan Pro) ;</li>
+              <li>la génération d&apos;une trame de mémoire technique structurée sur la grille de notation du DCE (plans Essentiel et Pro).</li>
             </ul>
             <p>
               Les analyses sont produites par intelligence artificielle à titre indicatif. Elles ne constituent pas un conseil juridique et n&apos;engagent pas la responsabilité de Stratly quant à l&apos;issue d&apos;une procédure de marchés publics.
+            </p>
+            <p>
+              Les données relatives à l&apos;historique des acheteurs et au positionnement prix sont issues de sources publiques (données essentielles de la commande publique — DECP, publiées par l&apos;État français). Ces données sont fournies à titre indicatif et peuvent ne pas refléter l&apos;intégralité des attributions d&apos;un acheteur.
             </p>
           </Section>
 
@@ -97,45 +110,47 @@ export default function CgvPage() {
                     <td className="px-4 py-3 text-text-muted">3 analyses, sans durée limite</td>
                   </tr>
                   <tr className="border-b border-border">
-                    <td className="px-4 py-3 text-text-muted">Pro Mensuel</td>
-                    <td className="px-4 py-3 text-text-muted">150 € / mois</td>
+                    <td className="px-4 py-3 text-text-muted">Essentiel</td>
+                    <td className="px-4 py-3 text-text-muted">190 € HT / mois</td>
+                    <td className="px-4 py-3 text-text-muted">Sans engagement, résiliable à tout moment</td>
+                  </tr>
+                  <tr className="border-b border-border">
+                    <td className="px-4 py-3 text-text-muted">Pro</td>
+                    <td className="px-4 py-3 text-text-muted">390 € HT / mois</td>
                     <td className="px-4 py-3 text-text-muted">Sans engagement, résiliable à tout moment</td>
                   </tr>
                   <tr>
-                    <td className="px-4 py-3 text-text-muted">Pro Annuel</td>
-                    <td className="px-4 py-3 text-text-muted">1 500 € / an (125 € / mois)</td>
-                    <td className="px-4 py-3 text-text-muted">Engagement 12 mois, renouvelable</td>
+                    <td className="px-4 py-3 text-text-muted">Offre Fondateurs</td>
+                    <td className="px-4 py-3 text-text-muted">190 € HT / mois</td>
+                    <td className="px-4 py-3 text-text-muted">Tarif à vie bloqué — 15 places limitées</td>
                   </tr>
                 </tbody>
               </table>
             </div>
             </div>
             <p>
-              Les prix s&apos;entendent hors taxes (HT). La TVA applicable est ajoutée au taux en vigueur au moment de la facturation. [RAISON SOCIALE] se réserve le droit de modifier ses tarifs à tout moment, avec un préavis d&apos;au moins 30 jours pour les abonnés actifs.
+              Les prix s&apos;entendent hors taxes (HT). La TVA applicable est ajoutée au taux en vigueur au moment de la facturation. {RAISON_SOCIALE} se réserve le droit de modifier ses tarifs à tout moment, avec un préavis d&apos;au moins 30 jours pour les abonnés actifs. Le tarif fondateurs est bloqué à vie pour les souscripteurs de cette offre.
             </p>
           </Section>
 
           <Section num="5" title="Modalités de paiement">
             <p>
-              Le paiement des abonnements payants est traité par Stripe Payments Europe Ltd (service de paiement en ligne sécurisé). [RAISON SOCIALE] ne collecte ni ne stocke les données de carte bancaire des clients.
+              Le paiement des abonnements payants est traité par Stripe Payments Europe Ltd (service de paiement en ligne sécurisé). {RAISON_SOCIALE} ne collecte ni ne stocke les données de carte bancaire des clients.
             </p>
             <p>
-              L&apos;abonnement mensuel est prélevé automatiquement chaque mois à la date anniversaire de la souscription. L&apos;abonnement annuel est prélevé en une fois lors de la souscription.
+              L&apos;abonnement est prélevé automatiquement chaque mois à la date anniversaire de la souscription.
             </p>
             <p>
-              En cas d&apos;échec de paiement, l&apos;accès aux fonctionnalités Pro peut être suspendu jusqu&apos;à régularisation.
+              En cas d&apos;échec de paiement, l&apos;accès aux fonctionnalités payantes peut être suspendu jusqu&apos;à régularisation.
             </p>
           </Section>
 
           <Section num="6" title="Durée et résiliation">
             <p>
-              L&apos;abonnement mensuel est conclu pour une durée d&apos;un mois, renouvelable par tacite reconduction. Il peut être résilié à tout moment depuis l&apos;espace de facturation Stripe ; la résiliation prend effet à la fin de la période en cours.
+              L&apos;abonnement est conclu pour une durée d&apos;un mois, renouvelable par tacite reconduction. Il peut être résilié à tout moment depuis l&apos;espace de facturation Stripe ; la résiliation prend effet à la fin de la période en cours.
             </p>
             <p>
-              L&apos;abonnement annuel est conclu pour une durée de 12 mois à compter de la date de souscription. Il se renouvelle automatiquement sauf résiliation au moins 30 jours avant la date d&apos;échéance.
-            </p>
-            <p>
-              [RAISON SOCIALE] se réserve le droit de suspendre ou résilier un compte en cas de violation des présentes CGV.
+              {RAISON_SOCIALE} se réserve le droit de suspendre ou résilier un compte en cas de violation des présentes CGV.
             </p>
           </Section>
 
@@ -153,10 +168,10 @@ export default function CgvPage() {
 
           <Section num="8" title="Responsabilité et garanties">
             <p>
-              Stratly s&apos;engage à mettre en œuvre tous les moyens raisonnables pour assurer la disponibilité et la qualité du Service. Toutefois, [RAISON SOCIALE] ne saurait être tenu responsable de toute décision prise par le client sur la base des analyses fournies par Stratly.
+              Stratly s&apos;engage à mettre en œuvre tous les moyens raisonnables pour assurer la disponibilité et la qualité du Service. Toutefois, {RAISON_SOCIALE} ne saurait être tenu responsable de toute décision prise par le client sur la base des analyses fournies par Stratly.
             </p>
             <p>
-              La responsabilité de [RAISON SOCIALE] est limitée aux montants effectivement payés par le client au cours des 12 derniers mois précédant le fait générateur du dommage.
+              La responsabilité de {RAISON_SOCIALE} est limitée aux montants effectivement payés par le client au cours des 12 derniers mois précédant le fait générateur du dommage.
             </p>
           </Section>
 
@@ -168,18 +183,27 @@ export default function CgvPage() {
 
           <Section num="10" title="Modifications des CGV">
             <p>
-              [RAISON SOCIALE] se réserve le droit de modifier les présentes CGV à tout moment. Les clients abonnés seront informés par email au moins 30 jours avant toute modification substantielle. La poursuite de l&apos;utilisation du Service après cette période vaut acceptation des nouvelles CGV.
+              {RAISON_SOCIALE} se réserve le droit de modifier les présentes CGV à tout moment. Les clients abonnés seront informés par email au moins 30 jours avant toute modification substantielle. La poursuite de l&apos;utilisation du Service après cette période vaut acceptation des nouvelles CGV.
             </p>
           </Section>
 
-          <Section num="11" title="Droit applicable et juridiction">
+          <Section num="11" title="Contact">
             <p>
-              Les présentes CGV sont soumises au droit français. En cas de litige, les parties s&apos;efforceront de trouver une solution amiable. À défaut, le litige sera soumis aux tribunaux compétents du ressort de [VILLE DU SIÈGE SOCIAL].
+              Pour toute question relative aux présentes CGV, vous pouvez nous contacter à :{' '}
+              <a href={`mailto:${EMAIL_CONTACT}`} className="text-accent underline underline-offset-2 hover:text-accent-dark">
+                {EMAIL_CONTACT}
+              </a>
+            </p>
+          </Section>
+
+          <Section num="12" title="Droit applicable et juridiction">
+            <p>
+              Les présentes CGV sont soumises au droit français. En cas de litige, les parties s&apos;efforceront de trouver une solution amiable. À défaut, le litige sera soumis aux tribunaux compétents du ressort de {VILLE}.
             </p>
           </Section>
 
           <p className="font-syne text-[12px] text-text-subtle mt-8">
-            Dernière mise à jour : [DATE]
+            Dernière mise à jour : {DATE_MAJ}
           </p>
         </div>
       </section>
