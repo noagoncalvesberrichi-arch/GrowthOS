@@ -43,7 +43,7 @@ function AccountDropdown({
   onClose: () => void
 }) {
   const dropdownLinks = [
-    { href: '/dashboard', label: 'Analyse', icon: (
+    { href: '/dashboard', label: 'Tableau de bord', icon: (
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
       </svg>
@@ -194,9 +194,13 @@ export function TopNav() {
               <>
                 <Link
                   href="/dashboard"
-                  className="font-syne text-[14px] font-semibold text-text-muted hover:text-text px-4 py-2 rounded-lg transition-colors duration-150"
+                  className="group relative font-syne text-[14px] font-bold text-white bg-accent hover:bg-accent-dark px-4 py-2 rounded-lg transition-all duration-200 overflow-hidden shadow-[0_2px_12px_rgba(37,99,235,0.25)]"
                 >
-                  Analyse
+                  <span
+                    aria-hidden="true"
+                    className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/15 to-transparent pointer-events-none"
+                  />
+                  <span className="relative">Mon espace →</span>
                 </Link>
                 <div ref={dropdownRef} className="relative">
                   <button
@@ -231,7 +235,7 @@ export function TopNav() {
                     aria-hidden="true"
                     className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none"
                   />
-                  <span className="relative">Commencer →</span>
+                  <span className="relative">Essai gratuit →</span>
                 </Link>
               </>
             )}
@@ -299,7 +303,7 @@ export function TopNav() {
                       </p>
                       <div className="space-y-1">
                         {[
-                          { href: '/dashboard', label: 'Analyse' },
+                          { href: '/dashboard', label: 'Mon espace →' },
                           { href: '/dashboard/mon-entreprise', label: 'Mon entreprise' },
                         ].map((item) => (
                           <Link

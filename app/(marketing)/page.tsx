@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { HeroCTA, FinalCTA } from '@/components/HomeCTA'
 
 export const metadata = {
   title: "Stratly — Analysez vos appels d'offres, sachez ce que vos acheteurs paient",
@@ -54,13 +55,6 @@ function BrowserFrame({
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
-function ArrowRight() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M5 12h14M12 5l7 7-7 7" />
-    </svg>
-  )
-}
 
 function IconFile() {
   return (
@@ -291,17 +285,7 @@ export default function HomePage() {
               l&apos;acheteur et vous donne un Go&nbsp;/&nbsp;No-Go selon le profil de votre entreprise.
             </p>
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-              <Link
-                href="/signup"
-                className="group relative inline-flex items-center gap-2 font-syne font-bold text-[15px] bg-brand-amber hover:bg-brand-amber-dark text-[#1E3A8A] px-7 py-3.5 rounded-xl transition-all duration-200 overflow-hidden shadow-[0_4px_24px_rgba(217,119,6,0.35)]"
-              >
-                <span
-                  aria-hidden="true"
-                  className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none"
-                />
-                <span className="relative">Essayer gratuitement</span>
-                <ArrowRight />
-              </Link>
+              <HeroCTA />
               <Link
                 href="/pricing"
                 className="font-syne text-[14px] font-semibold text-white/55 hover:text-white transition-colors duration-150"
@@ -489,13 +473,7 @@ export default function HomePage() {
           <p className="font-syne text-[14px] md:text-[16px] text-white/65 leading-relaxed max-w-xl mb-7 md:mb-10">
             3 analyses complètes offertes dès l&apos;inscription. Aucune carte bancaire requise.
           </p>
-          <Link
-            href="/signup"
-            className="inline-flex items-center gap-2 font-syne font-bold text-[14px] text-[#1E3A8A] bg-white hover:bg-white/92 px-7 py-3.5 rounded-xl transition-colors duration-200 shadow-[0_2px_16px_rgba(0,0,0,0.25)]"
-          >
-            Démarrer maintenant
-            <ArrowRight />
-          </Link>
+          <FinalCTA />
           <p className="font-syne text-[12px] text-white/30 mt-5">
             3 analyses offertes · Sans carte bancaire · Annulable à tout moment
           </p>

@@ -61,6 +61,18 @@ export async function creerSessionCheckout(plan: 'essentiel' | 'pro' | 'fondateu
       return { error: `Configuration de paiement incomplète (${varName} absent). Contactez le support.` }
     }
 
+    // Resolve discount options — fondateurs uses a promo code (not a coupon ID)
+    let discountOptions: { discounts: [{ promotion_code: string }] } | { allow_promotion_codes: boolean }
+    if (plan === 'fondateurs') {
+      const codes = await stripe.promotionCodes.list({ code: 'FONDATEURS', active: true, limit: 1 })
+      if (codes.data.length === 0) {
+        return { error: "Le code promotionnel FONDATEURS est introuvable ou inactif. Contactez le support." }
+      }
+      discountOptions = { discounts: [{ promotion_code: codes.data[0].id }] }
+    } else {
+      discountOptions = { allow_promotion_codes: true }
+    }
+
     console.log(`[creerSessionCheckout] plan=${plan} priceId=${priceId} customer=${customerId}`)
 
     const session = await stripe.checkout.sessions.create({
@@ -71,12 +83,7 @@ export async function creerSessionCheckout(plan: 'essentiel' | 'pro' | 'fondateu
       cancel_url: `${baseUrl}/pricing?canceled=true`,
       client_reference_id: user.id,
       metadata: { user_id: user.id },
-      // Fondateurs: pre-apply fixed coupon, no open promo code field
-      // Other plans: allow promo code entry at checkout
-      ...(plan === 'fondateurs'
-        ? { discounts: [{ coupon: 'FONDATEURS' }] }
-        : { allow_promotion_codes: true }
-      ),
+      ...discountOptions,
     })
 
     if (!session.url) return { error: 'Impossible de créer la session de paiement.' }

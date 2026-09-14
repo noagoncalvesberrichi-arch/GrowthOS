@@ -1,16 +1,25 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Logo } from '@/components/Logo'
 import { verifierEtEnvoyerBienvenue } from './actions'
+import { creerSessionCheckout } from '@/app/(marketing)/pricing/actions'
 
 export default function LoginPage() {
+  const [plan, setPlan] = useState<string | null>(null)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    // Pick up plan from URL param or from sessionStorage (set by signup with email confirmation)
+    const params = new URLSearchParams(window.location.search)
+    const urlPlan = params.get('plan') || sessionStorage.getItem('pending_plan')
+    if (urlPlan) setPlan(urlPlan)
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -26,16 +35,21 @@ export default function LoginPage() {
       return
     }
 
-    // Redirect to onboarding if no company profile yet
-    const { data: profil } = await supabase
-      .from('profil_entreprise')
-      .select('id')
-      .maybeSingle()
-
-    // Fire-and-forget — n'attend pas le résultat, ne bloque pas la navigation
     verifierEtEnvoyerBienvenue().catch(() => {})
 
-    window.location.href = profil ? '/dashboard' : '/onboarding'
+    // If a plan is pending (from URL or pre-signup), create checkout session
+    const pendingPlan = plan || sessionStorage.getItem('pending_plan')
+    if (pendingPlan) {
+      sessionStorage.removeItem('pending_plan')
+      const result = await creerSessionCheckout(pendingPlan as 'essentiel' | 'pro' | 'fondateurs')
+      if ('url' in result) {
+        window.location.href = result.url
+        return
+      }
+      // Checkout failed — fall through to dashboard
+    }
+
+    window.location.href = '/dashboard'
   }
 
   return (
@@ -122,7 +136,10 @@ export default function LoginPage() {
         <div className="px-8 pb-7 text-center">
           <p className="font-syne text-[13px] text-text-muted">
             Pas encore de compte ?{' '}
-            <Link href="/signup" className="text-accent hover:text-accent-dark font-semibold transition-colors">
+            <Link
+              href={plan ? `/signup?plan=${plan}` : '/signup'}
+              className="text-accent hover:text-accent-dark font-semibold transition-colors"
+            >
               Créer un compte
             </Link>
           </p>

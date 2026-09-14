@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
 import { creerSessionCheckout } from './actions'
 
 function Check({ accent }: { accent?: boolean }) {
@@ -45,6 +46,15 @@ export function PricingCards({ success, canceled }: { success: boolean; canceled
   const handleSubscribe = async (plan: Plan) => {
     setError(null)
     setLoadingPlan(plan)
+
+    // Redirect unauthenticated visitors to signup with the chosen plan
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      window.location.href = `/signup?plan=${plan}`
+      return
+    }
+
     try {
       const result = await creerSessionCheckout(plan)
       if ('url' in result) {

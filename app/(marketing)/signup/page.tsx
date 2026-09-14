@@ -1,17 +1,37 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Logo } from '@/components/Logo'
+import { creerSessionCheckout } from '@/app/(marketing)/pricing/actions'
+
+const PLAN_LABELS: Record<string, string> = {
+  essentiel: 'Essentiel · 190€ HT/mois',
+  pro: 'Pro · 390€ HT/mois',
+  fondateurs: 'Fondateurs · 190€ HT/mois à vie',
+}
 
 export default function SignupPage() {
+  const [plan, setPlan] = useState<string | null>(null)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [agreed, setAgreed] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const p = params.get('plan')
+    if (p && PLAN_LABELS[p]) setPlan(p)
+
+    // Redirect already-authenticated users to dashboard
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user) window.location.href = '/dashboard'
+    })
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -20,7 +40,7 @@ export default function SignupPage() {
     setError('')
 
     const supabase = createClient()
-    const { error: signUpError } = await supabase.auth.signUp({
+    const { data, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
       options: { data: { full_name: name } },
@@ -32,8 +52,20 @@ export default function SignupPage() {
       return
     }
 
-    // New users always go to onboarding (no profile exists yet)
-    window.location.href = '/onboarding'
+    // Session exists = no email confirmation required → create checkout immediately
+    if (data.session && plan) {
+      const result = await creerSessionCheckout(plan as 'essentiel' | 'pro' | 'fondateurs')
+      if ('url' in result) {
+        window.location.href = result.url
+        return
+      }
+      // Checkout failed, fall through to /dashboard
+    }
+
+    // Email confirmation required OR no plan: store pending plan for post-login checkout
+    if (plan) sessionStorage.setItem('pending_plan', plan)
+
+    window.location.href = '/dashboard'
   }
 
   return (
@@ -53,6 +85,22 @@ export default function SignupPage() {
           <h1 className="font-fraunces text-[26px] text-text tracking-tight">Créer votre compte</h1>
           <p className="font-syne text-[13px] text-text-muted mt-1">3 analyses offertes — sans carte bancaire.</p>
         </div>
+
+        {/* Plan banner */}
+        {plan && PLAN_LABELS[plan] && (
+          <div className="px-8 pt-5">
+            <div className="bg-accent/8 border border-accent/20 rounded-xl px-4 py-3 flex items-start gap-2.5">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-0.5">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              <p className="font-syne text-[13px] text-text leading-snug">
+                Vous choisissez le plan{' '}
+                <span className="font-bold text-accent">{PLAN_LABELS[plan]}</span>
+                {' '}— créez votre compte pour continuer.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="px-8 py-7 space-y-4">
@@ -143,7 +191,7 @@ export default function SignupPage() {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                 </svg>
-                Création du compte...
+                {plan ? 'Création du compte…' : 'Création du compte...'}
               </span>
             ) : (
               <span className="relative">Créer mon compte →</span>
@@ -154,7 +202,10 @@ export default function SignupPage() {
         <div className="px-8 pb-7 text-center">
           <p className="font-syne text-[13px] text-text-muted">
             Déjà un compte ?{' '}
-            <Link href="/login" className="text-accent hover:text-accent-dark font-semibold transition-colors">
+            <Link
+              href={plan ? `/login?plan=${plan}` : '/login'}
+              className="text-accent hover:text-accent-dark font-semibold transition-colors"
+            >
               Se connecter
             </Link>
           </p>
