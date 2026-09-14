@@ -300,15 +300,16 @@ export function RecoPrix({
               <span className="font-syne text-[9px] text-text-subtle" style={{ marginRight: `${100 - p75Pct - 1}%` }}>p75</span>
             </div>
 
-            {/* Montant label */}
+            {/* Montant label — flips left when cursor is near the right edge */}
             {montantPct !== null && activeMontant != null && (
-              <div
-                className="relative mt-3 flex justify-center"
-                style={{ marginLeft: `${montantPct}%`, transform: 'translateX(-50%)', width: 0 }}
-              >
+              <div className="relative mt-3" style={{ height: '16px' }}>
                 <span
-                  className="font-syne text-[11px] font-semibold whitespace-nowrap"
-                  style={{ color: posCfg?.dot ?? '#6B7280' }}
+                  className="absolute font-syne text-[11px] font-semibold whitespace-nowrap"
+                  style={{
+                    color: posCfg?.dot ?? '#6B7280',
+                    left: `${montantPct}%`,
+                    transform: montantPct > 75 ? 'translateX(-100%)' : 'translateX(-50%)',
+                  }}
                 >
                   ▲ Votre estimation : {eur(activeMontant)}
                 </span>

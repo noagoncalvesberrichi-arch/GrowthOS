@@ -354,6 +354,7 @@ export function MonEntrepriseForm({
   }
 
   const handleDeleteRef = async (id: string) => {
+    if (!window.confirm('Supprimer cette référence ?')) return
     setReferences(prev => prev.filter(r => r.id !== id))
     const result = await supprimerReference(id)
     if (result && 'error' in result) {

@@ -131,8 +131,8 @@ export function PricingCards({ success, canceled }: { success: boolean; canceled
             <FeatureRow label="Extraction complète du DCE" />
             <FeatureRow label="Dates clés & pièces à fournir" />
             <FeatureRow label="Analyse Go / No-Go" />
-            <FeatureRow label="Historique de l'acheteur" locked />
-            <FeatureRow label="Positionnement prix" locked />
+            <FeatureRow label="Historique de l'acheteur (plan Pro)" locked />
+            <FeatureRow label="Positionnement prix (plan Pro)" locked />
           </ul>
           <div className="w-full py-3 border border-border rounded-xl font-syne font-bold text-[13px] text-center text-text-subtle cursor-default">
             Plan actuel

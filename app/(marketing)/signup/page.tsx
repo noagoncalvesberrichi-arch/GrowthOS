@@ -1,13 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Logo } from '@/components/Logo'
 
 export default function SignupPage() {
-  const router = useRouter()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -35,8 +33,7 @@ export default function SignupPage() {
     }
 
     // New users always go to onboarding (no profile exists yet)
-    router.push('/onboarding')
-    router.refresh()
+    window.location.href = '/onboarding'
   }
 
   return (

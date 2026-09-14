@@ -1,14 +1,12 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Logo } from '@/components/Logo'
 import { verifierEtEnvoyerBienvenue } from './actions'
 
 export default function LoginPage() {
-  const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -37,8 +35,7 @@ export default function LoginPage() {
     // Fire-and-forget — n'attend pas le résultat, ne bloque pas la navigation
     verifierEtEnvoyerBienvenue().catch(() => {})
 
-    router.push(profil ? '/dashboard' : '/onboarding')
-    router.refresh()
+    window.location.href = profil ? '/dashboard' : '/onboarding'
   }
 
   return (
