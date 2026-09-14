@@ -1,7 +1,5 @@
 'use server'
 
-export const maxDuration = 300
-
 import { anthropic } from '@/lib/anthropic'
 import { createClient } from '@/lib/supabase/server'
 

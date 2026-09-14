@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { MemoireForm } from './MemoireForm'
 
+export const maxDuration = 300
 export const metadata = { title: 'Mémoire technique — Stratly' }
 
 export type AnalyseItem = {
