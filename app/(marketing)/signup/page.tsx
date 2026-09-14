@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Logo } from '@/components/Logo'
 import { creerSessionCheckout } from '@/app/(marketing)/pricing/actions'
+import { verifierEtEnvoyerBienvenue } from '@/app/(marketing)/login/actions'
 
 const PLAN_LABELS: Record<string, string> = {
   essentiel: 'Essentiel · 190€ HT/mois',
@@ -52,14 +53,19 @@ export default function SignupPage() {
       return
     }
 
-    // Session exists = no email confirmation required → create checkout immediately
-    if (data.session && plan) {
-      const result = await creerSessionCheckout(plan as 'essentiel' | 'pro' | 'fondateurs')
-      if ('url' in result) {
-        window.location.href = result.url
-        return
+    // Session exists = no email confirmation required
+    if (data.session) {
+      // Welcome email fire-and-forget (guarded by bienvenue_envoyee flag in DB)
+      verifierEtEnvoyerBienvenue().catch(() => {})
+
+      if (plan) {
+        const result = await creerSessionCheckout(plan as 'essentiel' | 'pro' | 'fondateurs')
+        if ('url' in result) {
+          window.location.href = result.url
+          return
+        }
+        // Checkout failed, fall through to /dashboard
       }
-      // Checkout failed, fall through to /dashboard
     }
 
     // Email confirmation required OR no plan: store pending plan for post-login checkout

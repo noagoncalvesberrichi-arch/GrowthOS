@@ -2,70 +2,81 @@ import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { stripe } from '@/lib/stripe'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
+import { sendEmail, emailWrapper } from '@/lib/email'
 
-// ─── Resend helper (fetch natif, aucune dépendance) ───────────────────────────
+// ─── Plan constants ────────────────────────────────────────────────────────────
 
-async function sendEmail(to: string, subject: string, html: string): Promise<void> {
-  const res = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ from: 'Stratly <noreply@stratly.fr>', to, subject, html }),
-  })
-  if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`Resend ${res.status}: ${text.slice(0, 200)}`)
-  }
+const PLAN_INFO: Record<string, { label: string; prix: string }> = {
+  essentiel:  { label: 'Essentiel',  prix: '190&nbsp;&euro; HT/mois' },
+  pro:        { label: 'Pro',        prix: '390&nbsp;&euro; HT/mois' },
+  fondateurs: { label: 'Fondateurs', prix: '190&nbsp;&euro; HT/mois (tarif &agrave; vie)' },
 }
 
 // ─── HTML templates ───────────────────────────────────────────────────────────
 
-function emailWrapper(content: string): string {
-  return `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f8fafc;font-family:'Helvetica Neue',Arial,sans-serif;">
-<div style="max-width:520px;margin:40px auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 8px rgba(0,0,0,0.08);">
-  <div style="background:#0F1B4D;padding:28px 32px;">
-    <span style="font-size:20px;font-weight:700;color:#ffffff;letter-spacing:-0.02em;">Stratly</span>
-  </div>
-  <div style="padding:32px;">${content}</div>
-  <div style="padding:20px 32px;border-top:1px solid #e5e7eb;">
-    <p style="font-size:12px;color:#9ca3af;margin:0;">Stratly &middot; La plateforme des entreprises qui r&eacute;pondent aux march&eacute;s publics.</p>
-  </div>
-</div></body></html>`
+function htmlConfirmation(planLabel: string, prix: string, nextBilling: string): string {
+  return emailWrapper(`
+  <h1 style="font-size:20px;font-weight:700;color:#0F1B4D;margin:0 0 12px 0;">Abonnement ${planLabel} activ&eacute;</h1>
+  <p style="font-size:14px;color:#374151;line-height:1.6;margin:0 0 20px 0;">
+    Merci pour votre confiance. Votre abonnement Stratly ${planLabel} est confirm&eacute; et toutes les fonctionnalit&eacute;s sont accessibles.
+  </p>
+  <table style="width:100%;border-collapse:collapse;margin:0 0 24px 0;background:#f9fafb;border-radius:8px;overflow:hidden;">
+    <tr>
+      <td style="font-size:13px;color:#6b7280;padding:10px 16px;border-bottom:1px solid #f3f4f6;">Plan</td>
+      <td style="font-size:13px;color:#0F1B4D;font-weight:700;padding:10px 16px;border-bottom:1px solid #f3f4f6;text-align:right;">${planLabel}</td>
+    </tr>
+    <tr>
+      <td style="font-size:13px;color:#6b7280;padding:10px 16px;${nextBilling ? 'border-bottom:1px solid #f3f4f6;' : ''}">Montant</td>
+      <td style="font-size:13px;color:#0F1B4D;font-weight:700;padding:10px 16px;${nextBilling ? 'border-bottom:1px solid #f3f4f6;' : ''}text-align:right;">${prix}</td>
+    </tr>
+    ${nextBilling ? `
+    <tr>
+      <td style="font-size:13px;color:#6b7280;padding:10px 16px;">Prochain pr&eacute;l&egrave;vement</td>
+      <td style="font-size:13px;color:#0F1B4D;font-weight:700;padding:10px 16px;text-align:right;">${nextBilling}</td>
+    </tr>
+    ` : ''}
+  </table>
+  <a href="https://stratly.fr/dashboard" style="display:inline-block;background:#2563EB;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:12px 24px;border-radius:8px;margin-bottom:16px;">
+    Acc&eacute;der &agrave; mon tableau de bord &rarr;
+  </a>
+  <p style="font-size:12px;color:#9ca3af;margin:16px 0 0 0;">
+    Pour g&eacute;rer votre abonnement, rendez-vous dans
+    <a href="https://stratly.fr/dashboard/parametres" style="color:#2563EB;text-decoration:none;">Param&egrave;tres</a>.
+  </p>
+`)
 }
 
-const HTML_CONFIRMATION = emailWrapper(`
-  <h1 style="font-size:20px;font-weight:700;color:#0F1B4D;margin:0 0 12px 0;">Votre abonnement Pro est actif</h1>
+const HTML_ECHEC_PAIEMENT = emailWrapper(`
+  <h1 style="font-size:20px;font-weight:700;color:#0F1B4D;margin:0 0 12px 0;">&Eacute;chec du pr&eacute;l&egrave;vement</h1>
   <p style="font-size:14px;color:#374151;line-height:1.6;margin:0 0 16px 0;">
-    Bienvenue dans Stratly Pro. Votre abonnement est confirm&eacute; et toutes les fonctionnalit&eacute;s sont maintenant disponibles&nbsp;:
+    Nous n&apos;avons pas pu pr&eacute;lever votre abonnement Stratly. Votre acc&egrave;s reste actif le temps de r&eacute;gulariser la situation.
   </p>
-  <ul style="font-size:14px;color:#374151;line-height:2.2;margin:0 0 24px 0;padding-left:20px;">
-    <li>Analyses d&apos;appels d&apos;offres illimit&eacute;es</li>
-    <li>G&eacute;n&eacute;ration de trame de m&eacute;moire technique</li>
-    <li>Pr&eacute;-qualification IA des appels d&apos;offres BOAMP</li>
-    <li>Veille march&eacute;s personnalis&eacute;e selon votre profil</li>
-  </ul>
-  <a href="https://stratly.fr/dashboard" style="display:inline-block;background:#2563EB;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:12px 24px;border-radius:8px;">
-    Acc&eacute;der &agrave; mon tableau de bord &rarr;
+  <p style="font-size:14px;color:#374151;line-height:1.6;margin:0 0 24px 0;">
+    Merci de mettre &agrave; jour votre moyen de paiement dans vos param&egrave;tres pour &eacute;viter une interruption de service.
+  </p>
+  <a href="https://stratly.fr/dashboard/parametres" style="display:inline-block;background:#2563EB;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:12px 24px;border-radius:8px;">
+    Mettre &agrave; jour ma carte &rarr;
   </a>
 `)
 
-const HTML_RESILIATION = emailWrapper(`
-  <h1 style="font-size:20px;font-weight:700;color:#0F1B4D;margin:0 0 12px 0;">Votre abonnement a &eacute;t&eacute; r&eacute;sili&eacute;</h1>
+function htmlResiliation(finAcces: string): string {
+  return emailWrapper(`
+  <h1 style="font-size:20px;font-weight:700;color:#0F1B4D;margin:0 0 12px 0;">Abonnement r&eacute;sili&eacute;</h1>
   <p style="font-size:14px;color:#374151;line-height:1.6;margin:0 0 16px 0;">
-    Nous avons bien pris en compte la r&eacute;siliation de votre abonnement Stratly Pro. L&apos;acc&egrave;s aux fonctionnalit&eacute;s Pro est maintenant termin&eacute;.
-  </p>
-  <p style="font-size:14px;color:#374151;line-height:1.6;margin:0 0 16px 0;">
-    Votre compte reste actif en version gratuite &mdash; vous pouvez continuer &agrave; utiliser Stratly avec les fonctionnalit&eacute;s de base.
+    Nous avons bien pris en compte la r&eacute;siliation de votre abonnement Stratly.
+    ${finAcces
+      ? `Votre acc&egrave;s aux fonctionnalit&eacute;s payantes se termine le <strong>${finAcces}</strong>.`
+      : "L&apos;acc&egrave;s aux fonctionnalit&eacute;s payantes est termin&eacute;."}
   </p>
   <p style="font-size:14px;color:#374151;line-height:1.6;margin:0 0 24px 0;">
-    Si vous souhaitez revenir &agrave; Pro &agrave; tout moment, la porte est ouverte.
+    Votre compte reste actif en version gratuite &mdash; vous pouvez continuer &agrave; utiliser Stratly avec les fonctionnalit&eacute;s de base.
+    Si vous souhaitez revenir, la porte est ouverte.
   </p>
   <a href="https://stratly.fr/pricing" style="display:inline-block;background:#2563EB;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:12px 24px;border-radius:8px;">
     Voir les offres &rarr;
   </a>
 `)
+}
 
 // ─── Webhook handler ──────────────────────────────────────────────────────────
 
@@ -96,10 +107,14 @@ export async function POST(request: Request) {
           break
         }
 
+        // Determine plan from metadata (set during session creation)
+        const planMeta = (session.metadata?.plan ?? 'pro') as 'essentiel' | 'pro' | 'fondateurs'
+        const dbPlan = planMeta === 'essentiel' ? 'essentiel' : 'pro'
+
         const { error } = await getSupabaseAdmin()
           .from('abonnements')
           .update({
-            plan: 'pro',
+            plan: dbPlan,
             statut_paiement: 'active',
             stripe_subscription_id: session.subscription as string | null,
             stripe_customer_id: session.customer as string | null,
@@ -110,13 +125,31 @@ export async function POST(request: Request) {
         if (error) {
           console.error('[webhook] checkout.session.completed update failed:', error)
         } else {
-          console.log('[webhook] user passé en Pro:', userId)
+          console.log(`[webhook] user passé en ${dbPlan} (plan: ${planMeta}):`, userId)
 
-          // Email de confirmation — échec non bloquant
           const email = session.customer_details?.email ?? session.customer_email ?? null
           if (email) {
             try {
-              await sendEmail(email, 'Votre abonnement Stratly Pro est actif', HTML_CONFIRMATION)
+              // Retrieve next billing date from subscription
+              let nextBillingStr = ''
+              const subscriptionId = session.subscription as string | null
+              if (subscriptionId) {
+                try {
+                  const sub = await stripe.subscriptions.retrieve(subscriptionId)
+                  // In Stripe v22, current_period_end is on the first subscription item
+                  const periodEnd = sub.items?.data?.[0]?.current_period_end
+                  if (periodEnd) {
+                    const d = new Date(periodEnd * 1000)
+                    nextBillingStr = d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+                  }
+                } catch {
+                  // Non-bloquant — date omise si échec
+                }
+              }
+
+              const info = PLAN_INFO[planMeta] ?? PLAN_INFO.pro
+              const html = htmlConfirmation(info.label, info.prix, nextBillingStr)
+              await sendEmail(email, `Votre abonnement Stratly ${info.label} est actif`, html)
               console.log('[webhook] email confirmation envoyé:', email)
             } catch (emailErr) {
               console.error('[webhook] email confirmation failed (non-bloquant):', emailErr)
@@ -128,8 +161,34 @@ export async function POST(request: Request) {
         break
       }
 
+      case 'invoice.payment_failed': {
+        const invoice = event.data.object as Stripe.Invoice
+        if (typeof invoice.customer === 'string') {
+          try {
+            const customer = await stripe.customers.retrieve(invoice.customer)
+            const email = customer.deleted ? null : customer.email
+            if (email) {
+              await sendEmail(email, 'Échec du prélèvement Stratly — action requise', HTML_ECHEC_PAIEMENT)
+              console.log('[webhook] email échec paiement envoyé:', email)
+            } else {
+              console.warn('[webhook] invoice.payment_failed: email introuvable')
+            }
+          } catch (err) {
+            console.error('[webhook] invoice.payment_failed email failed (non-bloquant):', err)
+          }
+        }
+        break
+      }
+
       case 'customer.subscription.deleted': {
         const subscription = event.data.object as Stripe.Subscription
+
+        // Date de fin d'accès = current_period_end sur le premier item (Stripe v22)
+        const periodEnd = subscription.items?.data?.[0]?.current_period_end
+        const finAcces = periodEnd
+          ? new Date(periodEnd * 1000)
+              .toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+          : ''
 
         const { error } = await getSupabaseAdmin()
           .from('abonnements')
@@ -146,20 +205,19 @@ export async function POST(request: Request) {
         } else {
           console.log('[webhook] abonnement résilié:', subscription.id)
 
-          // Récupère l'email du client via Stripe — échec non bloquant
           if (typeof subscription.customer === 'string') {
             try {
               const customer = await stripe.customers.retrieve(subscription.customer)
               const email = customer.deleted ? null : customer.email
               if (email) {
                 try {
-                  await sendEmail(email, 'Votre abonnement Stratly a été résilié', HTML_RESILIATION)
+                  await sendEmail(email, 'Votre abonnement Stratly a été résilié', htmlResiliation(finAcces))
                   console.log('[webhook] email résiliation envoyé:', email)
                 } catch (emailErr) {
                   console.error('[webhook] email résiliation failed (non-bloquant):', emailErr)
                 }
               } else {
-                console.warn('[webhook] customer.subscription.deleted: email introuvable, email non envoyé')
+                console.warn('[webhook] customer.subscription.deleted: email introuvable')
               }
             } catch (customerErr) {
               console.error('[webhook] retrieve customer failed (non-bloquant):', customerErr)

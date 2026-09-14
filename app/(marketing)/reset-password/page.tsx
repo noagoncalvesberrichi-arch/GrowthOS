@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { envoyerEmailMotDePasseModifie } from './actions'
 
 type PageState = 'loading' | 'ready' | 'success' | 'error'
 
@@ -108,6 +109,9 @@ export default function ResetPasswordPage() {
       setLoading(false)
       return
     }
+
+    // Fire-and-forget — email de confirmation de changement
+    envoyerEmailMotDePasseModifie().catch(() => {})
 
     setPageState('success')
     setTimeout(() => router.push('/dashboard'), 2000)

@@ -82,7 +82,7 @@ export async function creerSessionCheckout(plan: 'essentiel' | 'pro' | 'fondateu
       success_url: `${baseUrl}/pricing?success=true`,
       cancel_url: `${baseUrl}/pricing?canceled=true`,
       client_reference_id: user.id,
-      metadata: { user_id: user.id },
+      metadata: { user_id: user.id, plan: plan },
       ...discountOptions,
     })
 
