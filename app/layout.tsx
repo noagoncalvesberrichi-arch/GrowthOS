@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Plus_Jakarta_Sans, Space_Mono, Fraunces } from 'next/font/google'
 import Script from 'next/script'
+import { SupportChat } from '@/components/SupportChat'
 import './globals.css'
 
 const jakarta = Plus_Jakarta_Sans({
@@ -68,6 +69,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           `}
         </Script>
         {children}
+        <SupportChat />
       </body>
     </html>
   )
