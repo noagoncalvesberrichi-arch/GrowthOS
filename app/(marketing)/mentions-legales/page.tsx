@@ -94,7 +94,7 @@ export default function MentionsLegalesPage() {
 
           <Section title="Limitation de responsabilité">
             <p>
-              {RAISON_SOCIALE} s&apos;efforce d&apos;assurer l&apos;exactitude et la mise à jour des informations diffusées sur ce site. Toutefois, {RAISON_SOCIALE} ne peut garantir l&apos;exactitude, la précision ou l&apos;exhaustivité des informations mises à disposition sur ce site.
+              {`${RAISON_SOCIALE} s'efforce d'assurer l'exactitude et la mise à jour des informations diffusées sur ce site. Toutefois, ${RAISON_SOCIALE} ne peut garantir l'exactitude, la précision ou l'exhaustivité des informations mises à disposition sur ce site.`}
             </p>
             <p>
               Les analyses produites par Stratly sont fournies à titre indicatif. Elles ne constituent pas un conseil juridique ou une garantie de résultat dans le cadre d&apos;une procédure de marchés publics.
