@@ -8,6 +8,18 @@ interface Message {
   content: string
 }
 
+// Rendu markdown léger : échappe le HTML, applique gras et listes, convertit \n en <br>
+function renderMarkdown(raw: string): string {
+  return raw
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/^[-•]\s+(.+)$/gm, '<span style="display:block;padding-left:1em;text-indent:-1em">•&nbsp;$1</span>')
+    .replace(/\n/g, '<br>')
+    .replace(/<\/span><br>/g, '</span>')
+}
+
 const SUGGESTIONS = [
   "Comment fonctionne l’historique acheteur ?",
   'Quelle différence entre Essentiel et Pro ?',
@@ -84,7 +96,8 @@ export function SupportChat() {
         const { done, value } = await reader.read()
         if (done) break
         accumulated += decoder.decode(value, { stream: true })
-        const display = accumulated.replace(/^\[ESCALADE\]\s*/i, '')
+        // Strip [ESCALADE] partout dans le texte (global, insensible à la casse)
+        const display = accumulated.replace(/\[ESCALADE\]\n?/gi, '').trimStart()
         setMessages(prev => {
           const copy = [...prev]
           copy[copy.length - 1] = { role: 'assistant', content: display }
@@ -252,26 +265,56 @@ export function SupportChat() {
                 key={i}
                 style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}
               >
-                <div
-                  style={{
-                    maxWidth: '85%',
-                    padding: '10px 14px',
-                    borderRadius:
-                      msg.role === 'user' ? '14px 14px 2px 14px' : '14px 14px 14px 2px',
-                    background: msg.role === 'user' ? '#2563EB' : '#F3F4F6',
-                    color: msg.role === 'user' ? '#ffffff' : '#1F2937',
-                    fontSize: '13px',
-                    lineHeight: '1.6',
-                    fontFamily: 'var(--font-syne, sans-serif)',
-                    whiteSpace: 'pre-wrap',
-                    wordBreak: 'break-word',
-                  }}
-                >
-                  {msg.content ||
-                    (isStreaming && i === messages.length - 1 ? (
+                {msg.role === 'user' ? (
+                  <div
+                    style={{
+                      maxWidth: '85%',
+                      padding: '10px 14px',
+                      borderRadius: '14px 14px 2px 14px',
+                      background: '#2563EB',
+                      color: '#ffffff',
+                      fontSize: '13px',
+                      lineHeight: '1.6',
+                      fontFamily: 'var(--font-syne, sans-serif)',
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                    }}
+                  >
+                    {msg.content}
+                  </div>
+                ) : msg.content ? (
+                  <div
+                    style={{
+                      maxWidth: '85%',
+                      padding: '10px 14px',
+                      borderRadius: '14px 14px 14px 2px',
+                      background: '#F3F4F6',
+                      color: '#1F2937',
+                      fontSize: '13px',
+                      lineHeight: '1.6',
+                      fontFamily: 'var(--font-syne, sans-serif)',
+                      wordBreak: 'break-word',
+                    }}
+                    dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      maxWidth: '85%',
+                      padding: '10px 14px',
+                      borderRadius: '14px 14px 14px 2px',
+                      background: '#F3F4F6',
+                      color: '#1F2937',
+                      fontSize: '13px',
+                      lineHeight: '1.6',
+                      fontFamily: 'var(--font-syne, sans-serif)',
+                    }}
+                  >
+                    {isStreaming && i === messages.length - 1 ? (
                       <span style={{ color: '#9CA3AF', letterSpacing: '2px' }}>•••</span>
-                    ) : null)}
-                </div>
+                    ) : null}
+                  </div>
+                )}
               </div>
             ))}
 
