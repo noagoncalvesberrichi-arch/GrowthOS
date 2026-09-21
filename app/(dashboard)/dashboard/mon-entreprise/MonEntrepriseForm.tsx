@@ -144,13 +144,6 @@ function TrashIcon() {
 function initForm(profil: ProfilEntreprise | null): ProfilFormData {
   return {
     raison_sociale: profil?.raison_sociale ?? '',
-    forme_juridique: profil?.forme_juridique ?? '',
-    adresse_siege: profil?.adresse_siege ?? '',
-    siret: profil?.siret ?? '',
-    nom_signataire: profil?.nom_signataire ?? '',
-    qualite_signataire: profil?.qualite_signataire ?? '',
-    iban: profil?.iban ?? '',
-    bic: profil?.bic ?? '',
     ca_dernier_exercice: profil?.ca_dernier_exercice != null ? String(profil.ca_dernier_exercice) : '',
     effectif: profil?.effectif != null ? String(profil.effectif) : '',
     annees_experience: profil?.annees_experience != null ? String(profil.annees_experience) : '',
@@ -255,8 +248,6 @@ export function MonEntrepriseForm({
   const completenessScore = useMemo(() => {
     let score = 0
     if (form.raison_sociale.trim()) score++
-    if (form.siret.trim()) score++
-    if (form.nom_signataire.trim()) score++
     if (form.domaines.length > 0) score++
     if (form.effectif.trim()) score++
     if (form.annees_experience.trim()) score++
@@ -382,80 +373,23 @@ export function MonEntrepriseForm({
     <div className="space-y-5">
 
       {/* Completeness bar */}
-      <CompletenessBar score={completenessScore} total={13} />
+      <CompletenessBar score={completenessScore} total={11} />
 
       {/* Identité */}
       <div className="bg-surface border border-border rounded-2xl p-6 shadow-[0_2px_12px_rgba(37,99,235,0.04)]">
         <SectionHeader label="Identité" />
 
         <div className="space-y-5">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            <Field label="Raison sociale">
-              <input
-                type="text"
-                value={form.raison_sociale}
-                onChange={e => update('raison_sociale', e.target.value)}
-                placeholder="Entreprise SAS"
-                disabled={isPending}
-                className={inputClass}
-              />
-            </Field>
-            <Field label="Forme juridique">
-              <input
-                type="text"
-                value={form.forme_juridique}
-                onChange={e => update('forme_juridique', e.target.value)}
-                placeholder="SAS, SARL, SA, EURL…"
-                disabled={isPending}
-                className={inputClass}
-              />
-            </Field>
-          </div>
-
-          <Field label="Adresse du siège social">
+          <Field label="Raison sociale">
             <input
               type="text"
-              value={form.adresse_siege}
-              onChange={e => update('adresse_siege', e.target.value)}
-              placeholder="12 rue de la Paix, 75002 Paris"
+              value={form.raison_sociale}
+              onChange={e => update('raison_sociale', e.target.value)}
+              placeholder="Entreprise SAS"
               disabled={isPending}
               className={inputClass}
             />
           </Field>
-
-          <Field label="SIRET" hint="14 chiffres">
-            <input
-              type="text"
-              value={form.siret}
-              onChange={e => update('siret', e.target.value)}
-              placeholder="123 456 789 00012"
-              disabled={isPending}
-              className={inputClass}
-            />
-          </Field>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            <Field label="Nom du signataire">
-              <input
-                type="text"
-                value={form.nom_signataire}
-                onChange={e => update('nom_signataire', e.target.value)}
-                placeholder="Jean Dupont"
-                disabled={isPending}
-                className={inputClass}
-              />
-            </Field>
-            <Field label="Qualité du signataire">
-              <input
-                type="text"
-                value={form.qualite_signataire}
-                onChange={e => update('qualite_signataire', e.target.value)}
-                placeholder="Président, Gérant…"
-                disabled={isPending}
-                className={inputClass}
-              />
-            </Field>
-          </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
             <Field label="CA dernier exercice (€)">
@@ -493,34 +427,6 @@ export function MonEntrepriseForm({
               />
             </Field>
           </div>
-        </div>
-      </div>
-
-      {/* Coordonnées bancaires */}
-      <div className="bg-surface border border-border rounded-2xl p-6 shadow-[0_2px_12px_rgba(37,99,235,0.04)]">
-        <SectionHeader label="Coordonnées bancaires (optionnel)" />
-        <p className="font-syne text-[12px] text-text-subtle mb-5">Utilisées pour pré-remplir l&apos;acte d&apos;engagement. Non transmises à des tiers.</p>
-        <div className="space-y-5">
-          <Field label="IBAN">
-            <input
-              type="text"
-              value={form.iban}
-              onChange={e => update('iban', e.target.value)}
-              placeholder="FR76 3000 6000 0112 3456 7890 189"
-              disabled={isPending}
-              className={inputClass}
-            />
-          </Field>
-          <Field label="BIC / SWIFT">
-            <input
-              type="text"
-              value={form.bic}
-              onChange={e => update('bic', e.target.value)}
-              placeholder="BNPAFRPPXXX"
-              disabled={isPending}
-              className={inputClass}
-            />
-          </Field>
         </div>
       </div>
 
