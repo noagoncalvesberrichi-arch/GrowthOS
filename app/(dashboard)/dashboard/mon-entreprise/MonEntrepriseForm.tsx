@@ -3,6 +3,7 @@
 import { useState, useTransition, useMemo } from 'react'
 import type { KeyboardEvent } from 'react'
 import { useRouter } from 'next/navigation'
+import { ReferencesImport } from '@/components/ReferencesImport'
 import {
   sauvegarderProfil,
   ajouterReference,
@@ -238,6 +239,7 @@ export function MonEntrepriseForm({
   // References state
   const [references, setReferences] = useState<ReferenceChantier[]>(initialReferences)
   const [editingId, setEditingId] = useState<string | 'new' | null>(null)
+  const [importMode, setImportMode] = useState(false)
   const [refForm, setRefForm] = useState<RefForm>(emptyRefForm())
   const [refPending, setRefPending] = useState(false)
   const [refError, setRefError] = useState<string | null>(null)
@@ -552,21 +554,50 @@ export function MonEntrepriseForm({
         <SectionHeader
           label="Références chantiers"
           action={
-            editingId === null && (
-              <button
-                type="button"
-                onClick={openAddRef}
-                className="font-syne text-[12px] font-semibold text-accent hover:text-accent-dark transition-colors duration-150 flex items-center gap-1"
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="12" y1="5" x2="12" y2="19" />
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
-                Ajouter
-              </button>
+            editingId === null && !importMode && (
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setImportMode(true)}
+                  className="font-syne text-[12px] font-semibold text-text-muted hover:text-text transition-colors duration-150 flex items-center gap-1"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                    <polyline points="17 8 12 3 7 8" />
+                    <line x1="12" y1="3" x2="12" y2="15" />
+                  </svg>
+                  Importer un fichier
+                </button>
+                <button
+                  type="button"
+                  onClick={openAddRef}
+                  className="font-syne text-[12px] font-semibold text-accent hover:text-accent-dark transition-colors duration-150 flex items-center gap-1"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                  Ajouter
+                </button>
+              </div>
             )
           }
         />
+
+        {/* Wizard d'import */}
+        {importMode && (
+          <div className="mb-5 bg-background border border-border rounded-xl p-5">
+            <ReferencesImport
+              onSuccess={(newRefs) => {
+                setReferences(prev =>
+                  [...newRefs, ...prev].sort((a, b) => (b.annee ?? 0) - (a.annee ?? 0))
+                )
+                setImportMode(false)
+              }}
+              onClose={() => setImportMode(false)}
+            />
+          </div>
+        )}
 
         {/* Inline form add/edit */}
         {editingId !== null && (

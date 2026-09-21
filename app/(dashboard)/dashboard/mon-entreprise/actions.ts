@@ -189,3 +189,80 @@ export async function supprimerReference(id: string): Promise<ReferenceState> {
     return { error: 'Erreur inattendue. Réessaie.' }
   }
 }
+
+// ─── Import en masse ──────────────────────────────────────────────────────────
+
+export type ImportResult =
+  | { imported: number; ignored: number; refs: ReferenceChantier[] }
+  | { error: string }
+
+export async function importerReferences(data: ReferenceFormData[]): Promise<ImportResult> {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'Non authentifié. Reconnectez-vous.' }
+
+    if (data.length === 0) return { imported: 0, ignored: 0, refs: [] }
+    if (data.length > 500) return { error: 'Maximum 500 références par import.' }
+
+    // Récupère les titres+années existants pour détecter les doublons
+    const { data: existing } = await supabase
+      .from('references_chantiers')
+      .select('titre, annee')
+      .eq('user_id', user.id)
+
+    const existingKeys = new Set(
+      (existing ?? []).map(r =>
+        `${(r.titre ?? '').toLowerCase().trim()}__${r.annee ?? ''}`
+      )
+    )
+
+    const toInsert = data.filter(r => {
+      if (!r.titre.trim()) return false
+      const annee = r.annee !== '' ? parseInt(r.annee, 10) : null
+      const key = `${r.titre.toLowerCase().trim()}__${annee ?? ''}`
+      return !existingKeys.has(key)
+    })
+
+    const ignored = data.length - toInsert.length
+
+    if (toInsert.length === 0) return { imported: 0, ignored, refs: [] }
+
+    const rows = toInsert.map(r => ({
+      user_id: user.id,
+      titre: r.titre.trim(),
+      maitre_ouvrage: r.maitre_ouvrage.trim() || null,
+      annee: r.annee !== '' ? parseInt(r.annee, 10) : null,
+      montant: r.montant !== '' ? parseFloat(r.montant) : null,
+      description: r.description.trim() || null,
+      domaines: r.domaines,
+      site_occupe: r.site_occupe,
+    }))
+
+    const { data: inserted, error } = await supabase
+      .from('references_chantiers')
+      .insert(rows)
+      .select('id, titre, maitre_ouvrage, annee, montant, description, domaines, site_occupe')
+
+    if (error) {
+      console.error('[importerReferences] error:', error)
+      return { error: "Erreur lors de l'import. Réessaie." }
+    }
+
+    const refs: ReferenceChantier[] = (inserted ?? []).map(r => ({
+      id: r.id,
+      titre: r.titre,
+      maitre_ouvrage: r.maitre_ouvrage,
+      annee: r.annee,
+      montant: r.montant,
+      description: r.description,
+      domaines: r.domaines ?? [],
+      site_occupe: r.site_occupe ?? false,
+    }))
+
+    return { imported: refs.length, ignored, refs }
+  } catch (err) {
+    console.error('[importerReferences]', err)
+    return { error: 'Erreur inattendue. Réessaie.' }
+  }
+}
