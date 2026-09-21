@@ -5,6 +5,13 @@ import { createClient } from '@/lib/supabase/server'
 export type ProfilEntreprise = {
   user_id?: string
   raison_sociale: string | null
+  forme_juridique: string | null
+  adresse_siege: string | null
+  siret: string | null
+  nom_signataire: string | null
+  qualite_signataire: string | null
+  iban: string | null
+  bic: string | null
   ca_dernier_exercice: number | null
   effectif: number | null
   annees_experience: number | null
@@ -21,6 +28,13 @@ export type ProfilEntreprise = {
 
 export type ProfilFormData = {
   raison_sociale: string
+  forme_juridique: string
+  adresse_siege: string
+  siret: string
+  nom_signataire: string
+  qualite_signataire: string
+  iban: string
+  bic: string
   ca_dernier_exercice: string
   effectif: string
   annees_experience: string
@@ -48,6 +62,13 @@ export async function sauvegarderProfil(profil: ProfilFormData): Promise<ProfilS
         {
           user_id: user.id,
           raison_sociale: profil.raison_sociale.trim() || null,
+          forme_juridique: profil.forme_juridique.trim() || null,
+          adresse_siege: profil.adresse_siege.trim() || null,
+          siret: profil.siret.trim() || null,
+          nom_signataire: profil.nom_signataire.trim() || null,
+          qualite_signataire: profil.qualite_signataire.trim() || null,
+          iban: profil.iban.trim() || null,
+          bic: profil.bic.trim() || null,
           ca_dernier_exercice: profil.ca_dernier_exercice !== '' ? parseFloat(profil.ca_dernier_exercice) : null,
           effectif: profil.effectif !== '' ? parseInt(profil.effectif, 10) : null,
           annees_experience: profil.annees_experience !== '' ? parseInt(profil.annees_experience, 10) : null,
