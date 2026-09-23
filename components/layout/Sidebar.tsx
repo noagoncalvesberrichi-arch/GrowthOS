@@ -82,9 +82,9 @@ function SearchIcon({ active }: { active: boolean }) {
   )
 }
 
-function ChiffrageIcon() {
+function ChiffrageIcon({ active }: { active: boolean }) {
   return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.2 : 1.8} strokeLinecap="round" strokeLinejoin="round">
       <rect x="3" y="3" width="18" height="18" rx="2" />
       <line x1="3" y1="9" x2="21" y2="9" />
       <line x1="3" y1="15" x2="21" y2="15" />
@@ -116,7 +116,8 @@ const outilLinks: NavLink[] = [
   { id: 'analyser', label: 'Analyser un AO', href: '/dashboard/analyser', icon: (a) => <DocumentIcon active={a} /> },
   { id: 'mes-analyses', label: 'Mes analyses', href: '/dashboard/mes-analyses', icon: (a) => <ListIcon active={a} /> },
   { id: 'memoire', label: 'Mémoire technique', href: '/dashboard/memoire', icon: (a) => <MemoireIcon active={a} /> },
-{ id: 'appels-offres', label: "Appels d'offres", href: '/dashboard/appels-offres', icon: (a) => <SearchIcon active={a} /> },
+  { id: 'appels-offres', label: "Appels d'offres", href: '/dashboard/appels-offres', icon: (a) => <SearchIcon active={a} /> },
+  { id: 'chiffrage', label: 'Chiffrage', href: '/dashboard/chiffrage', icon: (a) => <ChiffrageIcon active={a} /> },
 ]
 
 const secondaireLinks: NavLink[] = [
@@ -200,16 +201,6 @@ export function Sidebar() {
         {/* Outils principaux */}
         <ul className="space-y-0.5">
           {outilLinks.map((link) => renderLink(link, onClose))}
-          {/* Chiffrage — Bientôt */}
-          <li>
-            <div className="flex items-center gap-3 px-3 py-2 rounded-lg border-l-[3px] border-transparent opacity-35 cursor-not-allowed pl-[9px]">
-              <span className="shrink-0 text-white/35"><ChiffrageIcon /></span>
-              <p className="font-syne text-[13px] font-semibold leading-none text-white/60 flex-1">Chiffrage</p>
-              <span className="font-syne text-[9px] font-bold text-white/30 bg-white/8 border border-white/12 px-1.5 py-0.5 rounded-full">
-                Bientôt
-              </span>
-            </div>
-          </li>
         </ul>
 
         {sep}
