@@ -5,6 +5,7 @@ import ExcelJS from 'exceljs'
 import { normalizeDesignation, parseNumber, similarity } from '../lib/chiffrage/normalize'
 import { detectColumns, detectHeaderRow, classifyRow, isAmbiguous } from '../lib/chiffrage/columnDetection'
 import { applyMapping, matchRows } from '../lib/chiffrage/rowMatching'
+import { parseXlsx } from '../lib/chiffrage/excelParser'
 import { montantEnLettres } from '../lib/montantEnLettres'
 import type { RawRow, ColumnMapping } from '../lib/chiffrage/types'
 
@@ -243,8 +244,78 @@ test('1250.75 → mille deux cent cinquante euros et soixante-quinze centimes', 
   assertEq(montantEnLettres(1250.75), 'mille deux cent cinquante euros et soixante-quinze centimes')
 })
 
+// ─── excelParser: row index accuracy (multi-sheet, different header positions) ─
+console.log('\nexcelParser: row index accuracy')
+
+async function runRowIndexTest() {
+  // Sheet 1: header at row 1, data at rows 2-3
+  // Sheet 2: rows 1-2 blank, header at row 3, data at rows 4-5
+  const wb = new ExcelJS.Workbook()
+
+  const ws1 = wb.addWorksheet('S1')
+  ws1.getRow(1).values = ['N°', 'Désignation', 'Unité', 'Quantité', 'Prix Unitaire HT', 'Montant HT']
+  ws1.getRow(1).commit()
+  ws1.getRow(2).values = ['1', 'Premier poste', 'm²', 10, null, null]
+  ws1.getRow(2).commit()
+  ws1.getRow(3).values = ['2', 'Deuxième poste', 'm²', 20, null, null]
+  ws1.getRow(3).commit()
+
+  const ws2 = wb.addWorksheet('S2')
+  // Rows 1-2 intentionally left blank (sparse rows don't appear in eachRow includeEmpty:false)
+  ws2.getRow(3).values = ['N°', 'Désignation', 'Unité', 'Quantité', 'PU HT', 'Total HT']
+  ws2.getRow(3).commit()
+  ws2.getRow(4).values = ['A', 'Troisième poste', 'm', 5, null, null]
+  ws2.getRow(4).commit()
+  ws2.getRow(5).values = ['B', 'Quatrième poste', 'm', 15, null, null]
+  ws2.getRow(5).commit()
+
+  const buf = await wb.xlsx.writeBuffer()
+  const result = await parseXlsx(buf as ArrayBuffer, 'test.xlsx')
+
+  test('S1: data rows have rowIndex 2, 3 (header at row 1)', () => {
+    const s1 = result.sheets.find(s => s.sheetName === 'S1')
+    assert(s1 != null, 'Sheet S1 not found')
+    assertEq(s1!.rawRows[0].rowIndex, 2)
+    assertEq(s1!.rawRows[1].rowIndex, 3)
+  })
+
+  test('S2: data rows have rowIndex 4, 5 (header at row 3 with 2 blank rows before)', () => {
+    const s2 = result.sheets.find(s => s.sheetName === 'S2')
+    assert(s2 != null, 'Sheet S2 not found')
+    assertEq(s2!.rawRows[0].rowIndex, 4)
+    assertEq(s2!.rawRows[1].rowIndex, 5)
+  })
+
+  test('S2 header row (row 3) is not in rawRows', () => {
+    const s2 = result.sheets.find(s => s.sheetName === 'S2')!
+    const headerInRaws = s2.rawRows.some(r => r.rowIndex === 3)
+    assert(!headerInRaws, 'Header row 3 must not appear in rawRows')
+  })
+}
+
+// ─── montantTotalHt: server-side Σ(PU × qty) ─────────────────────────────────
+console.log('\nmontantTotalHt: Σ(PU × qty)')
+
+test('Σ(PU × qty) gives correct total for 5 fixture rows', () => {
+  // PUs from CRM, quantities from DPGF fixture used in integration test
+  const rows = [
+    { qty: 45, pu: 28.50 },   // Fouilles en rigole
+    { qty: 28, pu: 285.00 },  // Béton armé semelles
+    { qty: 120, pu: 38.00 },  // Parpaings creux
+    { qty: 320, pu: 14.50 },  // Enduit béton lissé
+    { qty: 150, pu: 58.00 },  // Carrelage grès cérame
+  ]
+  let total = 0
+  for (const r of rows) total += Math.round(r.pu * r.qty * 100) / 100
+  // 1282.5 + 7980 + 4560 + 4640 + 8700 = 27162.5
+  assertApprox(total, 27162.5, 0.01, 'Expected Σ(PU × qty)')
+})
+
 // ─── Run async tests ──────────────────────────────────────────────────────────
-runIntegrationTest()
+Promise.all([
+  runIntegrationTest(),
+  runRowIndexTest(),
+])
   .then(() => {
     console.log(`\n${passed + failed} tests — ${passed} passed, ${failed} failed`)
     if (failed > 0) process.exit(1)

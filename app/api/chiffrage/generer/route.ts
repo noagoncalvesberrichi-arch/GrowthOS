@@ -85,36 +85,28 @@ export async function POST(req: NextRequest) {
         puCell.value = pu
         nbRapprochees++
 
-        // Write total HT only if cell is empty (no formula)
-        if (meta.totalColIdx !== undefined) {
+        // Always compute qty and accumulate total = PU × qty (formula cells aren't recalculated server-side)
+        let qty: number | null = null
+        if (meta.qtyColIdx !== undefined) {
+          qty = parseNumber(row.getCell(meta.qtyColIdx + 1).value as string | number | null)
+        }
+        if (qty != null) {
+          montantTotalHt += Math.round(pu * qty * 100) / 100
+        }
+
+        // Write total HT cell only when it has no formula (formula cells auto-compute on open in Excel)
+        if (meta.totalColIdx !== undefined && qty != null) {
           const formulaCols = formulaLookup.get(rowId) ?? []
           const totalHasFormula = formulaCols.includes(meta.totalColIdx)
           if (!totalHasFormula) {
-            // Check if currently empty
             const totalCell = row.getCell(meta.totalColIdx + 1)
             const currentTotal = parseNumber(totalCell.value as string | number | null)
             if (currentTotal == null || currentTotal === 0) {
-              // Compute quantity from the sheet
-              let qty: number | null = null
-              if (meta.qtyColIdx !== undefined) {
-                const qtyCell = row.getCell(meta.qtyColIdx + 1)
-                qty = parseNumber(qtyCell.value as string | number | null)
-              }
-              if (qty != null) {
-                const total = Math.round(pu * qty * 100) / 100
-                totalCell.value = total
-                montantTotalHt += total
-              } else {
-                montantTotalHt += pu
-              }
-            } else {
-              montantTotalHt += currentTotal
+              totalCell.value = Math.round(pu * qty * 100) / 100
             }
           }
         }
       })
-
-      // Also sum up existing totals from formula cells (they compute based on what we wrote)
     })
 
     if (puByRowId.size > nbRapprochees) {

@@ -22,113 +22,147 @@ function formatEuro(n: number): string {
 }
 
 export async function genererActeEngagementDocx(data: ActeData): Promise<void> {
-  const { Document, HeadingLevel, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType, BorderStyle } = await import('docx')
+  const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType, BorderStyle } = await import('docx')
 
   const montant_tva = Math.round(data.montant_ht * data.taux_tva / 100 * 100) / 100
   const montant_ttc = Math.round(data.montant_ht * (1 + data.taux_tva / 100) * 100) / 100
 
-  function h1(text: string) {
-    return new Paragraph({ text, heading: HeadingLevel.HEADING_1, spacing: { before: 240, after: 120 } })
+  const FONT = 'Arial'
+  const SIZE = 22  // 11pt in half-points
+
+  function titleBlock() {
+    return new Paragraph({
+      alignment: AlignmentType.CENTER,
+      children: [new TextRun({ text: "ACTE D'ENGAGEMENT", bold: true, size: 28, font: FONT })],
+      spacing: { before: 120, after: 60 },
+    })
   }
-  function h2(text: string) {
-    return new Paragraph({ text, heading: HeadingLevel.HEADING_2, spacing: { before: 200, after: 80 } })
+
+  function subtitle(text: string) {
+    return new Paragraph({
+      alignment: AlignmentType.CENTER,
+      children: [new TextRun({ text, size: SIZE, font: FONT })],
+      spacing: { after: 200 },
+    })
   }
+
+  function sectionHead(text: string) {
+    return new Paragraph({
+      children: [new TextRun({ text, bold: true, size: SIZE, font: FONT })],
+      spacing: { before: 280, after: 100 },
+      border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: 'AAAAAA' } },
+    })
+  }
+
   function p(text: string) {
     return new Paragraph({
-      children: [new TextRun({ text, size: 22 })],
+      children: [new TextRun({ text, size: SIZE, font: FONT })],
       spacing: { after: 80 },
     })
   }
+
   function label(key: string, value: string) {
     return new Paragraph({
       children: [
-        new TextRun({ text: key + ' : ', bold: true, size: 22 }),
-        new TextRun({ text: value || '[À compléter]', size: 22 }),
+        new TextRun({ text: key + ' : ', bold: true, size: SIZE, font: FONT }),
+        new TextRun({ text: value || '[À compléter]', size: SIZE, font: FONT }),
       ],
       spacing: { after: 60 },
     })
   }
 
-  const noBorder = { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }
-  const cellBorder = { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder }
+  const border = { style: BorderStyle.SINGLE, size: 4, color: '000000' }
+  const cellBorders = { top: border, bottom: border, left: border, right: border }
+
+  function headerCell(text: string, right = false) {
+    return new TableCell({
+      children: [new Paragraph({
+        alignment: right ? AlignmentType.RIGHT : AlignmentType.LEFT,
+        children: [new TextRun({ text, bold: true, size: SIZE, font: FONT })],
+      })],
+      borders: cellBorders,
+    })
+  }
+
+  function valueCell(text: string, right = false) {
+    return new TableCell({
+      children: [new Paragraph({
+        alignment: right ? AlignmentType.RIGHT : AlignmentType.LEFT,
+        children: [new TextRun({ text, size: SIZE, font: FONT })],
+      })],
+      borders: cellBorders,
+    })
+  }
 
   const table = new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
     rows: [
       new TableRow({
         children: [
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Désignation', bold: true, size: 22 })] })], borders: cellBorder }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Montant HT', bold: true, size: 22 })], alignment: AlignmentType.RIGHT })], borders: cellBorder }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: `TVA ${data.taux_tva} %`, bold: true, size: 22 })], alignment: AlignmentType.RIGHT })], borders: cellBorder }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Montant TTC', bold: true, size: 22 })], alignment: AlignmentType.RIGHT })], borders: cellBorder }),
+          headerCell('Désignation'),
+          headerCell('Montant HT', true),
+          headerCell(`TVA ${data.taux_tva} %`, true),
+          headerCell('Montant TTC', true),
         ],
       }),
       new TableRow({
         children: [
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Montant total de l'offre", size: 22 })] })], borders: cellBorder }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: formatEuro(data.montant_ht), size: 22 })], alignment: AlignmentType.RIGHT })], borders: cellBorder }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: formatEuro(montant_tva), size: 22 })], alignment: AlignmentType.RIGHT })], borders: cellBorder }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: formatEuro(montant_ttc), size: 22 })], alignment: AlignmentType.RIGHT })], borders: cellBorder }),
+          valueCell("Montant total de l'offre"),
+          valueCell(formatEuro(data.montant_ht), true),
+          valueCell(formatEuro(montant_tva), true),
+          valueCell(formatEuro(montant_ttc), true),
         ],
       }),
     ],
   })
 
   const children = [
-    h1("ACTE D'ENGAGEMENT"),
-    p('Formulaire ATTRI1 — Marché public'),
-    new Paragraph({ text: '', spacing: { after: 120 } }),
+    titleBlock(),
+    subtitle('Formulaire ATTRI1 — Marché public'),
 
-    h2("1. IDENTIFICATION DE L'ACHETEUR PUBLIC"),
+    sectionHead("1. IDENTIFICATION DE L'ACHETEUR PUBLIC"),
     label("Pouvoir adjudicateur", data.acheteur),
-    new Paragraph({ text: '', spacing: { after: 80 } }),
 
-    h2("2. OBJET DU MARCHÉ"),
+    sectionHead("2. OBJET DU MARCHÉ"),
     label("Objet", data.objet),
-    label("Lieu d'exécution", data.lieu_execution || '[À compléter]'),
-    label("Durée du marché", data.duree_marche || '[À compléter]'),
-    new Paragraph({ text: '', spacing: { after: 80 } }),
 
-    h2("3. IDENTIFICATION DU CANDIDAT"),
+    sectionHead("3. IDENTIFICATION DU CANDIDAT"),
     label("Raison sociale", data.raison_sociale),
     label("Forme juridique", data.forme_juridique),
     label("Adresse du siège", data.adresse_siege),
     label("SIRET", data.siret),
-    new Paragraph({ text: '', spacing: { after: 80 } }),
 
-    h2("4. ENGAGEMENT DU CANDIDAT"),
+    sectionHead("4. ENGAGEMENT DU CANDIDAT"),
     p("Le candidat s'engage, aux prix figurant dans son offre, à exécuter les prestations demandées aux conditions ci-après :"),
     new Paragraph({ text: '', spacing: { after: 80 } }),
     table,
     new Paragraph({ text: '', spacing: { after: 80 } }),
     new Paragraph({
       children: [
-        new TextRun({ text: 'Montant en toutes lettres (HT) : ', bold: true, size: 22 }),
-        new TextRun({ text: montantEnLettres(data.montant_ht), size: 22 }),
+        new TextRun({ text: 'Montant en toutes lettres (HT) : ', bold: true, size: SIZE, font: FONT }),
+        new TextRun({ text: montantEnLettres(data.montant_ht), size: SIZE, font: FONT }),
       ],
       spacing: { after: 60 },
     }),
     new Paragraph({
       children: [
-        new TextRun({ text: 'Montant en toutes lettres (TTC) : ', bold: true, size: 22 }),
-        new TextRun({ text: montantEnLettres(montant_ttc), size: 22 }),
+        new TextRun({ text: 'Montant en toutes lettres (TTC) : ', bold: true, size: SIZE, font: FONT }),
+        new TextRun({ text: montantEnLettres(montant_ttc), size: SIZE, font: FONT }),
       ],
       spacing: { after: 80 },
     }),
 
-    h2("5. DURÉE ET LIEU D'EXÉCUTION"),
+    sectionHead("5. DURÉE ET LIEU D'EXÉCUTION"),
     label("Durée du marché", data.duree_marche || '[À compléter]'),
     label("Lieu d'exécution", data.lieu_execution || '[À compléter]'),
-    new Paragraph({ text: '', spacing: { after: 80 } }),
 
-    h2("6. COORDONNÉES BANCAIRES"),
+    sectionHead("6. COORDONNÉES BANCAIRES"),
     ...(data.iban
       ? [label("IBAN", data.iban), label("BIC", data.bic ?? '[À compléter]')]
       : [p('Coordonnées bancaires : [À COMPLÉTER]')]
     ),
-    new Paragraph({ text: '', spacing: { after: 80 } }),
 
-    h2("7. SIGNATURE"),
+    sectionHead("7. SIGNATURE"),
     label("Nom du signataire", data.nom_signataire),
     label("Qualité", data.qualite_signataire),
     new Paragraph({ text: '', spacing: { after: 120 } }),

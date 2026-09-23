@@ -24,6 +24,12 @@ function isMasterCell(cell: ExcelJS.Cell): boolean {
   return !cell.isMerged || (cell.master === cell)
 }
 
+type RowEntry = {
+  rIdx: number  // actual 1-based Excel row number from eachRow callback
+  values: (string | number | null)[]
+  formulaCols: number[]
+}
+
 export async function parseXlsx(buffer: ArrayBuffer, fileName: string): Promise<FileAnalysis> {
   const workbook = new ExcelJS.Workbook()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -39,54 +45,51 @@ export async function parseXlsx(buffer: ArrayBuffer, fileName: string): Promise<
 
     const isHidden = worksheet.state === 'hidden' || worksheet.state === 'veryHidden'
 
-    // Gather all rows as arrays of values (up to 2000 total)
-    const allCellRows: (string | number | null)[][] = []
-    const formulaRowMap: Map<number, number[]> = new Map()
+    // Gather all non-empty rows, preserving actual Excel row numbers (rIdx)
+    const allRows: RowEntry[] = []
 
     worksheet.eachRow({ includeEmpty: false }, (row, rIdx) => {
-      if (totalRows + allCellRows.length >= MAX_ROWS_TOTAL) return
-      const rowArr: (string | number | null)[] = []
+      if (totalRows + allRows.length >= MAX_ROWS_TOTAL) return
+      const values: (string | number | null)[] = []
       const formulaCols: number[] = []
       row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
         const colIdx = colNumber - 1
         // For merged cells that aren't master, use master value
         const masterCell = cell.isMerged && cell.master !== cell ? cell.master : cell
-        rowArr[colIdx] = extractCellValue(masterCell) as string | number | null
+        values[colIdx] = extractCellValue(masterCell) as string | number | null
         if (masterCell.type === ExcelJS.ValueType.Formula) {
           formulaCols.push(colIdx)
         }
       })
-      allCellRows.push(rowArr)
-      formulaRowMap.set(rIdx - 1, formulaCols)
+      allRows.push({ rIdx, values, formulaCols })
     })
 
-    if (allCellRows.length === 0) {
+    if (allRows.length === 0) {
       sheetIdx++
       return
     }
 
-    const headerRowIndex = detectHeaderRow(allCellRows)
-    const headerRow = allCellRows[headerRowIndex] ?? []
-    const headerValues = headerRow.map(v => (v != null ? String(v) : ''))
+    const headerIdx = detectHeaderRow(allRows.map(r => r.values))
+    const headerRow = allRows[headerIdx] ?? { values: [] }
+    const headerValues = headerRow.values.map(v => (v != null ? String(v) : ''))
     const mapping = detectColumns(headerValues)
     const ambiguous = isAmbiguous(mapping)
 
-    // Build RawRows for data rows (after header)
+    // Build RawRows for data rows (after header), using actual Excel row numbers
     const rawRows: RawRow[] = []
-    for (let i = headerRowIndex + 1; i < allCellRows.length; i++) {
-      const vals = allCellRows[i]
-      // Skip completely empty rows
-      if (vals.every(v => v == null || v === '')) continue
+    for (let i = headerIdx + 1; i < allRows.length; i++) {
+      const { rIdx, values, formulaCols } = allRows[i]
+      if (values.every(v => v == null || v === '')) continue
       const { isTitle, isSubtotal } = classifyRow(
-        vals as (string | number | boolean | null)[],
+        values as (string | number | boolean | null)[],
         mapping
       )
       rawRows.push({
-        rowIndex: i + 1, // 1-based row index as in Excel
-        values: vals as (string | number | boolean | null)[],
+        rowIndex: rIdx,  // actual 1-based Excel row number, not array index
+        values: values as (string | number | boolean | null)[],
         isTitle,
         isSubtotal,
-        formulaCols: formulaRowMap.get(i) ?? [],
+        formulaCols,
       })
       totalRows++
     }
@@ -95,7 +98,7 @@ export async function parseXlsx(buffer: ArrayBuffer, fileName: string): Promise<
       sheetName: worksheet.name,
       sheetIndex: sheetIdx,
       isHidden,
-      headerRowIndex,
+      headerRowIndex: allRows[headerIdx]?.rIdx ?? headerIdx + 1,
       headerValues,
       mapping,
       mappingAmbiguous: ambiguous,

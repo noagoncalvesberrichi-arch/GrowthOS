@@ -17,15 +17,15 @@ type Props = {
 
 function ConfidenceBadge({ confidence, matched }: { confidence: number; matched: boolean }) {
   if (!matched) {
-    return <span className="font-mono text-[10px] bg-red-500/10 border border-red-500/20 text-red-400 px-2 py-0.5 rounded-full">Non trouvé</span>
+    return <span className="font-mono text-[10px] bg-red-500/10 border border-red-500/20 text-red-400 px-2 py-0.5 rounded-full whitespace-nowrap">Non trouvé</span>
   }
   if (confidence >= 0.9) {
-    return <span className="font-mono text-[10px] bg-green-500/10 border border-green-500/20 text-green-400 px-2 py-0.5 rounded-full">{Math.round(confidence * 100)} %</span>
+    return <span className="font-mono text-[10px] bg-green-500/10 border border-green-500/20 text-green-400 px-2 py-0.5 rounded-full whitespace-nowrap">{Math.round(confidence * 100)} %</span>
   }
   if (confidence >= 0.7) {
-    return <span className="font-mono text-[10px] bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded-full">{Math.round(confidence * 100)} %</span>
+    return <span className="font-mono text-[10px] bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded-full whitespace-nowrap">{Math.round(confidence * 100)} %</span>
   }
-  return <span className="font-mono text-[10px] bg-red-500/10 border border-red-500/20 text-red-400 px-2 py-0.5 rounded-full">{Math.round(confidence * 100)} %</span>
+  return <span className="font-mono text-[10px] bg-red-500/10 border border-red-500/20 text-red-400 px-2 py-0.5 rounded-full whitespace-nowrap">{Math.round(confidence * 100)} %</span>
 }
 
 export function Step3Matching({
