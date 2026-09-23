@@ -125,8 +125,75 @@ function buildMarcheBlock(
   return lines.join('\n')
 }
 
-function buildReferencesBlock(refs: ReferenceChantier[]): string {
-  return refs
+const MAX_REFS_IN_PROMPT = 25
+
+function extractAOKeywords(
+  resultat: AnalyseResultat | null,
+  profil: ProfilRow | null
+): string[] {
+  const raw: string[] = []
+  if (resultat?.objet) raw.push(...resultat.objet.toLowerCase().split(/[\s,;/()]+/))
+  resultat?.lots?.forEach(l => raw.push(...l.designation.toLowerCase().split(/[\s,;/()]+/)))
+  profil?.domaines?.forEach(d => raw.push(...d.toLowerCase().split(/[\s,;/()]+/)))
+
+  const stop = new Set([
+    'de','du','des','le','la','les','un','une','et','en','à','au','aux','pour','par',
+    'sur','dans','avec','ou','qui','que','se','ce','il','elle','ils','elles','je','tu',
+    'nous','vous','mais','donc','car','ni','or','est','sont','a','ont','été','avoir',
+    'd','l','s','n','j','y','c','m','t','qu',
+  ])
+  return [...new Set(raw.filter(w => w.length > 3 && !stop.has(w)))]
+}
+
+function scoreRef(ref: ReferenceChantier, keywords: string[]): number {
+  if (keywords.length === 0) return 0
+  const haystack = [
+    ...(ref.domaines ?? []),
+    ref.description ?? '',
+    ref.titre ?? '',
+  ].join(' ').toLowerCase()
+  return keywords.filter(kw => haystack.includes(kw)).length
+}
+
+function selectTopReferences(
+  refs: ReferenceChantier[],
+  resultat: AnalyseResultat | null,
+  profil: ProfilRow | null
+): { selected: ReferenceChantier[]; summaryLine: string | null } {
+  if (refs.length <= MAX_REFS_IN_PROMPT) return { selected: refs, summaryLine: null }
+
+  const keywords = extractAOKeywords(resultat, profil)
+
+  const scored = refs.map(ref => ({
+    ref,
+    score: scoreRef(ref, keywords),
+    annee: ref.annee ?? 0,
+    hasMontant: ref.montant != null ? 1 : 0,
+  }))
+
+  scored.sort((a, b) =>
+    b.score !== a.score ? b.score - a.score :
+    b.annee !== a.annee ? b.annee - a.annee :
+    b.hasMontant - a.hasMontant
+  )
+
+  const selected = scored.slice(0, MAX_REFS_IN_PROMPT).map(s => s.ref)
+  const rest = scored.slice(MAX_REFS_IN_PROMPT)
+
+  const restYears = rest.map(s => s.annee).filter(y => y > 0)
+  const minYear = restYears.length > 0 ? Math.min(...restYears) : null
+  const maxYear = restYears.length > 0 ? Math.max(...restYears) : null
+
+  let summaryLine = `+ ${rest.length} autres références similaires`
+  if (minYear && maxYear) {
+    summaryLine += minYear === maxYear ? ` en ${minYear}` : ` entre ${minYear} et ${maxYear}`
+  }
+
+  return { selected, summaryLine }
+}
+
+function buildReferencesBlock(refs: ReferenceChantier[], summaryLine: string | null = null): string {
+  const body = refs
     .map((ref, i) => {
       const montantStr = ref.montant != null
         ? `${ref.montant.toLocaleString('fr-FR')} € HT`
@@ -155,13 +222,15 @@ function buildReferencesBlock(refs: ReferenceChantier[]): string {
       return lines.join('\n')
     })
     .join('\n\n')
+  return summaryLine ? body + '\n\n' + summaryLine : body
 }
 
 function buildPrompt(
   profilBlock: string,
   marcheBlock: string,
   resultat: AnalyseResultat | null,
-  references: ReferenceChantier[]
+  references: ReferenceChantier[],
+  summaryLine: string | null = null
 ): string {
   const parts: string[] = [
     "Génère une trame de mémoire technique pour le marché ci-dessous, adaptée au profil de l'entreprise.",
@@ -178,7 +247,7 @@ function buildPrompt(
     parts.push(
       '',
       'RÉFÉRENCES CHANTIERS RÉALISÉES :',
-      buildReferencesBlock(references),
+      buildReferencesBlock(references, summaryLine),
       '',
       "DIRECTIVE RÉFÉRENCES : utilise en priorité les références dont les domaines ou le contexte (site occupé, type d'ouvrage) correspondent au marché analysé. Cite-les nommément (titre, maître d'ouvrage, année, montant si disponible) dans l'introduction et dans les parties où elles appuient la démonstration de compétence. N'invente JAMAIS une référence qui ne figure pas dans cette liste."
     )
@@ -317,9 +386,11 @@ export async function genererMemoire(
       if (analyse?.resultat) resultat = analyse.resultat as AnalyseResultat
     }
 
+    const { selected: selectedRefs, summaryLine } = selectTopReferences(references, resultat, profil)
+
     const profilBlock = buildProfilBlock(profil)
     const marcheBlock = buildMarcheBlock(resultat, descriptionManuelle)
-    const prompt = buildPrompt(profilBlock, marcheBlock, resultat, references)
+    const prompt = buildPrompt(profilBlock, marcheBlock, resultat, selectedRefs, summaryLine)
 
     const message = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',
