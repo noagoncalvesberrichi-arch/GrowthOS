@@ -33,6 +33,7 @@ async function buildDocument(data: ActeData): Promise<any> {
   const {
     Document, Paragraph, TextRun, Table, TableRow, TableCell,
     WidthType, AlignmentType, BorderStyle, HeightRule, Footer, PageNumber, ShadingType,
+    TableLayoutType,
   } = await import('docx')
 
   const montant_tva = Math.round(data.montant_ht * data.taux_tva / 100 * 100) / 100
@@ -44,9 +45,9 @@ async function buildDocument(data: ActeData): Promise<any> {
 
   // A4 with 2 cm margins: usable width = 210 mm − 40 mm = 170 mm ≈ 9638 twips
   const PW  = 9638
-  const L38 = Math.round(PW * 0.38)   // label col  ≈ 3662
-  const V62 = PW - L38                 // value col  ≈ 5976
-  const H50 = Math.round(PW / 2)       // half       ≈ 4819
+  const L38 = 3200                     // label col (≈33 %)
+  const V62 = PW - L38                 // value col = 6438
+  const H50 = Math.round(PW / 2)       // half       = 4819
   const T33 = Math.round(PW / 3)       // third      ≈ 3213
 
   const DXA  = WidthType.DXA
@@ -123,6 +124,8 @@ async function buildDocument(data: ActeData): Promise<any> {
   function section(letter: string, title: string, rows: any[]): any {
     return new Table({
       width: { size: PW, type: DXA },
+      columnWidths: [L38, V62],
+      layout: TableLayoutType.FIXED,
       borders: allThin,
       rows: [
         new TableRow({ children: [headerCell(`${letter} – ${title}`, PW, 2)] }),
@@ -139,6 +142,8 @@ async function buildDocument(data: ActeData): Promise<any> {
 
   const infoBox = new Table({
     width: { size: PW, type: DXA },
+    columnWidths: [H50, H50],
+    layout: TableLayoutType.FIXED,
     borders: allThin,
     rows: [
       new TableRow({ children: [headerCell('Objet du marché', H50), headerCell('Acheteur public', H50)] }),
@@ -150,6 +155,8 @@ async function buildDocument(data: ActeData): Promise<any> {
 
   const sectionD = new Table({
     width: { size: PW, type: DXA },
+    columnWidths: [T33, T33, PW - 2 * T33],
+    layout: TableLayoutType.FIXED,
     borders: allThin,
     rows: [
       new TableRow({ children: [headerCell('D – Engagement du candidat', PW, 3)] }),

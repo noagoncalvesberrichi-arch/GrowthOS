@@ -311,10 +311,64 @@ test('Σ(PU × qty) gives correct total for 5 fixture rows', () => {
   assertApprox(total, 27162.5, 0.01, 'Expected Σ(PU × qty)')
 })
 
+// ─── acteEngagement: tblGrid sums ─────────────────────────────────────────────
+console.log('\nacteEngagement: tblGrid column grid validation')
+
+async function runActeEngagementGridTest() {
+  const { buildActeEngagementDocx } = await import('../lib/chiffrage/acteEngagement')
+  const { execSync } = await import('child_process')
+  const { writeFileSync, readFileSync, mkdirSync, rmSync } = await import('fs')
+
+  const data = {
+    objet: 'Rénovation façades',
+    acheteur: 'Mairie de Test',
+    raison_sociale: 'ACME BTP SAS',
+    forme_juridique: 'SAS au capital de 10 000 €',
+    adresse_siege: '1 rue de la Paix, 75001 Paris',
+    siret: '123 456 789 00010',
+    nom_signataire: 'Jean Test',
+    qualite_signataire: 'Gérant',
+    iban: null,
+    bic: null,
+    montant_ht: 100000,
+    taux_tva: 20,
+    duree_marche: '12 mois',
+    lieu_execution: 'Paris (75)',
+  }
+
+  const bytes = await buildActeEngagementDocx(data)
+
+  const tmpDir = '/tmp/acte_grid_' + Date.now()
+  const docxPath = tmpDir + '/test.docx'
+  mkdirSync(tmpDir, { recursive: true })
+  writeFileSync(docxPath, Buffer.from(bytes))
+  execSync(`unzip -q "${docxPath}" -d "${tmpDir}"`, { stdio: 'pipe' })
+
+  const xml = readFileSync(tmpDir + '/word/document.xml', 'utf-8')
+  rmSync(tmpDir, { recursive: true, force: true })
+
+  const tblGridRe = /<w:tblGrid>([\s\S]*?)<\/w:tblGrid>/g
+  let gridCount = 0
+  const errors: string[] = []
+  let match
+  while ((match = tblGridRe.exec(xml)) !== null) {
+    gridCount++
+    const widths = [...match[1].matchAll(/w:w="(\d+)"/g)].map(m => parseInt(m[1], 10))
+    const sum = widths.reduce((a, b) => a + b, 0)
+    if (sum !== 9638) errors.push(`tblGrid #${gridCount}: [${widths.join(',')}] → ${sum}`)
+  }
+
+  test(`${gridCount} tableaux — toutes les w:tblGrid somment 9638`, () => {
+    assert(gridCount >= 8, `Attendu ≥ 8 tableaux, trouvé ${gridCount}`)
+    assert(errors.length === 0, errors.join(' | '))
+  })
+}
+
 // ─── Run async tests ──────────────────────────────────────────────────────────
 Promise.all([
   runIntegrationTest(),
   runRowIndexTest(),
+  runActeEngagementGridTest(),
 ])
   .then(() => {
     console.log(`\n${passed + failed} tests — ${passed} passed, ${failed} failed`)
