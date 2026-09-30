@@ -116,7 +116,9 @@ export default async function DashboardPage({
   void user
 
   const profil = profilData as ProfilRow | null
-  const raisonSociale = profil?.raison_sociale?.trim() || null
+  const raisonSociale = (profil?.raison_sociale?.trim() ?? '').length >= 3
+    ? profil!.raison_sociale!.trim()
+    : null
   const abo = aboData as Abonnement | null
   const analyses = (analysesData ?? []) as AnalyseRecente[]
 
