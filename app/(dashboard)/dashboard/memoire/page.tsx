@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 import { MemoireForm } from './MemoireForm'
 
 export const maxDuration = 300
@@ -57,7 +58,34 @@ export default async function MemoirePage() {
         </p>
       </div>
 
-      <MemoireForm analyses={analyses} isLocked={isLocked} />
+      {analyses.length === 0 ? (
+        <div className="bg-surface border border-border rounded-2xl px-5 py-12 sm:px-8 sm:py-16 text-center shadow-[0_2px_16px_rgba(37,99,235,0.04)]">
+          <div
+            className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-5"
+            style={{ background: 'linear-gradient(135deg, #EFF6FF, #DBEAFE)', width: 52, height: 52 }}
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+              <line x1="10" y1="9" x2="8" y2="9" />
+            </svg>
+          </div>
+          <p className="font-fraunces text-[20px] text-text mb-2">Aucun mémoire technique</p>
+          <p className="font-syne text-[13px] text-text-muted mb-7 max-w-sm mx-auto leading-relaxed">
+            Lancez d&apos;abord une analyse, puis générez le mémoire depuis la page de l&apos;analyse.
+          </p>
+          <Link
+            href="/dashboard/mes-analyses"
+            className="inline-flex items-center font-syne font-bold text-[13px] text-white bg-accent hover:bg-accent-dark px-5 py-2.5 rounded-xl shadow-[0_4px_16px_rgba(37,99,235,0.2)] transition-all duration-200"
+          >
+            Voir mes analyses →
+          </Link>
+        </div>
+      ) : (
+        <MemoireForm analyses={analyses} isLocked={isLocked} />
+      )}
     </div>
   )
 }

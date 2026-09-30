@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
+import { ChecklistDemarrage } from './ChecklistDemarrage'
 
 export const metadata = { title: 'Tableau de bord — Stratly' }
 
@@ -18,6 +19,13 @@ type Abonnement = {
   analyses_utilisees: number | null
   quota_gratuit: number | null
   statut_paiement: string | null
+}
+
+type ProfilRow = {
+  raison_sociale?: string | null
+  effectif?: string | number | null
+  domaines?: string[] | null
+  onboarding_masque?: boolean | null
 }
 
 function verdictConfig(verdict: Verdict | undefined | null) {
@@ -75,10 +83,24 @@ const actionCards = [
   },
 ]
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ bienvenue?: string }>
+}) {
+  const params = await searchParams
+  const showWelcome = params.bienvenue === '1'
+
   const supabase = await createClient()
 
-  const [{ data: { user } }, { data: aboData }, { data: analysesData }, { data: profilData }] = await Promise.all([
+  const [
+    { data: { user } },
+    { data: aboData },
+    { data: analysesData },
+    { data: profilData },
+    { count: refsCount },
+    { count: memoiresCount },
+  ] = await Promise.all([
     supabase.auth.getUser(),
     supabase.from('abonnements').select('plan, analyses_utilisees, quota_gratuit, statut_paiement').maybeSingle(),
     supabase
@@ -86,18 +108,36 @@ export default async function DashboardPage() {
       .select('id, created_at, objet_marche, nom_fichier, resultat')
       .order('created_at', { ascending: false })
       .limit(4),
-    supabase.from('profil_entreprise').select('raison_sociale').maybeSingle(),
+    supabase.from('profil_entreprise').select('raison_sociale, effectif, domaines, onboarding_masque').maybeSingle(),
+    supabase.from('references_chantiers').select('id', { count: 'exact', head: true }),
+    supabase.from('memoires').select('id', { count: 'exact', head: true }),
   ])
 
-  const raisonSociale = (profilData as { raison_sociale?: string | null } | null)?.raison_sociale?.trim() || null
+  void user
+
+  const profil = profilData as ProfilRow | null
+  const raisonSociale = profil?.raison_sociale?.trim() || null
   const abo = aboData as Abonnement | null
   const analyses = (analysesData ?? []) as AnalyseRecente[]
 
-  const isPro = abo?.plan === 'pro' && abo?.statut_paiement === 'actif'
+  const isPro = (abo?.plan === 'pro' || abo?.plan?.startsWith('essai_pro') || abo?.plan === 'fondateurs') ?? false
   const used = abo?.analyses_utilisees ?? 0
   const quota = abo?.quota_gratuit ?? 3
   const pct = Math.min(100, Math.round((used / quota) * 100))
   const barColor = pct >= 100 ? '#EF4444' : pct >= 67 ? '#D97706' : '#2563EB'
+
+  // Checklist
+  const onboardingMasque = profil?.onboarding_masque ?? false
+  const profilFait = !!(
+    profil?.raison_sociale?.trim() &&
+    profil?.effectif != null && profil.effectif !== '' &&
+    (profil?.domaines?.length ?? 0) > 0
+  )
+  const referencesFait = (refsCount ?? 0) >= 1
+  const analyseFaite = analyses.length >= 1
+  const memoireFait = (memoiresCount ?? 0) >= 1
+  const allDone = profilFait && referencesFait && analyseFaite && memoireFait
+  const showChecklist = !onboardingMasque && !allDone
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-10 sm:px-8 sm:py-14">
@@ -108,9 +148,34 @@ export default async function DashboardPage() {
           Tableau de bord
         </p>
         <h1 className="font-fraunces text-[28px] sm:text-[34px] text-text tracking-tight leading-tight">
-          {raisonSociale ? `Bonjour, ${raisonSociale} 👋` : 'Bonjour 👋'}
+          {raisonSociale ? `Bonjour, ${raisonSociale} 👋` : 'Bonjour 👋'}
         </h1>
       </div>
+
+      {/* Welcome banner (shown once after signup) */}
+      {showWelcome && (
+        <div className="mb-6 bg-accent/8 border border-accent/20 rounded-xl px-4 py-3 flex items-center gap-3">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          <p className="font-syne text-[13px] text-text leading-snug">
+            Bienvenue sur Stratly. Trois étapes pour une première analyse fidèle à votre entreprise.
+          </p>
+        </div>
+      )}
+
+      {/* Onboarding checklist */}
+      {showChecklist && (
+        <ChecklistDemarrage
+          profilFait={profilFait}
+          referencesFait={referencesFait}
+          analyseFaite={analyseFaite}
+          memoireFait={memoireFait}
+          isPro={isPro}
+        />
+      )}
 
       {/* Top section: quota + actions */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-8">
@@ -154,7 +219,6 @@ export default async function DashboardPage() {
                 )}
               </div>
 
-              {/* Progress bar */}
               <div>
                 <div className="h-1.5 rounded-full bg-border overflow-hidden">
                   <div
@@ -248,18 +312,13 @@ export default async function DashboardPage() {
                     href={`/dashboard/mes-analyses/${analyse.id}`}
                     className={`flex items-center gap-3.5 px-5 py-3.5 hover:bg-accent/4 transition-colors duration-150 group ${i < analyses.length - 1 ? 'border-b border-border' : ''}`}
                   >
-                    {/* Verdict badge */}
                     <span className={`shrink-0 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 ${vc.bg}`}>
                       <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${vc.dot}`} />
                       <span className={`font-syne text-[10px] font-bold ${vc.text}`}>{vc.label}</span>
                     </span>
-
-                    {/* Title */}
                     <p className="font-syne text-[13px] text-text flex-1 truncate leading-snug group-hover:text-accent transition-colors duration-150">
                       {title}
                     </p>
-
-                    {/* Date */}
                     <span className="font-syne text-[12px] text-text-subtle shrink-0">
                       {formatDate(analyse.created_at)}
                     </span>

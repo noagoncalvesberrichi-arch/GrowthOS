@@ -103,6 +103,16 @@ function PricingIcon({ active }: { active: boolean }) {
   )
 }
 
+function GuideIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.2 : 1.8} strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
+    </svg>
+  )
+}
+
 // ─── Nav link definitions ─────────────────────────────────────────────────────
 
 type NavLink = {
@@ -220,6 +230,20 @@ export function Sidebar() {
                 <PricingIcon active={isActive('/pricing')} />
               </span>
               <p className="font-syne text-[13px] font-semibold leading-none">Tarifs</p>
+            </Link>
+          </li>
+        </ul>
+
+        {sep}
+
+        {/* Aide */}
+        <ul className="space-y-0.5">
+          <li>
+            <Link href="/guide" onClick={onClose} className={itemClass(isActive('/guide'))}>
+              <span className={iconClass(isActive('/guide'))}>
+                <GuideIcon active={isActive('/guide')} />
+              </span>
+              <p className="font-syne text-[13px] font-semibold leading-none">Guide d&apos;utilisation</p>
             </Link>
           </li>
         </ul>

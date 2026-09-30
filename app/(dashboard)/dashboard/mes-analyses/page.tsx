@@ -49,14 +49,14 @@ export default async function MesAnalysesPage() {
             </svg>
           </div>
           <p className="font-fraunces text-[20px] text-text mb-2">Aucune analyse pour l&apos;instant</p>
-          <p className="font-syne text-[13px] text-text-muted mb-7">
-            Analysez votre premier appel d&apos;offres pour le retrouver ici.
+          <p className="font-syne text-[13px] text-text-muted mb-7 max-w-sm mx-auto leading-relaxed">
+            Déposez un dossier de consultation et obtenez en 2 minutes les dates, les pièces, les critères et les pièges du dossier.
           </p>
           <Link
             href="/dashboard/analyser"
             className="inline-flex items-center font-syne font-bold text-[13px] text-white bg-accent hover:bg-accent-dark px-5 py-2.5 rounded-xl shadow-[0_4px_16px_rgba(37,99,235,0.2)] transition-all duration-200"
           >
-            Analyser un AO →
+            Analyser un appel d&apos;offres →
           </Link>
         </div>
       ) : (

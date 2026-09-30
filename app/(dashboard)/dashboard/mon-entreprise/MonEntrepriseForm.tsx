@@ -550,7 +550,7 @@ export function MonEntrepriseForm({
       </div>
 
       {/* ── Références chantiers ── */}
-      <div className="bg-surface border border-border rounded-2xl p-6 shadow-[0_2px_12px_rgba(37,99,235,0.04)]">
+      <div id="references" className="bg-surface border border-border rounded-2xl p-6 shadow-[0_2px_12px_rgba(37,99,235,0.04)]">
         <SectionHeader
           label="Références chantiers"
           action={
@@ -729,10 +729,43 @@ export function MonEntrepriseForm({
 
         {/* References list */}
         {references.length === 0 && editingId === null ? (
-          <div className="rounded-xl border border-dashed border-border px-5 py-8 text-center">
-            <p className="font-syne text-[13px] text-text-subtle">
-              Aucune référence ajoutée. Les références permettent à Stratly de citer vos chantiers nommément dans le mémoire.
+          <div className="rounded-xl border border-dashed border-border px-5 py-10 text-center">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-4" style={{ background: 'linear-gradient(135deg, #EFF6FF, #DBEAFE)' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="3" width="20" height="14" rx="2" />
+                <line x1="8" y1="21" x2="16" y2="21" />
+                <line x1="12" y1="17" x2="12" y2="21" />
+              </svg>
+            </div>
+            <p className="font-syne text-[13px] font-semibold text-text mb-1.5">Aucune référence chantier</p>
+            <p className="font-syne text-[12px] text-text-muted mb-5 max-w-xs mx-auto leading-relaxed">
+              Vos références nourrissent le Go/No-Go et le mémoire technique. Importez votre liste Excel ou saisissez la première.
             </p>
+            <div className="flex items-center justify-center gap-3 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setImportMode(true)}
+                className="inline-flex items-center gap-1.5 font-syne text-[12px] font-semibold text-text-muted border border-border bg-background hover:border-accent/40 hover:text-accent rounded-lg px-4 py-2 transition-colors duration-150"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                  <polyline points="17 8 12 3 7 8" />
+                  <line x1="12" y1="3" x2="12" y2="15" />
+                </svg>
+                Importer depuis Excel
+              </button>
+              <button
+                type="button"
+                onClick={openAddRef}
+                className="inline-flex items-center gap-1.5 font-syne text-[12px] font-semibold text-white bg-accent hover:bg-accent-dark rounded-lg px-4 py-2 transition-colors duration-150"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+                Ajouter une référence
+              </button>
+            </div>
           </div>
         ) : (
           <div className="space-y-3">

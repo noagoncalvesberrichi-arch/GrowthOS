@@ -71,7 +71,7 @@ export default function SignupPage() {
     // Email confirmation required OR no plan: store pending plan for post-login checkout
     if (plan) sessionStorage.setItem('pending_plan', plan)
 
-    window.location.href = '/dashboard'
+    window.location.href = '/dashboard?bienvenue=1'
   }
 
   return (

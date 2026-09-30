@@ -6,6 +6,7 @@ const navLinks = [
   { href: '/', label: 'Accueil' },
   { href: '/pricing', label: 'Tarifs' },
   { href: '/faq', label: 'FAQ' },
+  { href: '/guide', label: "Guide d'utilisation" },
 ]
 
 const legalLinks = [
