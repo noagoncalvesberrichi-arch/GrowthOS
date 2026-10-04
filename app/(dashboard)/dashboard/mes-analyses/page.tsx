@@ -9,13 +9,14 @@ type AnalyseRow = {
   nom_fichier: string
   objet_marche: string
   tronque: boolean
+  resultat: { acheteur?: string } | null
 }
 
 export default async function MesAnalysesPage() {
   const supabase = await createClient()
   const { data: analyses } = await supabase
     .from('analyses')
-    .select('id, created_at, nom_fichier, objet_marche, tronque')
+    .select('id, created_at, nom_fichier, objet_marche, tronque, resultat')
     .order('created_at', { ascending: false }) as { data: AnalyseRow[] | null }
 
   return (
@@ -85,10 +86,15 @@ export default async function MesAnalysesPage() {
                   </div>
                   <div className="min-w-0">
                     <p className="font-syne text-[14px] font-bold text-text leading-snug truncate">
-                      {a.objet_marche}
+                      {(a.resultat as { acheteur?: string } | null)?.acheteur
+                        ? (a.resultat as { acheteur?: string }).acheteur
+                        : a.objet_marche}
                     </p>
                     <p className="font-syne text-[12px] text-text-muted mt-0.5 truncate">
-                      {a.nom_fichier} · {date}
+                      {(a.resultat as { acheteur?: string } | null)?.acheteur
+                        ? <>{a.objet_marche} · </>
+                        : null}
+                      {date}
                       {a.tronque && (
                         <span className="ml-2 text-amber-600 font-semibold">⚠ tronqué</span>
                       )}

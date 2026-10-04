@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import type { FileAnalysis, ColumnMapping, ColumnRole } from '@/lib/chiffrage/types'
+import { detectColumns } from '@/lib/chiffrage/columnDetection'
 
 const ROLE_LABELS: Record<ColumnRole, string> = {
   numero: 'N° de poste',
@@ -20,6 +21,7 @@ type Props = {
   acheteurMappings: Record<string, ColumnMapping>
   crmMappings: Record<string, ColumnMapping>
   onMappingsChange: (am: Record<string, ColumnMapping>, cm: Record<string, ColumnMapping>) => void
+  onAcheteurAnalysisChange: (newAnalysis: FileAnalysis) => void
   onContinue: () => Promise<void>
   onBack: () => void
 }
@@ -79,7 +81,7 @@ function SheetMappingTable({
 export function Step2Mapping({
   acheteurAnalysis, crmAnalysis,
   acheteurMappings, crmMappings,
-  onMappingsChange, onContinue, onBack,
+  onMappingsChange, onAcheteurAnalysisChange, onContinue, onBack,
 }: Props) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -109,6 +111,31 @@ export function Step2Mapping({
 
   const visibleAcheteur = acheteurAnalysis.sheets.filter(s => !s.isHidden)
   const visibleCrm = crmAnalysis.sheets.filter(s => !s.isHidden)
+
+  // Detect if any acheteur sheet has price data in the mapped column
+  const hasPriceData = visibleAcheteur.some(sheet => {
+    const mapping = acheteurMappings[sheet.sheetName] ?? sheet.mapping
+    const puIdx = mapping.pu_ht
+    if (puIdx === undefined) return false
+    return sheet.rawRows.some(row => {
+      const val = row.values[puIdx]
+      return typeof val === 'number' && val > 0 && !row.isTitle && !row.isSubtotal
+    })
+  })
+
+  const handleHeaderOverride = (sheetName: string, rawRowIdx: number) => {
+    const sheet = acheteurAnalysis.sheets.find(s => s.sheetName === sheetName)
+    if (!sheet || rawRowIdx < 0 || rawRowIdx >= sheet.rawRows.length) return
+    const newHeaderValues = sheet.rawRows[rawRowIdx].values.map(v => String(v ?? ''))
+    const newMapping = detectColumns(newHeaderValues)
+    const newSheets = acheteurAnalysis.sheets.map(s =>
+      s.sheetName === sheetName
+        ? { ...s, headerValues: newHeaderValues, mapping: newMapping, mappingAmbiguous: false }
+        : s
+    )
+    onAcheteurAnalysisChange({ ...acheteurAnalysis, sheets: newSheets })
+    onMappingsChange({ ...acheteurMappings, [sheetName]: newMapping }, crmMappings)
+  }
 
   return (
     <div className="space-y-6">
@@ -145,6 +172,35 @@ export function Step2Mapping({
           />
         ))}
       </div>
+
+      {!hasPriceData && visibleAcheteur.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-4 space-y-3">
+          <p className="font-syne text-[13px] text-amber-800">
+            <strong>Aucune valeur de prix détectée</strong> dans le bordereau acheteur. La ligne d&apos;en-tête a peut-être été mal identifiée.
+            Sélectionnez la ligne qui contient les intitulés de colonnes :
+          </p>
+          {visibleAcheteur.map(sheet => (
+            <div key={sheet.sheetName} className="space-y-1">
+              <p className="font-syne text-[11px] font-semibold text-amber-700 uppercase tracking-wide">{sheet.sheetName}</p>
+              <select
+                defaultValue=""
+                onChange={e => handleHeaderOverride(sheet.sheetName, parseInt(e.target.value, 10))}
+                className="w-full bg-white border border-amber-300 rounded-lg px-3 py-1.5 font-syne text-[12px] text-text focus:outline-none focus:border-amber-500"
+              >
+                <option value="">— Choisir la ligne d&apos;en-tête</option>
+                {sheet.rawRows.slice(0, 15).map((row, idx) => {
+                  const preview = row.values.slice(0, 8).map(v => String(v ?? '')).filter(Boolean).join(' | ')
+                  return (
+                    <option key={idx} value={idx}>
+                      Ligne {row.rowIndex}: {preview.slice(0, 80) || '(vide)'}
+                    </option>
+                  )
+                })}
+              </select>
+            </div>
+          ))}
+        </div>
+      )}
 
       {error && (
         <p className="font-syne text-[13px] text-red-400 bg-red-500/8 border border-red-500/20 rounded-xl px-4 py-3">{error}</p>

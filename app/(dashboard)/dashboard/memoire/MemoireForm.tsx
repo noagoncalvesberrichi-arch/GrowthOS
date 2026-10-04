@@ -4,6 +4,54 @@ import { useState, useTransition, useRef, useEffect } from 'react'
 import { genererMemoire, sauvegarderMemoire, chargerMemoire } from './actions'
 import type { AnalyseItem } from './page'
 
+function parseInlineRuns(text: string) {
+  return text.split(/(\*\*[^*]+\*\*)/).map((part, i) =>
+    part.startsWith('**') && part.endsWith('**')
+      ? { text: part.slice(2, -2), bold: true, key: i }
+      : { text: part, bold: false, key: i }
+  ).filter(r => r.text !== '')
+}
+
+function escHtml(s: string) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
+function inlineMd(s: string) {
+  return escHtml(s).replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+}
+
+function renderMarkdown(text: string): string {
+  const lines = text.split('\n')
+  const out: string[] = []
+  let inUl = false
+  let inOl = false
+  const closeUl = () => { if (inUl) { out.push('</ul>'); inUl = false } }
+  const closeOl = () => { if (inOl) { out.push('</ol>'); inOl = false } }
+  for (const raw of lines) {
+    const t = raw.trim()
+    if (!t) { closeUl(); closeOl(); out.push('<div style="height:0.5em"></div>'); continue }
+    if (t.startsWith('### ')) { closeUl(); closeOl(); out.push(`<h3 style="font-size:13px;font-weight:700;margin:12px 0 4px">${inlineMd(t.slice(4))}</h3>`); continue }
+    if (t.startsWith('## '))  { closeUl(); closeOl(); out.push(`<h2 style="font-size:15px;font-weight:700;margin:16px 0 4px">${inlineMd(t.slice(3))}</h2>`); continue }
+    if (t.startsWith('# '))   { closeUl(); closeOl(); out.push(`<h1 style="font-size:18px;font-weight:700;margin:20px 0 6px">${inlineMd(t.slice(2))}</h1>`); continue }
+    if (/^[*-] /.test(t)) {
+      closeOl()
+      if (!inUl) { out.push('<ul style="margin:4px 0;padding-left:20px">'); inUl = true }
+      out.push(`<li style="margin:2px 0">${inlineMd(t.slice(2))}</li>`)
+      continue
+    }
+    if (/^\d+\. /.test(t)) {
+      closeUl()
+      if (!inOl) { out.push('<ol style="margin:4px 0;padding-left:20px">'); inOl = true }
+      out.push(`<li style="margin:2px 0">${inlineMd(t.replace(/^\d+\. /, ''))}</li>`)
+      continue
+    }
+    closeUl(); closeOl()
+    out.push(`<p style="margin:4px 0">${inlineMd(t)}</p>`)
+  }
+  closeUl(); closeOl()
+  return out.join('\n')
+}
+
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
 
 function DownloadIcon() {
@@ -28,36 +76,42 @@ function CopyIcon() {
 async function downloadDocx(content: string, objet: string) {
   const { Document, HeadingLevel, Packer, Paragraph, TextRun } = await import('docx')
 
-  // Parse the trame into document elements
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const children: any[] = []
 
   const lines = content.split('\n')
   for (const line of lines) {
-    const trimmed = line.trim()
-    if (!trimmed) continue
+    const t = line.trim()
 
-    if (trimmed === 'TRAME DE MÉMOIRE TECHNIQUE') {
-      children.push(new Paragraph({ text: trimmed, heading: HeadingLevel.HEADING_1 }))
-    } else if (trimmed.startsWith('⚠')) {
+    const runs = parseInlineRuns(t).map(r => new TextRun({ text: r.text, bold: r.bold }))
+
+    if (!t) {
+      children.push(new Paragraph({ text: '', spacing: { after: 80 } }))
+    } else if (t.startsWith('### ')) {
+      children.push(new Paragraph({ text: t.slice(4), heading: HeadingLevel.HEADING_3 }))
+    } else if (t.startsWith('## ')) {
+      children.push(new Paragraph({ text: t.slice(3), heading: HeadingLevel.HEADING_2 }))
+    } else if (t.startsWith('# ')) {
+      children.push(new Paragraph({ text: t.slice(2), heading: HeadingLevel.HEADING_1 }))
+    } else if (t.startsWith('⚠')) {
       children.push(new Paragraph({
-        children: [new TextRun({ text: trimmed, italics: true, color: '6B7280' })],
+        children: [new TextRun({ text: t, italics: true, color: '6B7280' })],
         spacing: { after: 160 },
       }))
-    } else if (/^\d+\.\s+[A-ZÀÉÈÊÙÔÎÂÙŒÆ]/.test(trimmed) || /^(INTRODUCTION|CONCLUSION)\s*[—–-]/.test(trimmed)) {
-      children.push(new Paragraph({ text: trimmed, heading: HeadingLevel.HEADING_2 }))
+    } else if (/^[*-] /.test(t)) {
+      children.push(new Paragraph({
+        children: parseInlineRuns(t.slice(2)).map(r => new TextRun({ text: r.text, bold: r.bold })),
+        bullet: { level: 0 },
+        spacing: { after: 60 },
+      }))
+    } else if (/^\d+\. /.test(t)) {
+      children.push(new Paragraph({
+        children: parseInlineRuns(t.replace(/^\d+\. /, '')).map(r => new TextRun({ text: r.text, bold: r.bold })),
+        bullet: { level: 0 },
+        spacing: { after: 60 },
+      }))
     } else {
-      // Detect all-caps lines (section titles in fallback plan)
-      const letters = trimmed.replace(/[^a-zA-ZÀ-ÿ]/g, '')
-      const isAllCaps = letters.length >= 4 && letters === letters.toUpperCase()
-      if (isAllCaps) {
-        children.push(new Paragraph({ text: trimmed, heading: HeadingLevel.HEADING_2 }))
-      } else {
-        children.push(new Paragraph({
-          children: [new TextRun({ text: trimmed })],
-          spacing: { after: 100 },
-        }))
-      }
+      children.push(new Paragraph({ children: runs, spacing: { after: 100 } }))
     }
   }
 
@@ -84,19 +138,21 @@ async function downloadDocx(content: string, objet: string) {
 const INPUT_CLASS =
   'w-full bg-background border border-border rounded-xl px-4 py-3 font-syne text-[14px] text-text placeholder:text-text-subtle focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/10 transition-all duration-150'
 
-export function MemoireForm({ analyses, isLocked }: { analyses: AnalyseItem[]; isLocked?: boolean }) {
+export function MemoireForm({ analyses, isLocked, defaultAnalyseId }: { analyses: AnalyseItem[]; isLocked?: boolean; defaultAnalyseId?: string }) {
+  const resolvedDefault = defaultAnalyseId && analyses.some(a => a.id === defaultAnalyseId) ? defaultAnalyseId : (analyses[0]?.id ?? '')
   const [mode, setMode] = useState<'analyse' | 'manuel'>(analyses.length > 0 ? 'analyse' : 'manuel')
-  const [selectedAnalyseId, setSelectedAnalyseId] = useState(analyses[0]?.id ?? '')
+  const [selectedAnalyseId, setSelectedAnalyseId] = useState(resolvedDefault)
   const [descriptionMarche, setDescriptionMarche] = useState('')
   const [trame, setTrame] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
   const [copied, setCopied] = useState(false)
+  const [previewMode, setPreviewMode] = useState(false)
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  // Prevents a debounce-save from firing when trame is set programmatically (load or generation)
   const skipNextSaveRef = useRef(false)
+  const didAutoTriggerRef = useRef(false)
 
   // Load saved memoire when the selected analysis changes
   useEffect(() => {
@@ -126,6 +182,31 @@ export function MemoireForm({ analyses, isLocked }: { analyses: AnalyseItem[]; i
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
     }
   }, [trame, mode, selectedAnalyseId])
+
+  // Auto-trigger generation when arriving from analysis page with ?analyse=
+  useEffect(() => {
+    if (!defaultAnalyseId || didAutoTriggerRef.current || isPending || trame) return
+    if (!analyses.some(a => a.id === defaultAnalyseId)) return
+    didAutoTriggerRef.current = true
+    skipNextSaveRef.current = true
+    startTransition(async () => {
+      try {
+        const res = await genererMemoire(defaultAnalyseId, null)
+        if ('error' in res) {
+          setError(res.error)
+          skipNextSaveRef.current = false
+        } else {
+          setTrame(res.trame)
+          setSaveStatus('saved')
+        }
+      } catch {
+        setError("La génération a expiré ou une erreur réseau s'est produite. Réessaie.")
+        skipNextSaveRef.current = false
+      }
+    })
+  // Only fire once on mount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleGenerer = () => {
     setError(null)
@@ -347,7 +428,7 @@ export function MemoireForm({ analyses, isLocked }: { analyses: AnalyseItem[]; i
       </div>
 
       {/* ── Résultat ── */}
-      {trame && (
+      {(trame || isPending) && (
         <div className="bg-surface border border-border rounded-2xl p-6 sm:p-8 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -355,81 +436,126 @@ export function MemoireForm({ analyses, isLocked }: { analyses: AnalyseItem[]; i
                 Trame générée
               </p>
               <p className="font-syne text-[12px] text-text-subtle mt-0.5">
-                Modifiez directement le texte ci-dessous, puis exportez.
+                {previewMode ? 'Aperçu rendu — cliquez sur « Éditer » pour modifier.' : 'Modifiez directement le texte ci-dessous, puis exportez.'}
               </p>
             </div>
-            <div className="flex items-center gap-3">
-              {mode === 'analyse' && selectedAnalyseId && (
+            {trame && (
+              <div className="flex items-center gap-3">
+                {mode === 'analyse' && selectedAnalyseId && (
+                  <span className={`font-syne text-[11px] ${
+                    saveStatus === 'saving' ? 'text-text-subtle' :
+                    saveStatus === 'saved'  ? 'text-emerald-600' :
+                    saveStatus === 'error'  ? 'text-red-500' : ''
+                  }`}>
+                    {saveStatus === 'saving' && 'Sauvegarde…'}
+                    {saveStatus === 'saved'  && '✓ Sauvegardé'}
+                    {saveStatus === 'error'  && '⚠ Erreur de sauvegarde'}
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => downloadDocx(trame, trameLabel)}
+                  className="inline-flex items-center gap-2 font-syne text-[13px] font-bold text-white bg-accent hover:bg-accent-dark px-4 py-2 rounded-xl transition-all duration-200 shadow-[0_4px_12px_rgba(37,99,235,0.2)]"
+                >
+                  <DownloadIcon />
+                  Exporter .docx
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCopy}
+                  className="inline-flex items-center gap-2 font-syne text-[13px] font-semibold text-text-muted bg-background border border-border hover:border-accent hover:text-accent px-4 py-2 rounded-xl transition-all duration-200"
+                >
+                  <CopyIcon />
+                  {copied ? 'Copié !' : 'Copier le texte'}
+                </button>
+              </div>
+            )}
+          </div>
+
+          {trame && (
+            <>
+              {/* Éditer / Aperçu toggle */}
+              <div className="flex rounded-lg border border-border overflow-hidden text-[12px] font-syne font-semibold w-fit">
+                <button
+                  type="button"
+                  onClick={() => setPreviewMode(false)}
+                  className={`px-3.5 py-1.5 transition-colors ${!previewMode ? 'bg-accent text-white' : 'bg-surface text-text-muted hover:bg-accent-subtle/30'}`}
+                >
+                  Éditer
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreviewMode(true)}
+                  className={`px-3.5 py-1.5 border-l border-border transition-colors ${previewMode ? 'bg-accent text-white' : 'bg-surface text-text-muted hover:bg-accent-subtle/30'}`}
+                >
+                  Aperçu
+                </button>
+              </div>
+
+              <div className="rounded-xl border border-border overflow-hidden">
+                {previewMode ? (
+                  <div
+                    className="w-full bg-background px-5 py-4 font-syne text-[13px] text-text leading-relaxed min-h-[400px]"
+                    // eslint-disable-next-line react/no-danger
+                    dangerouslySetInnerHTML={{ __html: renderMarkdown(trame) }}
+                  />
+                ) : (
+                  <textarea
+                    value={trame}
+                    onChange={e => setTrame(e.target.value)}
+                    rows={45}
+                    spellCheck={false}
+                    className="w-full bg-background px-5 py-4 font-mono text-[12.5px] text-text leading-relaxed focus:outline-none resize-y"
+                  />
+                )}
+              </div>
+            </>
+          )}
+
+          {isPending && !trame && (
+            <div className="rounded-xl border border-border bg-background px-5 py-12 flex flex-col items-center gap-3">
+              <div className="flex gap-1">
+                {[0, 1, 2].map(i => (
+                  <div key={i} className="w-1.5 h-1.5 rounded-full bg-accent animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
+                ))}
+              </div>
+              <p className="font-syne text-[12px] text-text-subtle">Génération en cours — comptez 2 à 3 minutes</p>
+            </div>
+          )}
+
+          {trame && (
+            <div className="flex items-center justify-between">
+              {mode === 'analyse' && selectedAnalyseId ? (
                 <span className={`font-syne text-[11px] ${
                   saveStatus === 'saving' ? 'text-text-subtle' :
                   saveStatus === 'saved'  ? 'text-emerald-600' :
-                  saveStatus === 'error'  ? 'text-red-500' : ''
+                  saveStatus === 'error'  ? 'text-red-500' : 'text-transparent'
                 }`}>
                   {saveStatus === 'saving' && 'Sauvegarde…'}
                   {saveStatus === 'saved'  && '✓ Sauvegardé'}
                   {saveStatus === 'error'  && '⚠ Erreur de sauvegarde'}
                 </span>
-              )}
-              <button
-                type="button"
-                onClick={() => downloadDocx(trame, trameLabel)}
-                className="inline-flex items-center gap-2 font-syne text-[13px] font-bold text-white bg-accent hover:bg-accent-dark px-4 py-2 rounded-xl transition-all duration-200 shadow-[0_4px_12px_rgba(37,99,235,0.2)]"
-              >
-                <DownloadIcon />
-                Exporter .docx
-              </button>
-              <button
-                type="button"
-                onClick={handleCopy}
-                className="inline-flex items-center gap-2 font-syne text-[13px] font-semibold text-text-muted bg-background border border-border hover:border-accent hover:text-accent px-4 py-2 rounded-xl transition-all duration-200"
-              >
-                <CopyIcon />
-                {copied ? 'Copié !' : 'Copier le texte'}
-              </button>
+              ) : <span />}
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={handleCopy}
+                  className="inline-flex items-center gap-2 font-syne text-[13px] font-semibold text-text-muted bg-background border border-border hover:border-accent hover:text-accent px-4 py-2 rounded-xl transition-all duration-200"
+                >
+                  <CopyIcon />
+                  {copied ? 'Copié !' : 'Copier le texte'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => downloadDocx(trame, trameLabel)}
+                  className="inline-flex items-center gap-2 font-syne text-[13px] font-bold text-white bg-accent hover:bg-accent-dark px-4 py-2 rounded-xl transition-all duration-200 shadow-[0_4px_12px_rgba(37,99,235,0.2)]"
+                >
+                  <DownloadIcon />
+                  Exporter .docx
+                </button>
+              </div>
             </div>
-          </div>
-
-          <div className="rounded-xl border border-border overflow-hidden">
-            <textarea
-              value={trame}
-              onChange={e => setTrame(e.target.value)}
-              rows={45}
-              spellCheck={false}
-              className="w-full bg-background px-5 py-4 font-mono text-[12.5px] text-text leading-relaxed focus:outline-none resize-y"
-            />
-          </div>
-
-          <div className="flex items-center justify-between">
-            {mode === 'analyse' && selectedAnalyseId ? (
-              <span className={`font-syne text-[11px] ${
-                saveStatus === 'saving' ? 'text-text-subtle' :
-                saveStatus === 'saved'  ? 'text-emerald-600' :
-                saveStatus === 'error'  ? 'text-red-500' : 'text-transparent'
-              }`}>
-                {saveStatus === 'saving' && 'Sauvegarde…'}
-                {saveStatus === 'saved'  && '✓ Sauvegardé'}
-                {saveStatus === 'error'  && '⚠ Erreur de sauvegarde'}
-              </span>
-            ) : <span />}
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={handleCopy}
-                className="inline-flex items-center gap-2 font-syne text-[13px] font-semibold text-text-muted bg-background border border-border hover:border-accent hover:text-accent px-4 py-2 rounded-xl transition-all duration-200"
-              >
-                <CopyIcon />
-                {copied ? 'Copié !' : 'Copier le texte'}
-              </button>
-              <button
-                type="button"
-                onClick={() => downloadDocx(trame, trameLabel)}
-                className="inline-flex items-center gap-2 font-syne text-[13px] font-bold text-white bg-accent hover:bg-accent-dark px-4 py-2 rounded-xl transition-all duration-200 shadow-[0_4px_12px_rgba(37,99,235,0.2)]"
-              >
-                <DownloadIcon />
-                Exporter .docx
-              </button>
-            </div>
-          </div>
+          )}
         </div>
       )}
     </div>

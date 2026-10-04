@@ -14,7 +14,8 @@ export type AnalyseItem = {
   go_no_go_verdict: string | null
 }
 
-export default async function MemoirePage() {
+export default async function MemoirePage({ searchParams }: { searchParams: Promise<{ analyse?: string }> }) {
+  const { analyse: defaultAnalyseId } = await searchParams
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -84,7 +85,7 @@ export default async function MemoirePage() {
           </Link>
         </div>
       ) : (
-        <MemoireForm analyses={analyses} isLocked={isLocked} />
+        <MemoireForm analyses={analyses} isLocked={isLocked} defaultAnalyseId={defaultAnalyseId} />
       )}
     </div>
   )

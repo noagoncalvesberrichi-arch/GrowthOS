@@ -34,6 +34,16 @@ export async function POST(req: NextRequest) {
     const acheteurMappings = JSON.parse(mappingsStr) as Record<string, ColumnMapping>
     const structure = JSON.parse(structureStr) as FileAnalysis
 
+    if (matches.length === 0) {
+      const firstSheet = structure.sheets.find(s => !s.isHidden)
+      console.error('[chiffrage/generer] nb_lignes=0', {
+        sheetName: firstSheet?.sheetName ?? 'inconnu',
+        headerRow: firstSheet?.headerRowIndex ?? null,
+        columns: firstSheet ? (acheteurMappings[firstSheet.sheetName] ?? firstSheet.mapping) : null,
+      })
+      return NextResponse.json({ error: 'Aucune ligne de prix à générer. Vérifiez le mapping des colonnes.' }, { status: 400 })
+    }
+
     // Build lookup: rowId → pu_ht
     const puByRowId = new Map<string, number | null>()
     for (const m of matches) {

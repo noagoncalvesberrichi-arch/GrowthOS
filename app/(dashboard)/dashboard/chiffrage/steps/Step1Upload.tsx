@@ -79,11 +79,15 @@ export function Step1Upload({ onComplete }: Props) {
   const [crmFile, setCrmFile] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
-  const canSubmit = acheteurFile && crmFile && !loading
+  const [acheteurError, setAcheteurError] = useState<string | null>(null)
+  const [crmError, setCrmError] = useState<string | null>(null)
 
   const handleAnalyse = async () => {
-    if (!acheteurFile || !crmFile) return
+    const missingAcheteur = !acheteurFile
+    const missingCrm = !crmFile
+    setAcheteurError(missingAcheteur ? 'Merci de déposer le bordereau de l\'acheteur.' : null)
+    setCrmError(missingCrm ? 'Merci de déposer l\'export CRM.' : null)
+    if (missingAcheteur || missingCrm) return
     setLoading(true)
     setError(null)
     try {
@@ -113,9 +117,12 @@ export function Step1Upload({ onComplete }: Props) {
             hint=".xlsx — max 10 Mo"
             accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             file={acheteurFile}
-            onFile={setAcheteurFile}
+            onFile={(f) => { setAcheteurFile(f); setAcheteurError(null) }}
             onClear={() => setAcheteurFile(null)}
           />
+          {acheteurError && (
+            <p className="font-syne text-[12px] text-red-400">{acheteurError}</p>
+          )}
         </div>
         <div className="space-y-2">
           <p className="font-syne text-[11px] font-semibold uppercase tracking-[0.14em] text-text-muted">
@@ -126,9 +133,12 @@ export function Step1Upload({ onComplete }: Props) {
             hint=".xlsx / .csv — max 10 Mo"
             accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
             file={crmFile}
-            onFile={setCrmFile}
+            onFile={(f) => { setCrmFile(f); setCrmError(null) }}
             onClear={() => setCrmFile(null)}
           />
+          {crmError && (
+            <p className="font-syne text-[12px] text-red-400">{crmError}</p>
+          )}
         </div>
       </div>
 
@@ -139,7 +149,7 @@ export function Step1Upload({ onComplete }: Props) {
       <div className="flex justify-end">
         <button
           onClick={handleAnalyse}
-          disabled={!canSubmit}
+          disabled={loading}
           className="font-syne text-[13px] font-semibold px-6 py-2.5 rounded-xl bg-brand-amber text-background hover:bg-brand-amber/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
         >
           {loading && (

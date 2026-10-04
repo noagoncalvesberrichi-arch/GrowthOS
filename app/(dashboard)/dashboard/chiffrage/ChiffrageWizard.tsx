@@ -112,6 +112,7 @@ export function ChiffrageWizard({ profil }: Props) {
           acheteurMappings={state.acheteurMappings}
           crmMappings={state.crmMappings}
           onMappingsChange={(am, cm) => update({ acheteurMappings: am, crmMappings: cm })}
+          onAcheteurAnalysisChange={(newAnalysis) => update({ acheteurAnalysis: newAnalysis })}
           onContinue={async () => {
             const res = await fetch('/api/chiffrage/rapprocher', {
               method: 'POST',

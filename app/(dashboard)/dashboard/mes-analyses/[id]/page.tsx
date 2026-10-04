@@ -20,7 +20,9 @@ export default async function AnalyseDetailPage({ params }: { params: Promise<{ 
   ])
 
   if (!data) notFound()
-  const isPro = abo?.plan === 'pro'
+  const plan = abo?.plan ?? 'gratuit'
+  const isPro = plan === 'pro' || plan.startsWith('essai_pro') || plan === 'fondateurs'
+  const isMemoreLocked = plan === 'gratuit'
 
   const date = new Date(data.created_at as string).toLocaleDateString('fr-FR', {
     day: 'numeric',
@@ -39,16 +41,16 @@ export default async function AnalyseDetailPage({ params }: { params: Promise<{ 
   return (
     <div className="max-w-3xl mx-auto px-4 py-10 sm:px-8 sm:py-14">
 
-      {/* Back */}
-      <Link
-        href="/dashboard/mes-analyses"
-        className="inline-flex items-center gap-1.5 font-syne text-[12px] font-semibold text-text-muted hover:text-text transition-colors duration-150 mb-8"
-      >
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M19 12H5M12 5l-7 7 7 7" />
+      {/* Breadcrumb */}
+      <nav className="flex items-center gap-1.5 font-syne text-[12px] font-semibold text-text-muted mb-8">
+        <Link href="/dashboard/mes-analyses" className="hover:text-text transition-colors duration-150">
+          Mes analyses
+        </Link>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+          <polyline points="9 18 15 12 9 6" />
         </svg>
-        Mes analyses
-      </Link>
+        <span className="text-text truncate max-w-[260px]">{data.objet_marche as string}</span>
+      </nav>
 
       {/* Header */}
       <div className="mb-6">
@@ -61,6 +63,36 @@ export default async function AnalyseDetailPage({ params }: { params: Promise<{ 
         <p className="font-syne text-[12px] text-text-muted">
           {data.nom_fichier as string} · {date}
         </p>
+      </div>
+
+      {/* Générer le mémoire */}
+      <div className="mb-8">
+        {isMemoreLocked ? (
+          <a
+            href="/pricing"
+            className="inline-flex items-center gap-2.5 font-syne text-[13px] font-semibold text-text-muted bg-surface border border-border hover:border-accent/40 px-4 py-2.5 rounded-xl transition-all duration-200"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><line x1="10" y1="9" x2="8" y2="9" />
+            </svg>
+            Générer le mémoire technique
+            <span className="font-syne text-[10px] font-bold text-white bg-brand-amber px-1.5 py-0.5 rounded-full uppercase tracking-wide">Plan Pro</span>
+          </a>
+        ) : (
+          <a
+            href={`/dashboard/memoire?analyse=${data.id as string}`}
+            className="inline-flex items-center gap-2 font-syne text-[13px] font-bold text-white bg-accent hover:bg-accent-dark px-4 py-2.5 rounded-xl transition-all duration-200 shadow-[0_4px_12px_rgba(37,99,235,0.2)]"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><line x1="10" y1="9" x2="8" y2="9" />
+            </svg>
+            Générer le mémoire technique →
+          </a>
+        )}
       </div>
 
       {/* Résultat — NE PAS MODIFIER */}
