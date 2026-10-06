@@ -5,9 +5,9 @@ import Link from 'next/link'
 import {
   listerBibliotheque, creerBloc, modifierBloc, supprimerBloc, fusionnerBlocs,
   importerBlocsWord, categoriserBlocs,
-  CATEGORIES,
-  type BlocContenu, type CategorieId, type BlocImport, type RawBlocForCategorisation,
+  type BlocContenu, type BlocImport, type RawBlocForCategorisation,
 } from './actions'
+import { CATEGORIES, type CategorieId } from './constants'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
