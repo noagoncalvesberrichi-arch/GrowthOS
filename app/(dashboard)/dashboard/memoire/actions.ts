@@ -11,6 +11,7 @@ export type SectionPlan = {
   titre: string
   ponderation: string
   blocs: { id: string; titre: string; categorie: string }[]
+  targetWords?: number
 }
 
 export type SectionResult = {
@@ -18,10 +19,12 @@ export type SectionResult = {
   ponderation: string
   text: string
   blocs: { id: string; titre: string }[]
+  wordCount: number
+  targetWords?: number
 }
 
-export type GenPlanResult = { sections: SectionPlan[]; introBlocs: { id: string; titre: string }[] } | { error: string }
-export type GenSectionResult = { text: string; blocs: { id: string; titre: string }[] } | { error: string }
+export type GenPlanResult = { sections: SectionPlan[]; introBlocs: { id: string; titre: string }[]; missingFields: string[] } | { error: string }
+export type GenSectionResult = { text: string; blocs: { id: string; titre: string }[]; wordCount: number } | { error: string }
 
 type ProfilRow = {
   raison_sociale: string | null
@@ -83,7 +86,9 @@ function formatDate(s: string | null): string {
 function buildProfilBlock(profil: ProfilRow | null): string {
   if (!profil) return 'Profil non renseigné — utiliser des formulations génériques.'
   const lines = [
-    profil.raison_sociale ? `Raison sociale : ${profil.raison_sociale}` : null,
+    profil.raison_sociale
+      ? `Raison sociale : ${profil.raison_sociale}`
+      : `Raison sociale : [À COMPLÉTER : raison sociale]`,
     profil.domaines?.length ? `Domaines d'activité : ${profil.domaines.join(', ')}` : null,
     profil.effectif != null ? `Effectif : ${profil.effectif} personne(s)` : null,
     profil.annees_experience != null ? `Années d'expérience : ${profil.annees_experience} ans` : null,
@@ -586,7 +591,7 @@ Réponds UNIQUEMENT avec ce JSON (clés = titres exacts des sections) :
 
   const message = await anthropic.messages.create({
     model: 'claude-haiku-4-5-20251001',
-    max_tokens: 600,
+    max_tokens: 1200,
     messages: [{ role: 'user', content: prompt }],
   })
 
@@ -596,10 +601,35 @@ Réponds UNIQUEMENT avec ce JSON (clés = titres exacts des sections) :
   return JSON.parse(match[0]) as Record<string, string[]>
 }
 
+/** Décompose un critère composé "A / B / C" en critères individuels avec pondération au prorata */
+function maybeExpandCritere(c: { critere: string; ponderation: string }): { critere: string; ponderation: string }[] {
+  const parts = c.critere.split(' / ').map(p => p.trim()).filter(p => p.length > 0)
+  if (parts.length < 2) return [c]
+  const total = parsePonderation(c.ponderation)
+  const perPart = Math.round(total / parts.length)
+  return parts.map((p, i) => ({
+    critere: p,
+    ponderation: `${i < parts.length - 1 ? perPart : total - perPart * (parts.length - 1)}%`,
+  }))
+}
+
+const WORD_TARGETS_TOTAL: Record<string, number> = { court: 3000, standard: 7000, complet: 12000 }
+
+const EXTRA_CHAPTER_DEFS = [
+  { category: 'moyens_humains', titre: 'Moyens humains et organisation des équipes', keywords: ['humain', 'personnel', 'effectif', 'équipe'] },
+  { category: 'moyens_materiels', titre: 'Moyens matériels et équipements', keywords: ['matériel', 'équipement', 'outil', 'engin'] },
+  { category: 'procede_execution', titre: "Procédés d'exécution et méthodologie", keywords: ['méthodol', 'procédé', 'exécution', 'intervent'] },
+  { category: 'qualite', titre: 'Démarche qualité', keywords: ['qualité', 'certification', 'iso', 'qhse', 'contrôle'] },
+  { category: 'securite', titre: 'Sécurité et prévention des risques', keywords: ['sécurité', 'prévention', 'sst', 'risque'] },
+  { category: 'environnement', titre: 'Engagement environnemental', keywords: ['environnement', 'durable', 'carbone', 'déchets'] },
+  { category: 'planning', titre: 'Planning et respect des délais', keywords: ['planning', 'délai', 'calendrier', 'phasage'] },
+] as const
+
 /** Prépare le plan de génération : pour chaque section, sélectionne les blocs pertinents */
 export async function preparerGenerationV2(
   analyseId: string | null,
-  descriptionManuelle: string | null
+  descriptionManuelle: string | null,
+  longueur: 'court' | 'standard' | 'complet' = 'standard'
 ): Promise<GenPlanResult> {
   try {
     const supabase = await createClient()
@@ -618,18 +648,33 @@ export async function preparerGenerationV2(
       criteres = res?.criteres_notation?.filter(c => c.critere && c.ponderation && !c.critere.toLowerCase().includes('prix')) ?? []
     }
 
-    // Load bibliothèque blocs
-    const { data: blocsData } = await supabase
-      .from('bibliotheque_contenus')
-      .select('id, titre, categorie, contenu, resume, mots_cles')
-      .order('ordre', { ascending: true })
+    // Load bibliothèque blocs + profil in parallel
+    const [{ data: blocsData }, { data: profilData }] = await Promise.all([
+      supabase.from('bibliotheque_contenus')
+        .select('id, titre, categorie, contenu, resume, mots_cles')
+        .order('ordre', { ascending: true }),
+      supabase.from('profil_entreprise')
+        .select('raison_sociale, domaines, effectif, moyens_humains, moyens_materiels')
+        .maybeSingle(),
+    ])
 
     const biblio = (blocsData ?? []) as BlocBiblio[]
+    const profil = profilData as Pick<ProfilRow, 'raison_sociale' | 'domaines' | 'effectif' | 'moyens_humains' | 'moyens_materiels'> | null
+
+    // Detect missing profile fields
+    const missingFields: string[] = []
+    if (!profil?.raison_sociale) missingFields.push('Raison sociale (Profil → Mon entreprise)')
+    if (!profil?.domaines?.length) missingFields.push("Domaines d'activité")
+    if (!profil?.effectif) missingFields.push('Effectif')
+    if (!profil?.moyens_humains) missingFields.push('Moyens humains')
+    if (!profil?.moyens_materiels) missingFields.push('Moyens matériels')
 
     if (!biblio.length) {
-      // No blocs: return empty plan (fallback to v1)
-      return { sections: [], introBlocs: [] }
+      return { sections: [], introBlocs: [], missingFields }
     }
+
+    // Expand compound criteria (e.g. "Organisation / Délais / Sécurité" → 3 sections)
+    const expandedCriteres = criteres.flatMap(maybeExpandCritere)
 
     // Select blocs for introduction
     const introBlocs = biblio
@@ -639,10 +684,10 @@ export async function preparerGenerationV2(
 
     // Essai de sélection par Claude, repli sur score par mots-clés
     let claudeSelection: Record<string, string[]> | null = null
-    if (criteres.length > 0 && biblio.length > 0) {
+    if (expandedCriteres.length > 0 && biblio.length > 0) {
       try {
         claudeSelection = await selectionnerBlocsParSections(
-          criteres.map(c => ({ titre: c.critere, ponderation: c.ponderation })),
+          expandedCriteres.map(c => ({ titre: c.critere, ponderation: c.ponderation })),
           biblio.map(b => ({ id: b.id, titre: b.titre, categorie: b.categorie, resume: b.resume }))
         )
       } catch (err) {
@@ -650,10 +695,13 @@ export async function preparerGenerationV2(
       }
     }
 
-    // Build section plans
-    const sections: SectionPlan[] = criteres.map(c => {
-      let selectedBlocs: { id: string; titre: string; categorie: string }[]
+    // Build section plans with word targets
+    const totalTargetWords = WORD_TARGETS_TOTAL[longueur] ?? 7000
+    const sections: SectionPlan[] = expandedCriteres.map(c => {
+      const pondVal = parsePonderation(c.ponderation)
+      const targetWords = Math.max(150, Math.round(totalTargetWords * pondVal / 100))
 
+      let selectedBlocs: { id: string; titre: string; categorie: string }[]
       if (claudeSelection && Array.isArray(claudeSelection[c.critere]) && claudeSelection[c.critere].length > 0) {
         const selectedIds = new Set(claudeSelection[c.critere])
         selectedBlocs = biblio
@@ -668,14 +716,27 @@ export async function preparerGenerationV2(
         selectedBlocs = scored.map(x => ({ id: x.b.id, titre: x.b.titre, categorie: x.b.categorie }))
       }
 
-      return {
-        titre: c.critere,
-        ponderation: c.ponderation,
-        blocs: selectedBlocs,
-      }
+      return { titre: c.critere, ponderation: c.ponderation, blocs: selectedBlocs, targetWords }
     })
 
-    return { sections, introBlocs }
+    // Standard/Complet: add chapters for library categories not covered by graded sections
+    if (longueur !== 'court' && expandedCriteres.length > 0) {
+      const coveredText = sections.map(s => s.titre.toLowerCase()).join(' ')
+      const extraTargetWords = longueur === 'complet' ? 500 : 300
+      for (const def of EXTRA_CHAPTER_DEFS) {
+        if (def.keywords.some(kw => coveredText.includes(kw))) continue
+        const catBlocs = biblio.filter(b => b.categorie === def.category).slice(0, 2)
+        if (!catBlocs.length) continue
+        sections.push({
+          titre: def.titre,
+          ponderation: '',
+          blocs: catBlocs.map(b => ({ id: b.id, titre: b.titre, categorie: b.categorie })),
+          targetWords: extraTargetWords,
+        })
+      }
+    }
+
+    return { sections, introBlocs, missingFields }
   } catch (err) {
     console.error('[preparerGenerationV2]', err)
     return { error: 'Erreur lors de la préparation.' }
@@ -691,6 +752,7 @@ export async function genererSectionV2(params: {
   blocsIds: string[]
   longueur: 'court' | 'standard' | 'complet'
   isIntro?: boolean
+  targetWords?: number
 }): Promise<GenSectionResult> {
   try {
     const supabase = await createClient()
@@ -725,10 +787,16 @@ export async function genererSectionV2(params: {
       ? params.descriptionManuelle
       : buildMarcheBlock(resultat, null)
 
-    // Token budget
-    const totalTokens = params.longueur === 'court' ? 3500 : params.longueur === 'complet' ? 14000 : 8000
+    // Token budget : 2,2 tokens/mot français + 300 de marge, plafonné à 8000 (limite Sonnet)
     const pondVal = parsePonderation(params.sectionPonderation)
-    const maxT = params.isIntro ? 600 : Math.max(300, Math.min(2500, Math.round(totalTokens * pondVal / 100)))
+    const targetWords = params.targetWords !== undefined
+      ? params.targetWords
+      : params.isIntro
+        ? 200
+        : !params.sectionPonderation
+          ? 400
+          : Math.max(150, Math.round((WORD_TARGETS_TOTAL[params.longueur] ?? 7000) * pondVal / 100))
+    const maxT = Math.min(8000, Math.ceil(targetWords * 2.2) + 300)
 
     const blocsBlock = blocsContent.length > 0
       ? `\nBLOCS DE RÉFÉRENCE DE L'ENTREPRISE (contenu technique réel) :\n${blocsContent.map((b, i) => `[Bloc ${i + 1} — ${b.titre}]\n${b.contenu.slice(0, 1500)}`).join('\n\n')}\n`
@@ -761,23 +829,47 @@ INSTRUCTIONS :
 - Utilise les blocs de référence comme BASE de contenu : réécris pour CET appel d'offres spécifique, cite l'acheteur, adapte au contexte. Ne recopie jamais un bloc verbatim.
 - N'invente aucun moyen, chiffre ou certification absent des blocs ou du profil. Si une information spécifique manque, écris [À COMPLÉTER : ...].
 - Si aucun bloc ne correspond, rédige à partir du profil uniquement et ajoute ⚠ à vérifier en fin de section.
-- Longueur cible : ${params.longueur === 'court' ? 'concis, 1-2 paragraphes' : params.longueur === 'complet' ? '3-5 paragraphes détaillés' : '2-3 paragraphes'}, proportionnel à la pondération ${params.sectionPonderation}.
+- Cible de longueur : environ ${targetWords} mots${params.sectionPonderation ? `, proportionnel à la pondération ${params.sectionPonderation}` : ''}. ${params.longueur === 'court' ? 'Sois concis et ciblé.' : params.longueur === 'complet' ? 'Développe avec des exemples concrets et des détails.' : 'Équilibre précision et lisibilité.'}
+- N'invente jamais la forme juridique ni la raison sociale. Si le profil contient "[À COMPLÉTER : raison sociale]", utilise cette mention exactement, sans la remplacer.
 - Style : phrases complètes, ton professionnel de candidature, pas de bullet points excessifs.
 - Réponds UNIQUEMENT avec le texte de la section.`
 
-    const message = await anthropic.messages.create({
+    const firstMsg = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: maxT,
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: userPrompt }],
     })
 
-    const text = message.content[0].type === 'text' ? message.content[0].text.trim() : ''
+    let text = firstMsg.content[0].type === 'text' ? firstMsg.content[0].text.trim() : ''
+    let lastStopReason = firstMsg.stop_reason
+
+    // Continuation si la section a été tronquée (max 2 appels supplémentaires)
+    let continueCount = 0
+    while (lastStopReason === 'max_tokens' && continueCount < 2) {
+      const contMsg = await anthropic.messages.create({
+        model: 'claude-sonnet-4-6',
+        max_tokens: Math.min(4000, maxT),
+        system: SYSTEM_PROMPT,
+        messages: [
+          { role: 'user', content: userPrompt },
+          { role: 'assistant', content: text },
+          { role: 'user', content: 'Continue la rédaction depuis exactement où tu t\'es arrêté. Ne répète rien du texte déjà écrit, continue directement.' },
+        ],
+      })
+      const chunk = contMsg.content[0].type === 'text' ? contMsg.content[0].text : ''
+      text += chunk
+      lastStopReason = contMsg.stop_reason
+      continueCount++
+    }
+
     if (!text) return { error: 'Réponse vide.' }
 
+    const wordCount = text.split(/\s+/).filter(Boolean).length
     return {
       text,
       blocs: blocsContent.map(b => ({ id: b.id, titre: b.titre })),
+      wordCount,
     }
   } catch (err) {
     console.error('[genererSectionV2]', err)
@@ -811,20 +903,23 @@ export async function genererConclusionV2(params: {
     const acheteur = resultat?.acheteur ?? '[acheteur]'
     const raisonSociale = profil?.raison_sociale ?? '[entreprise]'
 
-    const prompt = `Rédige la conclusion d'un mémoire technique.
+    const prompt = `Rédige la conclusion d'un mémoire technique de réponse à un appel d'offres.
 
 Acheteur : ${acheteur}
 Entreprise : ${raisonSociale}
 
 Commence par : ## CONCLUSION — NOS ENGAGEMENTS
-Rédige 1 paragraphe de synthèse : engagement de l'entreprise, valeur ajoutée pour ce marché spécifique, disponibilité.
-Style professionnel, confiant mais pas prétentieux. Pas de bullet points.
-Longueur : ${params.longueur === 'court' ? 'très court, 3-4 lignes' : '1 paragraphe dense'}.
+Contraintes strictes :
+- 100-120 mots maximum. Un seul paragraphe.
+- Cite 2-3 engagements concrets : délais, disponibilité, interlocuteur dédié, garanties qualité ou sécurité.
+- Interdit : "nous mettons tout en œuvre", "fort de notre expérience", "partenaire de confiance", "équipe dédiée", "à votre disposition".
+- Si la raison sociale est "[À COMPLÉTER : raison sociale]", conserve cette mention telle quelle.
+- Style professionnel et direct, sans superlatifs.
 Réponds UNIQUEMENT avec le texte de la conclusion.`
 
     const message = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 400,
+      max_tokens: 300,
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: prompt }],
     })
