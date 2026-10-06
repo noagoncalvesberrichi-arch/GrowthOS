@@ -20,7 +20,7 @@ export default async function MemoirePage({ searchParams }: { searchParams: Prom
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const [{ data: rawAnalyses }, { data: aboData }] = await Promise.all([
+  const [{ data: rawAnalyses }, { data: aboData }, { count: biblioCount }] = await Promise.all([
     supabase
       .from('analyses')
       .select('id, objet_marche, nom_fichier, created_at, resultat')
@@ -30,6 +30,9 @@ export default async function MemoirePage({ searchParams }: { searchParams: Prom
       .from('abonnements')
       .select('plan')
       .maybeSingle(),
+    supabase
+      .from('bibliotheque_contenus')
+      .select('id', { count: 'exact', head: true }),
   ])
 
   const analyses: AnalyseItem[] = (rawAnalyses ?? []).map((a) => ({
@@ -96,7 +99,7 @@ export default async function MemoirePage({ searchParams }: { searchParams: Prom
           </Link>
         </div>
       ) : (
-        <MemoireForm analyses={analyses} isLocked={isLocked} defaultAnalyseId={defaultAnalyseId} />
+        <MemoireForm analyses={analyses} isLocked={isLocked} defaultAnalyseId={defaultAnalyseId} biblioCount={biblioCount ?? 0} />
       )}
     </div>
   )

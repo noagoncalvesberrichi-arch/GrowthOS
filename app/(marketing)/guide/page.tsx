@@ -10,6 +10,7 @@ const sections = [
   { id: 'analyse', label: 'Analyser un AO' },
   { id: 'historique', label: 'Historique acheteur' },
   { id: 'references', label: 'Références chantiers' },
+  { id: 'bibliotheque', label: 'Bibliothèque de contenus' },
   { id: 'memoire', label: 'Mémoire technique' },
   { id: 'chiffrage', label: 'Chiffrage automatique' },
   { id: 'veille', label: 'Veille AO' },
@@ -212,6 +213,28 @@ export default function GuidePage() {
             ]} />
             <Astuce>
               Indiquez les domaines (gazon synthétique, VRD, électricité…) : le mémoire sélectionne les références les plus proches de l&apos;appel d&apos;offres.
+            </Astuce>
+          </section>
+
+          {/* ── Bibliothèque de contenus ── */}
+          <section id="bibliotheque" className="scroll-mt-8">
+            <h2 className="font-fraunces text-[24px] sm:text-[28px] text-[#0F1B4D] tracking-tight mb-1">
+              Bibliothèque de contenus
+            </h2>
+            <p className="font-syne text-[13px] text-[#6B7280] mb-6">Disponible sur tous les plans</p>
+            <SectionApport>
+              Votre bibliothèque stocke les contenus de vos mémoires types (présentation, procédés, sécurité, environnement…).
+              À la génération, Stratly les récupère et <strong>réécrit chaque section pour l&apos;appel d&apos;offres en cours</strong> — vous gardez votre fond technique, adapté à chaque marché.
+            </SectionApport>
+            <Steps items={[
+              'Allez dans « Bibliothèque » dans le menu lateral.',
+              'Cliquez sur « Importer un .docx » pour charger votre mémoire type : le document est découpé en blocs selon vos titres (H1/H2/H3).',
+              "Vérifiez et ajustez la catégorisation proposée par l'IA (présentation, procédés, sécurité, etc.).",
+              'Créez aussi des blocs manuellement, ou fusionnez deux blocs similaires en un seul.',
+              'Retournez sur « Mémoire technique » : si la bibliothèque est renseignée, la génération se fait section par section avec une barre de progression.',
+            ]} />
+            <Astuce>
+              Plus vos blocs sont précis et bien catégorisés, plus la personnalisation sera fine. Un bloc « Procédés d&apos;exécution » avec des chiffres réels (effectifs, équipements, certifications) donnera un mémoire bien plus fort qu&apos;un bloc générique.
             </Astuce>
           </section>
 

@@ -93,6 +93,15 @@ function ChiffrageIcon({ active }: { active: boolean }) {
   )
 }
 
+function BibliothequeIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.2 : 1.8} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 19.5A2.5 2.5 0 016.5 17H20" />
+      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" />
+    </svg>
+  )
+}
+
 
 function PricingIcon({ active }: { active: boolean }) {
   return (
@@ -128,6 +137,7 @@ const outilLinks: NavLink[] = [
   { id: 'memoire', label: 'Mémoire technique', href: '/dashboard/memoire', icon: (a) => <MemoireIcon active={a} /> },
   { id: 'appels-offres', label: "Appels d'offres", href: '/dashboard/appels-offres', icon: (a) => <SearchIcon active={a} /> },
   { id: 'chiffrage', label: 'Chiffrage', href: '/dashboard/chiffrage', icon: (a) => <ChiffrageIcon active={a} /> },
+  { id: 'bibliotheque', label: 'Bibliothèque', href: '/dashboard/bibliotheque', icon: (a) => <BibliothequeIcon active={a} /> },
 ]
 
 const secondaireLinks: NavLink[] = [

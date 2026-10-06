@@ -5,6 +5,24 @@ import { createClient } from '@/lib/supabase/server'
 
 export type MemoireResult = { trame: string } | { error: string }
 
+// ─── Types pour génération V2 section par section ────────────────────────────
+
+export type SectionPlan = {
+  titre: string
+  ponderation: string
+  blocs: { id: string; titre: string; categorie: string }[]
+}
+
+export type SectionResult = {
+  titre: string
+  ponderation: string
+  text: string
+  blocs: { id: string; titre: string }[]
+}
+
+export type GenPlanResult = { sections: SectionPlan[]; introBlocs: { id: string; titre: string }[] } | { error: string }
+export type GenSectionResult = { text: string; blocs: { id: string; titre: string }[] } | { error: string }
+
 type ProfilRow = {
   raison_sociale: string | null
   ca_dernier_exercice: number | null
@@ -351,7 +369,8 @@ function buildPrompt(
 
 export async function genererMemoire(
   analyseId: string | null,
-  descriptionManuelle: string | null
+  descriptionManuelle: string | null,
+  longueur: 'court' | 'standard' | 'complet' = 'standard'
 ): Promise<MemoireResult> {
   try {
     const supabase = await createClient()
@@ -392,9 +411,11 @@ export async function genererMemoire(
     const marcheBlock = buildMarcheBlock(resultat, descriptionManuelle)
     const prompt = buildPrompt(profilBlock, marcheBlock, resultat, selectedRefs, summaryLine)
 
+    const maxTokensV1 = longueur === 'court' ? 5000 : longueur === 'complet' ? 12000 : 8192
+
     const message = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 8192,
+      max_tokens: maxTokensV1,
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: prompt }],
     })
@@ -480,5 +501,284 @@ export async function chargerMemoire(
   } catch (err) {
     console.error('[chargerMemoire]', err)
     return { contenu: null }
+  }
+}
+
+// ─── V2 : génération section par section ─────────────────────────────────────
+
+type BlocBiblio = {
+  id: string
+  titre: string
+  categorie: string
+  contenu: string
+  resume: string
+  mots_cles: string[]
+}
+
+// Mots-clés attendus par catégorie (pour scorer les sections)
+const CAT_KEYWORDS: Record<string, string[]> = {
+  presentation:      ['présentation', 'entreprise', 'société', 'profil', 'introduction', 'historique', 'savoir-faire'],
+  moyens_humains:    ['humains', 'personnel', 'équipe', 'effectif', 'intervenants', 'ressources', 'encadrement', 'chef'],
+  moyens_materiels:  ['matériels', 'équipement', 'matériel', 'outillage', 'véhicule', 'machines', 'matériaux'],
+  procede_execution: ['méthodologie', 'procédé', 'organisation', 'exécution', 'intervention', 'prestation', 'travaux', 'méthode', 'démarche', 'réalisation', 'mode opératoire'],
+  securite:          ['sécurité', 'santé', 'sst', 'prévention', 'risque', 'ppsps', 'accident'],
+  environnement:     ['environnement', 'développement durable', 'écologie', 'carbone', 'déchets', 'nuisances'],
+  qualite:           ['qualité', 'certification', 'iso', 'assurance qualité', 'contrôle', 'qhse'],
+  planning:          ['planning', 'délais', 'calendrier', 'délai', 'phasage', 'avancement'],
+}
+
+function scoreBlocForSection(bloc: BlocBiblio, sectionTitre: string): number {
+  const titre = sectionTitre.toLowerCase()
+  let score = 0
+
+  // Category match via keywords in section title
+  for (const [cat, kws] of Object.entries(CAT_KEYWORDS)) {
+    if (bloc.categorie === cat) {
+      for (const kw of kws) {
+        if (titre.includes(kw)) score += 3
+      }
+    }
+  }
+
+  // Direct keyword match: bloc's mots_cles appear in section title
+  for (const kw of bloc.mots_cles) {
+    if (titre.includes(kw.toLowerCase())) score += 2
+  }
+
+  // Bloc title words in section title
+  const blocWords = bloc.titre.toLowerCase().split(/\s+/).filter(w => w.length > 3)
+  for (const w of blocWords) {
+    if (titre.includes(w)) score += 1
+  }
+
+  // Resume words in section title
+  const resumeWords = bloc.resume.toLowerCase().split(/\s+/).filter(w => w.length > 3)
+  for (const w of resumeWords) {
+    if (titre.includes(w)) score += 1
+  }
+
+  return score
+}
+
+function parsePonderation(s: string): number {
+  const m = s.match(/(\d+(?:[.,]\d+)?)/)
+  return m ? parseFloat(m[1].replace(',', '.')) : 10
+}
+
+/** Prépare le plan de génération : pour chaque section, sélectionne les blocs pertinents */
+export async function preparerGenerationV2(
+  analyseId: string | null,
+  descriptionManuelle: string | null
+): Promise<GenPlanResult> {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'Non authentifié.' }
+
+    // Load analyse critères
+    let criteres: { critere: string; ponderation: string }[] = []
+    if (analyseId) {
+      const { data: analyse } = await supabase
+        .from('analyses')
+        .select('resultat')
+        .eq('id', analyseId)
+        .single()
+      const res = analyse?.resultat as { criteres_notation?: typeof criteres } | null
+      criteres = res?.criteres_notation?.filter(c => c.critere && c.ponderation && !c.critere.toLowerCase().includes('prix')) ?? []
+    }
+
+    // Load bibliothèque blocs
+    const { data: blocsData } = await supabase
+      .from('bibliotheque_contenus')
+      .select('id, titre, categorie, contenu, resume, mots_cles')
+      .order('ordre', { ascending: true })
+
+    const biblio = (blocsData ?? []) as BlocBiblio[]
+
+    if (!biblio.length) {
+      // No blocs: return empty plan (fallback to v1)
+      return { sections: [], introBlocs: [] }
+    }
+
+    // Select blocs for introduction
+    const introBlocs = biblio
+      .filter(b => b.categorie === 'presentation')
+      .slice(0, 2)
+      .map(b => ({ id: b.id, titre: b.titre }))
+
+    // Build section plans
+    const sections: SectionPlan[] = criteres.map(c => {
+      const scored = biblio
+        .map(b => ({ b, score: scoreBlocForSection(b, c.critere) }))
+        .filter(x => x.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 3)
+
+      return {
+        titre: c.critere,
+        ponderation: c.ponderation,
+        blocs: scored.map(x => ({ id: x.b.id, titre: x.b.titre, categorie: x.b.categorie })),
+      }
+    })
+
+    return { sections, introBlocs }
+  } catch (err) {
+    console.error('[preparerGenerationV2]', err)
+    return { error: 'Erreur lors de la préparation.' }
+  }
+}
+
+/** Génère une seule section du mémoire à partir des blocs sélectionnés */
+export async function genererSectionV2(params: {
+  analyseId: string | null
+  descriptionManuelle: string | null
+  sectionTitre: string
+  sectionPonderation: string
+  blocsIds: string[]
+  longueur: 'court' | 'standard' | 'complet'
+  isIntro?: boolean
+}): Promise<GenSectionResult> {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'Non authentifié.' }
+
+    // Load blocs content
+    let blocsContent: BlocBiblio[] = []
+    if (params.blocsIds.length > 0) {
+      const { data } = await supabase
+        .from('bibliotheque_contenus')
+        .select('id, titre, categorie, contenu, resume, mots_cles')
+        .in('id', params.blocsIds)
+      blocsContent = (data ?? []) as BlocBiblio[]
+    }
+
+    // Load profil + analyse
+    const [{ data: profilData }, analyseData] = await Promise.all([
+      supabase.from('profil_entreprise')
+        .select('raison_sociale, ca_dernier_exercice, effectif, annees_experience, certifications, domaines, zone_geographique, notes, moyens_humains, moyens_materiels, methodologies')
+        .maybeSingle(),
+      params.analyseId
+        ? supabase.from('analyses').select('resultat').eq('id', params.analyseId).single()
+        : Promise.resolve({ data: null }),
+    ])
+
+    const profil = profilData as ProfilRow | null
+    const resultat = (analyseData as { data: { resultat: unknown } | null }).data?.resultat as AnalyseResultat | null
+
+    const profilBlock = buildProfilBlock(profil)
+    const marcheBlock = params.descriptionManuelle
+      ? params.descriptionManuelle
+      : buildMarcheBlock(resultat, null)
+
+    // Token budget
+    const totalTokens = params.longueur === 'court' ? 3500 : params.longueur === 'complet' ? 14000 : 8000
+    const pondVal = parsePonderation(params.sectionPonderation)
+    const maxT = params.isIntro ? 600 : Math.max(300, Math.min(2500, Math.round(totalTokens * pondVal / 100)))
+
+    const blocsBlock = blocsContent.length > 0
+      ? `\nBLOCS DE RÉFÉRENCE DE L'ENTREPRISE (contenu technique réel) :\n${blocsContent.map((b, i) => `[Bloc ${i + 1} — ${b.titre}]\n${b.contenu.slice(0, 1500)}`).join('\n\n')}\n`
+      : ''
+
+    const acheteur = resultat?.acheteur ? `\nAcheteur : ${resultat.acheteur}` : ''
+    const vigilance = (resultat?.points_de_vigilance ?? []).filter(p => {
+      const pt = p.toLowerCase()
+      const st = params.sectionTitre.toLowerCase()
+      return pt.includes('sécurité') && st.includes('sécurité') ||
+             pt.includes('planning') && st.includes('planning') ||
+             pt.includes('délai') && (st.includes('planning') || st.includes('délai')) ||
+             pt.includes('site occupé') ||
+             pt.includes('phasage')
+    })
+
+    const userPrompt = `Rédige la section suivante d'un mémoire technique de réponse à appel d'offres.
+
+MARCHÉ :${acheteur}
+${marcheBlock}
+
+PROFIL DE L'ENTREPRISE :
+${profilBlock}
+${blocsBlock}
+SECTION À RÉDIGER : ${params.isIntro ? 'INTRODUCTION — PRÉSENTATION DE L\'ENTREPRISE' : params.sectionTitre} ${params.isIntro ? '' : `(${params.sectionPonderation})`}
+
+${vigilance.length > 0 ? `POINTS DE VIGILANCE à adresser dans cette section :\n${vigilance.map(p => `- ${p}`).join('\n')}\n` : ''}
+INSTRUCTIONS :
+- Commence directement par le titre de la section en majuscules (ex: ## ${params.isIntro ? 'INTRODUCTION — PRÉSENTATION DE L\'ENTREPRISE' : params.sectionTitre.toUpperCase()})
+- Utilise les blocs de référence comme BASE de contenu : réécris pour CET appel d'offres spécifique, cite l'acheteur, adapte au contexte. Ne recopie jamais un bloc verbatim.
+- N'invente aucun moyen, chiffre ou certification absent des blocs ou du profil. Si une information spécifique manque, écris [À COMPLÉTER : ...].
+- Si aucun bloc ne correspond, rédige à partir du profil uniquement et ajoute ⚠ à vérifier en fin de section.
+- Longueur cible : ${params.longueur === 'court' ? 'concis, 1-2 paragraphes' : params.longueur === 'complet' ? '3-5 paragraphes détaillés' : '2-3 paragraphes'}, proportionnel à la pondération ${params.sectionPonderation}.
+- Style : phrases complètes, ton professionnel de candidature, pas de bullet points excessifs.
+- Réponds UNIQUEMENT avec le texte de la section.`
+
+    const message = await anthropic.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: maxT,
+      system: SYSTEM_PROMPT,
+      messages: [{ role: 'user', content: userPrompt }],
+    })
+
+    const text = message.content[0].type === 'text' ? message.content[0].text.trim() : ''
+    if (!text) return { error: 'Réponse vide.' }
+
+    return {
+      text,
+      blocs: blocsContent.map(b => ({ id: b.id, titre: b.titre })),
+    }
+  } catch (err) {
+    console.error('[genererSectionV2]', err)
+    return { error: 'Erreur lors de la génération de la section.' }
+  }
+}
+
+/** Génère la conclusion */
+export async function genererConclusionV2(params: {
+  analyseId: string | null
+  descriptionManuelle: string | null
+  longueur: 'court' | 'standard' | 'complet'
+}): Promise<{ text: string } | { error: string }> {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'Non authentifié.' }
+
+    const [{ data: profilData }, analyseData] = await Promise.all([
+      supabase.from('profil_entreprise')
+        .select('raison_sociale, domaines, certifications')
+        .maybeSingle(),
+      params.analyseId
+        ? supabase.from('analyses').select('resultat').eq('id', params.analyseId).single()
+        : Promise.resolve({ data: null }),
+    ])
+
+    const profil = profilData as Pick<ProfilRow, 'raison_sociale' | 'domaines' | 'certifications'> | null
+    const resultat = (analyseData as { data: { resultat: unknown } | null }).data?.resultat as AnalyseResultat | null
+
+    const acheteur = resultat?.acheteur ?? '[acheteur]'
+    const raisonSociale = profil?.raison_sociale ?? '[entreprise]'
+
+    const prompt = `Rédige la conclusion d'un mémoire technique.
+
+Acheteur : ${acheteur}
+Entreprise : ${raisonSociale}
+
+Commence par : ## CONCLUSION — NOS ENGAGEMENTS
+Rédige 1 paragraphe de synthèse : engagement de l'entreprise, valeur ajoutée pour ce marché spécifique, disponibilité.
+Style professionnel, confiant mais pas prétentieux. Pas de bullet points.
+Longueur : ${params.longueur === 'court' ? 'très court, 3-4 lignes' : '1 paragraphe dense'}.
+Réponds UNIQUEMENT avec le texte de la conclusion.`
+
+    const message = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 400,
+      system: SYSTEM_PROMPT,
+      messages: [{ role: 'user', content: prompt }],
+    })
+
+    const text = message.content[0].type === 'text' ? message.content[0].text.trim() : ''
+    return text ? { text } : { error: 'Réponse vide.' }
+  } catch (err) {
+    console.error('[genererConclusionV2]', err)
+    return { error: 'Erreur conclusion.' }
   }
 }
