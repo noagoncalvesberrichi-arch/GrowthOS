@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { MemoireForm } from './MemoireForm'
+import { MemoireForm, type BiblioBloc } from './MemoireForm'
 
 export const maxDuration = 300
 export const metadata = { title: 'Mémoire technique — Stratly' }
@@ -20,7 +20,7 @@ export default async function MemoirePage({ searchParams }: { searchParams: Prom
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const [{ data: rawAnalyses }, { data: aboData }, { count: biblioCount }] = await Promise.all([
+  const [{ data: rawAnalyses }, { data: aboData }, { data: blocsData }] = await Promise.all([
     supabase
       .from('analyses')
       .select('id, objet_marche, nom_fichier, created_at, resultat')
@@ -32,7 +32,9 @@ export default async function MemoirePage({ searchParams }: { searchParams: Prom
       .maybeSingle(),
     supabase
       .from('bibliotheque_contenus')
-      .select('id', { count: 'exact', head: true }),
+      .select('id, titre, categorie, resume')
+      .order('categorie', { ascending: true })
+      .order('ordre', { ascending: true }),
   ])
 
   const analyses: AnalyseItem[] = (rawAnalyses ?? []).map((a) => ({
@@ -99,7 +101,7 @@ export default async function MemoirePage({ searchParams }: { searchParams: Prom
           </Link>
         </div>
       ) : (
-        <MemoireForm analyses={analyses} isLocked={isLocked} defaultAnalyseId={defaultAnalyseId} biblioCount={biblioCount ?? 0} />
+        <MemoireForm analyses={analyses} isLocked={isLocked} defaultAnalyseId={defaultAnalyseId} biblioBlocs={(blocsData ?? []) as BiblioBloc[]} />
       )}
     </div>
   )

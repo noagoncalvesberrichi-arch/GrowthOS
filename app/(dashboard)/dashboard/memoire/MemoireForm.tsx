@@ -9,6 +9,27 @@ import {
 } from './actions'
 import type { AnalyseItem } from './page'
 
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+export type BiblioBloc = {
+  id: string
+  titre: string
+  categorie: string
+  resume: string
+}
+
+const CAT_LABELS: Record<string, string> = {
+  presentation: 'Présentation',
+  moyens_humains: 'Moyens humains',
+  moyens_materiels: 'Moyens matériels',
+  procede_execution: "Procédés d'exécution",
+  securite: 'Sécurité / SST',
+  environnement: 'Environnement',
+  qualite: 'Qualité',
+  planning: 'Planning',
+  autre: 'Autre',
+}
+
 // ─── Markdown helpers ─────────────────────────────────────────────────────────
 
 function parseInlineRuns(text: string) {
@@ -125,15 +146,91 @@ type V2Phase =
   | { phase: 'done'; results: SectionResult[] }
   | { phase: 'error'; message: string }
 
+// ─── BlocPickerModal ──────────────────────────────────────────────────────────
+
+function BlocPickerModal({
+  section, allBlocs, onConfirm, onClose,
+}: {
+  section: SectionResult
+  allBlocs: BiblioBloc[]
+  onConfirm: (blocsIds: string[]) => void
+  onClose: () => void
+}) {
+  const [selected, setSelected] = useState<Set<string>>(new Set(section.blocs.map(b => b.id)))
+
+  const toggle = (id: string) => setSelected(prev => {
+    const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n
+  })
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-background border border-border rounded-2xl shadow-xl w-full max-w-lg max-h-[80vh] flex flex-col overflow-hidden">
+        <div className="px-5 py-4 border-b border-border flex items-center justify-between shrink-0">
+          <div>
+            <p className="font-fraunces text-[16px] text-text">Changer les blocs</p>
+            <p className="font-syne text-[12px] text-text-muted mt-0.5 truncate max-w-[280px]">{section.titre}</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center text-text-muted hover:text-text rounded-lg hover:bg-surface transition-colors">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+          </button>
+        </div>
+        <div className="overflow-y-auto flex-1 px-4 py-3 space-y-2">
+          {allBlocs.length === 0 && (
+            <p className="font-syne text-[13px] text-text-muted text-center py-8">Aucun bloc dans la bibliothèque.</p>
+          )}
+          {allBlocs.map(b => {
+            const isSelected = selected.has(b.id)
+            return (
+              <div
+                key={b.id}
+                onClick={() => toggle(b.id)}
+                className={`border rounded-xl px-3.5 py-3 cursor-pointer transition-all duration-150 ${isSelected ? 'border-accent bg-accent/4 ring-1 ring-accent/20' : 'border-border hover:border-border/70 bg-surface'}`}
+              >
+                <div className="flex items-start gap-2.5">
+                  <div className={`mt-0.5 w-4 h-4 rounded border-2 shrink-0 flex items-center justify-center transition-colors ${isSelected ? 'bg-accent border-accent' : 'border-border'}`}>
+                    {isSelected && <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-syne text-[13px] font-semibold text-text leading-snug">{b.titre}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="font-syne text-[10px] font-semibold uppercase tracking-wide text-accent bg-accent/8 px-1.5 py-0.5 rounded-full">
+                        {CAT_LABELS[b.categorie] ?? b.categorie}
+                      </span>
+                    </div>
+                    {b.resume && <p className="font-syne text-[11px] text-text-muted mt-1 line-clamp-2">{b.resume}</p>}
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+        <div className="px-5 py-4 border-t border-border flex gap-3 shrink-0">
+          <button
+            onClick={() => onConfirm([...selected])}
+            className="flex-1 bg-accent hover:bg-accent-dark text-white font-syne font-bold text-[13px] py-2.5 rounded-xl transition-colors"
+          >
+            Régénérer avec {selected.size} bloc{selected.size > 1 ? 's' : ''} →
+          </button>
+          <button onClick={onClose} className="px-4 py-2.5 bg-surface border border-border text-text-muted font-syne text-[13px] rounded-xl hover:border-border/70 transition-colors">
+            Annuler
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── SectionCard (transparency) ──────────────────────────────────────────────
 
 function SectionCard({
-  section, index, onRegen, isRegenerating,
+  section, index, onRegen, isRegenerating, onChangerBlocs,
 }: {
   section: SectionResult
   index: number
   onRegen: (index: number) => void
   isRegenerating: boolean
+  onChangerBlocs?: (index: number) => void
 }) {
   const [expanded, setExpanded] = useState(false)
 
@@ -152,6 +249,17 @@ function SectionCard({
             >
               {section.blocs.length} bloc{section.blocs.length > 1 ? 's' : ''}
               <span className="ml-1">{expanded ? '▲' : '▼'}</span>
+            </button>
+          )}
+          {onChangerBlocs && (
+            <button
+              onClick={() => onChangerBlocs(index)}
+              disabled={isRegenerating}
+              className="inline-flex items-center gap-1.5 font-syne text-[11px] font-semibold text-text-muted border border-border hover:border-accent/60 hover:text-text-muted px-2.5 py-1 rounded-lg transition-colors disabled:opacity-40"
+              title="Changer les blocs utilisés"
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+              Blocs
             </button>
           )}
           <button
@@ -180,12 +288,12 @@ function SectionCard({
 // ─── MemoireForm ──────────────────────────────────────────────────────────────
 
 export function MemoireForm({
-  analyses, isLocked, defaultAnalyseId, biblioCount,
+  analyses, isLocked, defaultAnalyseId, biblioBlocs,
 }: {
   analyses: AnalyseItem[]
   isLocked?: boolean
   defaultAnalyseId?: string
-  biblioCount?: number
+  biblioBlocs?: BiblioBloc[]
 }) {
   const resolvedDefault = defaultAnalyseId && analyses.some(a => a.id === defaultAnalyseId) ? defaultAnalyseId : (analyses[0]?.id ?? '')
   const [mode, setMode] = useState<'analyse' | 'manuel'>(analyses.length > 0 ? 'analyse' : 'manuel')
@@ -203,6 +311,7 @@ export function MemoireForm({
   const [v2State, setV2State] = useState<V2Phase>({ phase: 'idle' })
   const [v2Sections, setV2Sections] = useState<SectionResult[]>([])
   const [regenIdx, setRegenIdx] = useState<number | null>(null)
+  const [pickerIdx, setPickerIdx] = useState<number | null>(null)
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const skipNextSaveRef = useRef(false)
@@ -210,7 +319,7 @@ export function MemoireForm({
   const prevTrameRef = useRef('')
   const v2RunRef = useRef(false)
 
-  const hasBiblio = (biblioCount ?? 0) > 0
+  const hasBiblio = (biblioBlocs?.length ?? 0) > 0
   const useV2 = hasBiblio && mode === 'analyse'
 
   // Auto-switch to preview when trame is first populated
@@ -403,18 +512,21 @@ export function MemoireForm({
     })
   }
 
-  const handleRegenSection = async (index: number) => {
+  const handleRegenSection = async (index: number, customBlocsIds?: string[]) => {
     if (regenIdx !== null) return
     setRegenIdx(index)
+    setPickerIdx(null)
     const section = v2Sections[index]
     if (!section) { setRegenIdx(null); return }
+
+    const blocsIds = customBlocsIds ?? section.blocs.map(b => b.id)
 
     const res = await genererSectionV2({
       analyseId: mode === 'analyse' ? selectedAnalyseId : null,
       descriptionManuelle: mode === 'manuel' ? descriptionMarche : null,
       sectionTitre: section.titre,
       sectionPonderation: section.ponderation,
-      blocsIds: section.blocs.map(b => b.id),
+      blocsIds,
       longueur,
       isIntro: section.titre === 'Introduction',
     })
@@ -728,7 +840,9 @@ export function MemoireForm({
       {v2Sections.length > 0 && trame && (
         <div className="bg-surface border border-border rounded-2xl p-6 space-y-3">
           <p className="font-syne text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-amber">Sections générées</p>
-          <p className="font-syne text-[12px] text-text-muted">Cliquez sur &ldquo;Régénérer&rdquo; pour reformuler une section avec les mêmes blocs.</p>
+          <p className="font-syne text-[12px] text-text-muted">
+            &ldquo;Régénérer&rdquo; reformule la section avec les mêmes blocs. &ldquo;Blocs&rdquo; permet de changer les contenus utilisés avant de régénérer.
+          </p>
           <div className="space-y-2">
             {v2Sections.map((s, i) => (
               <SectionCard
@@ -737,10 +851,21 @@ export function MemoireForm({
                 index={i}
                 onRegen={handleRegenSection}
                 isRegenerating={regenIdx === i}
+                onChangerBlocs={hasBiblio ? (idx) => setPickerIdx(idx) : undefined}
               />
             ))}
           </div>
         </div>
+      )}
+
+      {/* BlocPickerModal */}
+      {pickerIdx !== null && v2Sections[pickerIdx] && (
+        <BlocPickerModal
+          section={v2Sections[pickerIdx]}
+          allBlocs={biblioBlocs ?? []}
+          onConfirm={(ids) => handleRegenSection(pickerIdx, ids)}
+          onClose={() => setPickerIdx(null)}
+        />
       )}
     </div>
   )

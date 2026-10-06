@@ -4,8 +4,8 @@ import { useState, useTransition, useRef } from 'react'
 import Link from 'next/link'
 import {
   listerBibliotheque, creerBloc, modifierBloc, supprimerBloc, fusionnerBlocs,
-  importerBlocsWord, categoriserBlocs,
-  type BlocContenu, type BlocImport, type RawBlocForCategorisation,
+  importerBlocsWord, categoriserLot,
+  type BlocContenu, type BlocImport, type RawBlocForCategorisation, type CategorisationResult,
 } from './actions'
 import { CATEGORIES, type CategorieId } from './constants'
 
@@ -25,21 +25,27 @@ function wordCount(text: string) {
 type RawParsed = { titre: string; contenu: string; source_fichier: string }
 
 async function parseWordDoc(file: File): Promise<RawParsed[]> {
-  const mammoth = (await import('mammoth')).default ?? (await import('mammoth'))
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const mammothMod = await import('mammoth')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const mammoth = (mammothMod.default || mammothMod) as any
   const arrayBuffer = await file.arrayBuffer()
 
-  // Replace images with [IMAGE] placeholder
-  const result = await (mammoth as { convertToHtml: (src: unknown, opts?: unknown) => Promise<{ value: string }> }).convertToHtml(
-    { arrayBuffer },
-    {
-      convertImage: {
-        convert: () => Promise.resolve({ src: '', alt: '[IMAGE]' }),
-      },
-    }
-  ).catch(() => mammoth.convertToHtml({ arrayBuffer }))
+  // Use inline image handler to mark images; fall back to default (data URIs) if unavailable
+  let result: { value: string }
+  try {
+    result = await mammoth.convertToHtml({ arrayBuffer }, {
+      convertImage: mammoth.images?.inline
+        ? mammoth.images.inline((_el: unknown) => Promise.resolve({ src: '__IMG__' }))
+        : { convert: () => Promise.resolve({ src: '__IMG__' }) },
+    })
+  } catch {
+    result = await mammoth.convertToHtml({ arrayBuffer })
+  }
 
-  // Replace img tags with [IMAGE] text, then parse by headings
-  const html = result.value.replace(/<img[^>]*>/gi, '<p>[IMAGE]</p>')
+  // Replace any <img> (our placeholder or base64 data URIs) with inline [IMAGE] text
+  // Using inline text (not a block element) so el.textContent picks it up correctly
+  const html = result.value.replace(/<img\b[^>]*\/?>/gi, ' [IMAGE] ')
 
   const parser = new DOMParser()
   const doc = parser.parseFromString(html, 'text/html')
@@ -69,7 +75,22 @@ async function parseWordDoc(file: File): Promise<RawParsed[]> {
   }
   flush()
 
-  return blocs
+  // Merge blocs < 20 mots sans image dans le bloc précédent (contenu trop court)
+  const merged: RawParsed[] = []
+  for (const b of blocs) {
+    const words = b.contenu.trim().split(/\s+/).filter(Boolean).length
+    const hasImage = b.contenu.includes('[IMAGE]')
+    if (words < 20 && !hasImage && merged.length > 0) {
+      merged[merged.length - 1] = {
+        ...merged[merged.length - 1],
+        contenu: merged[merged.length - 1].contenu + '\n' + b.contenu,
+      }
+    } else {
+      merged.push(b)
+    }
+  }
+
+  return merged
 }
 
 // ─── Modal primitif ─────────────────────────────────────────────────────────
@@ -238,10 +259,11 @@ type ReviewBloc = RawBlocForCategorisation & {
 }
 
 function ImportWordModal({ onDone, onClose }: { onDone: (blocs: BlocImport[]) => void; onClose: () => void }) {
-  const [phase, setPhase] = useState<'pick' | 'parsing' | 'categorising' | 'review' | 'saving'>('pick')
+  const [phase, setPhase] = useState<'pick' | 'parsing' | 'categorising' | 'review'>('pick')
   const [error, setError] = useState<string | null>(null)
   const [reviewBlocs, setReviewBlocs] = useState<ReviewBloc[]>([])
-  const [isPending, startTransition] = useTransition()
+  const [categorisingProgress, setCategorisingProgress] = useState<{current: number; total: number} | null>(null)
+  const [categorisingErrors, setCategorisingErrors] = useState(0)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const handleFile = async (file: File) => {
@@ -252,20 +274,37 @@ function ImportWordModal({ onDone, onClose }: { onDone: (blocs: BlocImport[]) =>
       if (!raw.length) { setError('Aucun bloc trouvé (vérifiez que le document a des titres H1/H2/H3).'); setPhase('pick'); return }
 
       setPhase('categorising')
-      startTransition(async () => {
-        const cats = await categoriserBlocs(raw.map(b => ({ titre: b.titre, contenu: b.contenu })))
-        const blocs: ReviewBloc[] = raw.map((b, i) => ({
-          titre: b.titre,
-          contenu: b.contenu,
-          source_fichier: b.source_fichier,
-          categorie: cats[i]?.categorie ?? 'autre',
-          resume: cats[i]?.resume ?? '',
-          mots_cles: cats[i]?.mots_cles ?? [],
-          keep: true,
-        }))
-        setReviewBlocs(blocs)
-        setPhase('review')
-      })
+      const BATCH = 15
+      const totalBatches = Math.ceil(raw.length / BATCH)
+      const cats: CategorisationResult[] = []
+      let errors = 0
+
+      for (let i = 0; i < raw.length; i += BATCH) {
+        setCategorisingProgress({ current: Math.floor(i / BATCH) + 1, total: totalBatches })
+        const batch = raw.slice(i, i + BATCH)
+        try {
+          const batchCats = await categoriserLot(batch.map(b => ({ titre: b.titre, contenu: b.contenu })))
+          cats.push(...batchCats)
+        } catch {
+          errors++
+          for (const b of batch) cats.push({ titre: b.titre, categorie: 'autre' as CategorieId, resume: '', mots_cles: [] })
+        }
+      }
+
+      const blocs: ReviewBloc[] = raw.map((b, i) => ({
+        titre: b.titre,
+        contenu: b.contenu,
+        source_fichier: b.source_fichier,
+        categorie: cats[i]?.categorie ?? 'autre',
+        resume: cats[i]?.resume ?? '',
+        mots_cles: cats[i]?.mots_cles ?? [],
+        keep: true,
+      }))
+
+      setReviewBlocs(blocs)
+      setCategorisingErrors(errors)
+      setCategorisingProgress(null)
+      setPhase('review')
     } catch (err) {
       console.error(err)
       setError('Erreur lors du parsing du document.')
@@ -312,13 +351,33 @@ function ImportWordModal({ onDone, onClose }: { onDone: (blocs: BlocImport[]) =>
             {[0, 1, 2].map(i => <div key={i} className="w-2 h-2 rounded-full bg-accent animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />)}
           </div>
           <p className="font-syne text-[13px] text-text-muted">
-            {phase === 'parsing' ? 'Lecture du document…' : 'Catégorisation IA en cours…'}
+            {phase === 'parsing'
+              ? 'Lecture du document…'
+              : categorisingProgress
+                ? `Classement IA — lot ${categorisingProgress.current}/${categorisingProgress.total}…`
+                : 'Classement IA en cours…'
+            }
           </p>
+          {phase === 'categorising' && categorisingProgress && (
+            <div className="w-full max-w-[200px] mx-auto bg-border rounded-full h-1.5 overflow-hidden">
+              <div
+                className="bg-accent h-full rounded-full transition-all duration-500"
+                style={{ width: `${Math.round((categorisingProgress.current / categorisingProgress.total) * 100)}%` }}
+              />
+            </div>
+          )}
         </div>
       )}
 
       {phase === 'review' && (
         <div className="space-y-4">
+          {categorisingErrors > 0 && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+              <p className="font-syne text-[13px] text-amber-800">
+                ⚠ {categorisingErrors} lot{categorisingErrors > 1 ? 's' : ''} non classé{categorisingErrors > 1 ? 's' : ''} — ces blocs ont la catégorie « Autre » par défaut. Corrigez-les ci-dessous avant d&apos;enregistrer, ou utilisez &ldquo;Classer automatiquement&rdquo; depuis la bibliothèque.
+              </p>
+            </div>
+          )}
           <div className="flex items-center justify-between">
             <p className="font-syne text-[13px] text-text-muted">{reviewBlocs.filter(b => b.keep).length}/{reviewBlocs.length} blocs sélectionnés</p>
             <div className="flex gap-2">
@@ -359,7 +418,7 @@ function ImportWordModal({ onDone, onClose }: { onDone: (blocs: BlocImport[]) =>
           <div className="flex gap-3 pt-2 border-t border-border">
             <button
               onClick={handleSave}
-              disabled={reviewBlocs.filter(b => b.keep).length === 0 || isPending}
+              disabled={reviewBlocs.filter(b => b.keep).length === 0}
               className="flex-1 bg-accent hover:bg-accent-dark text-white font-syne font-bold text-[13px] py-2.5 rounded-xl disabled:opacity-40 transition-colors"
             >
               Enregistrer {reviewBlocs.filter(b => b.keep).length} bloc{reviewBlocs.filter(b => b.keep).length > 1 ? 's' : ''} →
@@ -431,6 +490,8 @@ export function BibliothequeClient({ initialBlocs }: { initialBlocs: BlocContenu
   const [showFusion, setShowFusion] = useState(false)
   const [isPending, startTransition] = useTransition()
   const [toast, setToast] = useState<string | null>(null)
+  const [isClassifying, setIsClassifying] = useState(false)
+  const [classifyProgress, setClassifyProgress] = useState<{current: number; total: number} | null>(null)
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 3000) }
 
@@ -489,6 +550,32 @@ export function BibliothequeClient({ initialBlocs }: { initialBlocs: BlocContenu
     if (res.ok) { showToast(`${res.count} bloc${res.count > 1 ? 's' : ''} importé${res.count > 1 ? 's' : ''}.`); setShowImport(false); reload() }
   }
 
+  const handleClasserAuto = async () => {
+    const toClassify = blocs.filter(b => !b.resume)
+    if (!toClassify.length || isClassifying) return
+    setIsClassifying(true)
+    const BATCH = 15
+    const total = Math.ceil(toClassify.length / BATCH)
+    for (let i = 0; i < toClassify.length; i += BATCH) {
+      setClassifyProgress({ current: Math.floor(i / BATCH) + 1, total })
+      const batch = toClassify.slice(i, i + BATCH)
+      try {
+        const results = await categoriserLot(batch.map(b => ({ titre: b.titre, contenu: b.contenu })))
+        await Promise.all(batch.map((b, j) => modifierBloc(b.id, {
+          categorie: results[j]?.categorie ?? b.categorie,
+          resume: results[j]?.resume ?? '',
+          mots_cles: results[j]?.mots_cles ?? [],
+        })))
+      } catch {
+        // Continue with next batch on error
+      }
+    }
+    setIsClassifying(false)
+    setClassifyProgress(null)
+    reload()
+    showToast('Classement terminé.')
+  }
+
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
   }
@@ -522,7 +609,26 @@ export function BibliothequeClient({ initialBlocs }: { initialBlocs: BlocContenu
             {blocs.length} bloc{blocs.length > 1 ? 's' : ''} · Base de contenus réutilisés dans la génération de mémoires
           </p>
         </div>
-        <div className="flex gap-2 shrink-0">
+        <div className="flex flex-wrap gap-2 shrink-0">
+          {blocs.some(b => !b.resume) && !selectionMode && (
+            <button
+              onClick={handleClasserAuto}
+              disabled={isClassifying}
+              className="inline-flex items-center gap-2 font-syne text-[13px] font-semibold text-text-muted bg-surface border border-border hover:border-accent/40 hover:text-accent px-4 py-2.5 rounded-xl transition-all duration-200 disabled:opacity-50"
+            >
+              {isClassifying ? (
+                <>
+                  <svg className="animate-spin w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+                  {classifyProgress ? `Lot ${classifyProgress.current}/${classifyProgress.total}…` : 'Classement…'}
+                </>
+              ) : (
+                <>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
+                  Classer automatiquement
+                </>
+              )}
+            </button>
+          )}
           <button
             onClick={() => setShowImport(true)}
             className="inline-flex items-center gap-2 font-syne text-[13px] font-semibold text-text-muted bg-surface border border-border hover:border-accent/40 hover:text-accent px-4 py-2.5 rounded-xl transition-all duration-200"

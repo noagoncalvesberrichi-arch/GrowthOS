@@ -202,50 +202,47 @@ export type CategorisationResult = {
   mots_cles: string[]
 }
 
-export async function categoriserBlocs(
+/**
+ * Catégorise un lot de blocs (max 15). Lève une erreur si la catégorisation échoue —
+ * l'appelant est responsable de gérer l'erreur et d'afficher un message à l'utilisateur.
+ */
+export async function categoriserLot(
   blocs: RawBlocForCategorisation[]
 ): Promise<CategorisationResult[]> {
   if (!blocs.length) return []
 
   const categoriesList = CATEGORIES.map(c => `"${c.id}" (${c.label})`).join(', ')
 
-  const prompt = `Tu analyses des blocs de contenu d'un mémoire technique BTP/bureau d'études et tu retournes un JSON strict.
-
-Catégories disponibles : ${categoriesList}
+  const prompt = `Tu analyses des blocs de contenu d'un mémoire technique BTP/bureau d'études.
+Catégories : ${categoriesList}
 
 Pour chaque bloc, détermine :
-- categorie : la catégorie la plus appropriée parmi celles listées
-- resume : une phrase de 10-20 mots résumant le sujet du bloc
-- mots_cles : 3-6 mots-clés pertinents (minuscules, sans accents si possible)
+- categorie : la catégorie la plus appropriée
+- resume : une phrase de 10-20 mots résumant le sujet
+- mots_cles : 3-5 mots-clés pertinents (minuscules)
 
-Blocs à analyser (${blocs.length}) :
-${blocs.map((b, i) => `[${i}] Titre: "${b.titre}"\nExtrait: ${b.contenu.slice(0, 300)}...`).join('\n\n')}
+${blocs.length} bloc${blocs.length > 1 ? 's' : ''} à analyser :
+${blocs.map((b, i) => `[${i}] Titre: "${b.titre}"\nExtrait: ${b.contenu.slice(0, 500)}`).join('\n\n')}
 
-Réponds UNIQUEMENT avec un tableau JSON valide de ${blocs.length} objets dans cet ordre exact :
-[{"categorie":"...","resume":"...","mots_cles":["...","..."]}]`
+Réponds UNIQUEMENT avec un tableau JSON de ${blocs.length} objets :
+[{"categorie":"...","resume":"...","mots_cles":["..."]}]`
 
-  try {
-    const message = await anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 2000,
-      messages: [{ role: 'user', content: prompt }],
-    })
+  const message = await anthropic.messages.create({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 1500,
+    messages: [{ role: 'user', content: prompt }],
+  })
 
-    const text = message.content[0].type === 'text' ? message.content[0].text : ''
-    const jsonMatch = text.match(/\[[\s\S]*\]/)
-    if (!jsonMatch) throw new Error('JSON non trouvé')
+  const text = message.content[0].type === 'text' ? message.content[0].text : ''
+  const jsonMatch = text.match(/\[[\s\S]*\]/)
+  if (!jsonMatch) throw new Error(`Réponse non parseable : ${text.slice(0, 150)}`)
 
-    const parsed: { categorie: string; resume: string; mots_cles: string[] }[] = JSON.parse(jsonMatch[0])
+  const parsed: { categorie: string; resume: string; mots_cles: string[] }[] = JSON.parse(jsonMatch[0])
 
-    return blocs.map((b, i) => ({
-      titre: b.titre,
-      categorie: (parsed[i]?.categorie as CategorieId) ?? 'autre',
-      resume: parsed[i]?.resume ?? '',
-      mots_cles: parsed[i]?.mots_cles ?? [],
-    }))
-  } catch (err) {
-    console.error('[categoriserBlocs]', err)
-    // Fallback: catégorie "autre", pas de résumé
-    return blocs.map(b => ({ titre: b.titre, categorie: 'autre' as CategorieId, resume: '', mots_cles: [] }))
-  }
+  return blocs.map((b, i) => ({
+    titre: b.titre,
+    categorie: (parsed[i]?.categorie as CategorieId) ?? 'autre',
+    resume: parsed[i]?.resume ?? '',
+    mots_cles: parsed[i]?.mots_cles ?? [],
+  }))
 }

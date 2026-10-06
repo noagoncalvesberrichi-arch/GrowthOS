@@ -565,6 +565,37 @@ function parsePonderation(s: string): number {
   return m ? parseFloat(m[1].replace(',', '.')) : 10
 }
 
+/** Sélectionne les blocs pertinents par section via Claude. Lève une erreur si le parsage échoue. */
+async function selectionnerBlocsParSections(
+  sections: { titre: string; ponderation: string }[],
+  blocs: { id: string; titre: string; categorie: string; resume: string }[]
+): Promise<Record<string, string[]>> {
+  if (!blocs.length || !sections.length) return {}
+
+  const prompt = `Tu es un expert en réponse aux marchés publics. Sélectionne les blocs de contenu les plus pertinents pour chaque section d'un mémoire technique.
+
+SECTIONS (${sections.length}) :
+${sections.map((s, i) => `${i + 1}. "${s.titre}" (${s.ponderation})`).join('\n')}
+
+BLOCS DISPONIBLES (${blocs.length}) :
+${blocs.map(b => `[${b.id}] "${b.titre}" [${b.categorie}]${b.resume ? ` — ${b.resume}` : ''}`).join('\n')}
+
+Pour chaque section, donne les IDs des 2-3 blocs les plus pertinents ([] si aucun ne correspond).
+Réponds UNIQUEMENT avec ce JSON (clés = titres exacts des sections) :
+{${sections.map(s => `"${s.titre}":[]`).join(',')}}`
+
+  const message = await anthropic.messages.create({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 600,
+    messages: [{ role: 'user', content: prompt }],
+  })
+
+  const text = message.content[0].type === 'text' ? message.content[0].text : ''
+  const match = text.match(/\{[\s\S]*\}/)
+  if (!match) throw new Error('JSON non trouvé dans la réponse de sélection')
+  return JSON.parse(match[0]) as Record<string, string[]>
+}
+
 /** Prépare le plan de génération : pour chaque section, sélectionne les blocs pertinents */
 export async function preparerGenerationV2(
   analyseId: string | null,
@@ -606,18 +637,41 @@ export async function preparerGenerationV2(
       .slice(0, 2)
       .map(b => ({ id: b.id, titre: b.titre }))
 
+    // Essai de sélection par Claude, repli sur score par mots-clés
+    let claudeSelection: Record<string, string[]> | null = null
+    if (criteres.length > 0 && biblio.length > 0) {
+      try {
+        claudeSelection = await selectionnerBlocsParSections(
+          criteres.map(c => ({ titre: c.critere, ponderation: c.ponderation })),
+          biblio.map(b => ({ id: b.id, titre: b.titre, categorie: b.categorie, resume: b.resume }))
+        )
+      } catch (err) {
+        console.warn('[preparerGenerationV2] Claude selection failed, using keyword scoring:', err)
+      }
+    }
+
     // Build section plans
     const sections: SectionPlan[] = criteres.map(c => {
-      const scored = biblio
-        .map(b => ({ b, score: scoreBlocForSection(b, c.critere) }))
-        .filter(x => x.score > 0)
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 3)
+      let selectedBlocs: { id: string; titre: string; categorie: string }[]
+
+      if (claudeSelection && Array.isArray(claudeSelection[c.critere]) && claudeSelection[c.critere].length > 0) {
+        const selectedIds = new Set(claudeSelection[c.critere])
+        selectedBlocs = biblio
+          .filter(b => selectedIds.has(b.id))
+          .map(b => ({ id: b.id, titre: b.titre, categorie: b.categorie }))
+      } else {
+        const scored = biblio
+          .map(b => ({ b, score: scoreBlocForSection(b, c.critere) }))
+          .filter(x => x.score > 0)
+          .sort((a, b) => b.score - a.score)
+          .slice(0, 3)
+        selectedBlocs = scored.map(x => ({ id: x.b.id, titre: x.b.titre, categorie: x.b.categorie }))
+      }
 
       return {
         titre: c.critere,
         ponderation: c.ponderation,
-        blocs: scored.map(x => ({ id: x.b.id, titre: x.b.titre, categorie: x.b.categorie })),
+        blocs: selectedBlocs,
       }
     })
 
