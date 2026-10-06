@@ -9,7 +9,7 @@ type AnalyseRow = {
   nom_fichier: string
   objet_marche: string
   tronque: boolean
-  resultat: { acheteur?: string } | null
+  resultat: { acheteur?: string; lieu_execution?: string | null } | null
 }
 
 export default async function MesAnalysesPage() {
@@ -86,15 +86,17 @@ export default async function MesAnalysesPage() {
                   </div>
                   <div className="min-w-0">
                     <p className="font-syne text-[14px] font-bold text-text leading-snug truncate">
-                      {(a.resultat as { acheteur?: string } | null)?.acheteur
-                        ? (a.resultat as { acheteur?: string }).acheteur
-                        : a.objet_marche}
+                      {a.objet_marche}
                     </p>
                     <p className="font-syne text-[12px] text-text-muted mt-0.5 truncate">
-                      {(a.resultat as { acheteur?: string } | null)?.acheteur
-                        ? <>{a.objet_marche} · </>
-                        : null}
-                      {date}
+                      {(() => {
+                        const r = a.resultat as { acheteur?: string; lieu_execution?: string | null } | null
+                        const parts: string[] = []
+                        if (r?.acheteur) parts.push(r.acheteur)
+                        if (r?.lieu_execution) parts.push(r.lieu_execution)
+                        parts.push(date)
+                        return parts.join(' · ')
+                      })()}
                       {a.tronque && (
                         <span className="ml-2 text-amber-600 font-semibold">⚠ tronqué</span>
                       )}

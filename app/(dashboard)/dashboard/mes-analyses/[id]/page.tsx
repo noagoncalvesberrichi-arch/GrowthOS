@@ -122,6 +122,43 @@ export default async function AnalyseDetailPage({ params }: { params: Promise<{ 
           />
         </div>
       )}
+
+      {/* Générer le mémoire — CTA bas de page */}
+      <div className="mt-10 pt-8 border-t border-border">
+        {isMemoreLocked ? (
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-surface border border-border rounded-2xl px-6 py-5">
+            <div>
+              <p className="font-fraunces text-[18px] text-text mb-1">Passer à l&apos;étape suivante</p>
+              <p className="font-syne text-[13px] text-text-muted">Rédigez votre mémoire technique depuis cette analyse.</p>
+            </div>
+            <a
+              href="/pricing"
+              className="shrink-0 inline-flex items-center gap-2 font-syne text-[13px] font-semibold text-text-muted bg-background border border-border hover:border-accent/40 px-4 py-2.5 rounded-xl transition-all duration-200"
+            >
+              Générer le mémoire technique
+              <span className="font-syne text-[10px] font-bold text-white bg-brand-amber px-1.5 py-0.5 rounded-full uppercase tracking-wide">Plan Pro</span>
+            </a>
+          </div>
+        ) : (
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-accent/4 border border-accent/20 rounded-2xl px-6 py-5">
+            <div>
+              <p className="font-fraunces text-[18px] text-text mb-1">Passer à l&apos;étape suivante</p>
+              <p className="font-syne text-[13px] text-text-muted">Générez la trame de mémoire technique adaptée à cet appel d&apos;offres.</p>
+            </div>
+            <a
+              href={`/dashboard/memoire?analyse=${data.id as string}`}
+              className="shrink-0 inline-flex items-center gap-2 font-syne text-[13px] font-bold text-white bg-accent hover:bg-accent-dark px-5 py-3 rounded-xl transition-all duration-200 shadow-[0_4px_12px_rgba(37,99,235,0.2)]"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><line x1="10" y1="9" x2="8" y2="9" />
+              </svg>
+              Générer le mémoire technique →
+            </a>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

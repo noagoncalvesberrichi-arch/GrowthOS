@@ -25,6 +25,7 @@ export type AOResult = {
   objet: string
   type_procedure: string
   acheteur: string
+  lieu_execution: string | null
   siret_acheteur: string | null
   code_cpv: string | null
   montant_estime: number | null
@@ -153,6 +154,7 @@ Retourne UNIQUEMENT ce JSON (toutes les clés sont requises, utilise null si l'i
   "objet": "string — objet ou intitulé du marché",
   "type_procedure": "string — ex: procédure adaptée, appel d'offres ouvert, etc.",
   "acheteur": "string — nom du pouvoir adjudicateur",
+  "lieu_execution": "string ou null — commune ou département principal d'exécution des prestations/travaux (ex: 'Paris 15e', 'Gironde', 'Lyon'). null si non mentionné.",
   "siret_acheteur": "string ou null — SIRET (14 chiffres) du pouvoir adjudicateur si mentionné dans le DCE, sinon null",
   "code_cpv": "string ou null — code CPV principal du marché (8 chiffres, ex. 45214210) si mentionné dans le DCE, sinon null",
   "montant_estime": "number ou null — montant estimé du marché ou du lot principal en € HT s'il figure dans le DCE (nombre brut sans unité, ex. 450000), sinon null",

@@ -1,6 +1,20 @@
 import Link from 'next/link'
 import type { AOResult, AOMetadata, GoNoGo, GoNoGoCritere } from './actions'
 
+function InlineText({ text }: { text: string }) {
+  const parts = text.split(/(\*\*[^*]+\*\*)/)
+  if (parts.length === 1) return <>{text}</>
+  return (
+    <>
+      {parts.map((p, i) =>
+        p.startsWith('**') && p.endsWith('**')
+          ? <strong key={i}>{p.slice(2, -2)}</strong>
+          : <span key={i}>{p}</span>
+      )}
+    </>
+  )
+}
+
 // ─── Go/No-Go ─────────────────────────────────────────────────────────────────
 
 const VERDICT_CONFIG = {
@@ -104,7 +118,7 @@ function GoNoGoPanel({ gng }: { gng: GoNoGo | null }) {
 
       {/* Synthesis */}
       <div className={`${cfg.bodyBg} px-5 py-4 border-b ${cfg.border}`}>
-        <p className={`font-syne text-[13px] leading-relaxed ${cfg.bodyText}`}>{gng.synthese}</p>
+        <p className={`font-syne text-[13px] leading-relaxed ${cfg.bodyText}`}><InlineText text={gng.synthese} /></p>
       </div>
 
       {/* Criteria */}
@@ -287,7 +301,7 @@ export function AOResultDisplay({ data, meta }: { data: AOResult; meta: AOMetada
                   <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
                   <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
                 </svg>
-                <span className="font-syne text-[13px] text-text-muted">{point}</span>
+                <span className="font-syne text-[13px] text-text-muted"><InlineText text={point} /></span>
               </li>
             ))}
           </ul>

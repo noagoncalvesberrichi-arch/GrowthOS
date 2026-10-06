@@ -33,6 +33,18 @@ export default async function ChiffragePage() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-10 sm:px-8 sm:py-14">
+
+      {/* Breadcrumb */}
+      <nav className="flex items-center gap-1.5 font-syne text-[12px] font-semibold text-text-muted mb-8">
+        <Link href="/dashboard" className="hover:text-text transition-colors duration-150">
+          Tableau de bord
+        </Link>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+          <polyline points="9 18 15 12 9 6" />
+        </svg>
+        <span className="text-text">Chiffrage automatique</span>
+      </nav>
+
       <div className="mb-8">
         <p className="font-syne text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-amber mb-3">
           Répondre aux appels d&apos;offres

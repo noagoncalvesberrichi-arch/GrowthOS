@@ -153,6 +153,13 @@ export function MemoireForm({ analyses, isLocked, defaultAnalyseId }: { analyses
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const skipNextSaveRef = useRef(false)
   const didAutoTriggerRef = useRef(false)
+  const prevTrameRef = useRef('')
+
+  // Auto-switch to preview mode when trame is first populated
+  useEffect(() => {
+    if (trame && !prevTrameRef.current) setPreviewMode(true)
+    prevTrameRef.current = trame
+  }, [trame])
 
   // Load saved memoire when the selected analysis changes
   useEffect(() => {
