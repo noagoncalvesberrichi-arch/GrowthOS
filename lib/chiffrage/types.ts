@@ -45,7 +45,12 @@ export type MatchedRow = {
   crmRowId: string | null
   confidence: number
   pu_ht_crm: number | null
+  qty_crm: number | null
+  unit_acheteur: string | null
+  unit_crm: string | null
   quantityMismatch: boolean
+  unitMismatch: boolean
+  numeroMismatch: boolean
 }
 
 export type GenererResult =

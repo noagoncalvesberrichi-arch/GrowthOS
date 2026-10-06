@@ -151,6 +151,7 @@ export function ChiffrageWizard({ profil }: Props) {
           acheteurAnalysis={state.acheteurAnalysis}
           acheteurMappings={state.acheteurMappings}
           matches={state.matches}
+          crmFileName={state.crmAnalysis?.fileName ?? null}
           profil={profil}
           onReset={resetWizard}
         />

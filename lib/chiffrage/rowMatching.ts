@@ -1,5 +1,5 @@
 import type { ColumnMapping, ParsedRow, MatchedRow, RawRow } from './types'
-import { parseNumber, normalizeDesignation, similarity } from './normalize'
+import { parseNumber, normalizeDesignation, normalizeNumero, normalizeUnit, similarity } from './normalize'
 
 export function applyMapping(rawRow: RawRow, mapping: ColumnMapping, sheetName: string): ParsedRow {
   const v = rawRow.values
@@ -28,7 +28,7 @@ export function applyMapping(rawRow: RawRow, mapping: ColumnMapping, sheetName: 
   }
 }
 
-const SIMILARITY_THRESHOLD = 0.85
+const SIMILARITY_THRESHOLD = 0.82
 
 export function matchRows(
   acheteurRows: ParsedRow[],
@@ -37,12 +37,22 @@ export function matchRows(
   const matched: MatchedRow[] = []
   const unmatched: ParsedRow[] = []
 
-  // Build lookup maps for CRM
-  const crmByNumero = new Map<string, ParsedRow>()
+  // Build CRM lookup maps — designation-first is priority
   const crmByNorm = new Map<string, ParsedRow>()
+  // For numero: keep all CRM rows with that numero (multiple possible due to duplicates)
+  const crmByNumero = new Map<string, ParsedRow[]>()
   for (const row of crmRows) {
-    if (row.numero) crmByNumero.set(row.numero.trim(), row)
-    if (row.designation) crmByNorm.set(normalizeDesignation(row.designation), row)
+    if (row.designation) {
+      const norm = normalizeDesignation(row.designation)
+      // Don't overwrite — first occurrence wins (sheet with prices comes first)
+      if (!crmByNorm.has(norm)) crmByNorm.set(norm, row)
+    }
+    if (row.numero) {
+      const num = normalizeNumero(row.numero)
+      const existing = crmByNumero.get(num) ?? []
+      existing.push(row)
+      crmByNumero.set(num, existing)
+    }
   }
 
   for (const aRow of acheteurRows) {
@@ -50,23 +60,23 @@ export function matchRows(
 
     let found: ParsedRow | null = null
     let confidence = 0
+    let numeroMismatch = false
 
-    // Phase (a): exact numero match
-    if (aRow.numero && crmByNumero.has(aRow.numero.trim())) {
-      found = crmByNumero.get(aRow.numero.trim())!
-      confidence = 1.0
-    }
-
-    // Phase (b): exact normalized designation match
-    if (!found && aRow.designation) {
+    // Phase (a): exact normalized designation match — highest priority
+    if (aRow.designation) {
       const norm = normalizeDesignation(aRow.designation)
       if (crmByNorm.has(norm)) {
         found = crmByNorm.get(norm)!
         confidence = 0.95
+        // Check if numero contradicts the designation match
+        if (aRow.numero && found.numero &&
+            normalizeNumero(aRow.numero) !== normalizeNumero(found.numero)) {
+          numeroMismatch = true
+        }
       }
     }
 
-    // Phase (c): best similarity ≥ threshold
+    // Phase (b): best similarity ≥ threshold
     if (!found && aRow.designation) {
       let bestScore = 0
       let bestRow: ParsedRow | null = null
@@ -78,10 +88,28 @@ export function matchRows(
       if (bestScore >= SIMILARITY_THRESHOLD) {
         found = bestRow
         confidence = bestScore
+        if (found && aRow.numero && found.numero &&
+            normalizeNumero(aRow.numero) !== normalizeNumero(found.numero)) {
+          numeroMismatch = true
+        }
+      }
+    }
+
+    // Phase (c): exact numero match as last resort (designation didn't match)
+    if (!found && aRow.numero) {
+      const candidates = crmByNumero.get(normalizeNumero(aRow.numero)) ?? []
+      if (candidates.length === 1) {
+        found = candidates[0]
+        confidence = 0.7 // lower confidence: only numero matched
+      } else if (candidates.length > 1) {
+        // Multiple rows with same numero: skip numero matching, let Claude handle it
       }
     }
 
     if (found) {
+      const unitMismatch =
+        aRow.unit != null && found.unit != null &&
+        normalizeUnit(aRow.unit) !== normalizeUnit(found.unit)
       const quantityMismatch =
         aRow.quantity != null && found.quantity != null && aRow.quantity !== found.quantity
       matched.push({
@@ -89,7 +117,12 @@ export function matchRows(
         crmRowId: found.id,
         confidence,
         pu_ht_crm: found.pu_ht,
+        qty_crm: found.quantity,
+        unit_acheteur: aRow.unit,
+        unit_crm: found.unit,
         quantityMismatch,
+        unitMismatch,
+        numeroMismatch,
       })
     } else {
       unmatched.push(aRow)

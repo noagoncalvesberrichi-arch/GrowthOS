@@ -6,7 +6,22 @@ import type { FileAnalysis, ColumnMapping } from '@/lib/chiffrage/types'
 
 export const maxDuration = 60
 
-type MatchInput = { rowId: string; pu_ht: number | null }
+type MatchInput = { rowId: string; pu_ht: number | null; qty_crm?: number | null }
+
+function getColLetter(colIdx: number): string {
+  // Handles first 26 columns (A–Z)
+  return String.fromCharCode(65 + colIdx)
+}
+
+function parseFormulaRowRefs(formulaStr: string, colLetter: string): Set<number> {
+  const regex = new RegExp(colLetter.toUpperCase() + '(\\d+)', 'gi')
+  const refs = new Set<number>()
+  let m
+  while ((m = regex.exec(formulaStr)) !== null) {
+    refs.add(parseInt(m[1]))
+  }
+  return refs
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -25,6 +40,7 @@ export async function POST(req: NextRequest) {
     const matchesStr = formData.get('matches') as string | null
     const mappingsStr = formData.get('acheteurMappings') as string | null
     const structureStr = formData.get('acheteurStructure') as string | null
+    const crmFileName = formData.get('crmFileName') as string | null
 
     if (!acheteurFile || !matchesStr || !mappingsStr || !structureStr) {
       return NextResponse.json({ error: 'Paramètres manquants.' }, { status: 400 })
@@ -41,16 +57,17 @@ export async function POST(req: NextRequest) {
         headerRow: firstSheet?.headerRowIndex ?? null,
         columns: firstSheet ? (acheteurMappings[firstSheet.sheetName] ?? firstSheet.mapping) : null,
       })
+      // Do NOT save a record with 0 lines
       return NextResponse.json({ error: 'Aucune ligne de prix à générer. Vérifiez le mapping des colonnes.' }, { status: 400 })
     }
 
-    // Build lookup: rowId → pu_ht
-    const puByRowId = new Map<string, number | null>()
+    // Build lookup: rowId → MatchInput
+    const matchByRowId = new Map<string, MatchInput>()
     for (const m of matches) {
-      if (m.pu_ht != null) puByRowId.set(m.rowId, m.pu_ht)
+      if (m.pu_ht != null) matchByRowId.set(m.rowId, m)
     }
 
-    // Build lookup: `sheetName__rowIndex` → { puColIdx, totalColIdx, qtyColIdx }
+    // Build sheet meta: column indices per sheet
     type SheetMeta = { puColIdx: number | undefined; totalColIdx: number | undefined; qtyColIdx: number | undefined }
     const sheetMeta = new Map<string, SheetMeta>()
     for (const sheet of structure.sheets) {
@@ -62,11 +79,23 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    // Build lookup for formula detection: `sheetName__rowIndex` → formulaCols
+    // Build formula lookup: sheetName__rowIndex → formulaCols
     const formulaLookup = new Map<string, number[]>()
     for (const sheet of structure.sheets) {
       for (const raw of sheet.rawRows) {
         formulaLookup.set(`${sheet.sheetName}__${raw.rowIndex}`, raw.formulaCols)
+      }
+    }
+
+    // Build designation lookup for warnings
+    const designationByRowId = new Map<string, string>()
+    for (const sheet of structure.sheets) {
+      const mapping = acheteurMappings[sheet.sheetName] ?? sheet.mapping
+      const desigIdx = mapping.designation
+      if (desigIdx === undefined) continue
+      for (const raw of sheet.rawRows) {
+        const desig = raw.values[desigIdx]
+        if (desig != null) designationByRowId.set(`${sheet.sheetName}__${raw.rowIndex}`, String(desig))
       }
     }
 
@@ -80,6 +109,9 @@ export async function POST(req: NextRequest) {
     let montantTotalHt = 0
     const avertissements: string[] = []
 
+    // Track per-sheet: rowNumber → computed line total (for formula coverage check)
+    const lineBySheetRow = new Map<string, number>() // key: "sheetName__rowNumber"
+
     workbook.eachSheet((worksheet) => {
       const sheetName = worksheet.name
       const meta = sheetMeta.get(sheetName)
@@ -87,24 +119,36 @@ export async function POST(req: NextRequest) {
 
       worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
         const rowId = `${sheetName}__${rowNumber}`
-        const pu = puByRowId.get(rowId)
-        if (pu == null) return
+        const match = matchByRowId.get(rowId)
+        if (!match || match.pu_ht == null) return
+
+        const pu = match.pu_ht
 
         // Write PU HT
-        const puCell = row.getCell(meta.puColIdx! + 1) // ExcelJS is 1-based
+        const puCell = row.getCell(meta.puColIdx! + 1)
         puCell.value = pu
         nbRapprochees++
 
-        // Always compute qty and accumulate total = PU × qty (formula cells aren't recalculated server-side)
+        // Determine quantity: use existing cell value, fall back to CRM qty if empty
         let qty: number | null = null
         if (meta.qtyColIdx !== undefined) {
           qty = parseNumber(row.getCell(meta.qtyColIdx + 1).value as string | number | null)
-        }
-        if (qty != null) {
-          montantTotalHt += Math.round(pu * qty * 100) / 100
+          if (qty == null && match.qty_crm != null) {
+            qty = match.qty_crm
+            const qtyCell = row.getCell(meta.qtyColIdx + 1)
+            if (qtyCell.value == null || qtyCell.value === '') {
+              qtyCell.value = qty
+            }
+          }
         }
 
-        // Write total HT cell only when it has no formula (formula cells auto-compute on open in Excel)
+        if (qty != null) {
+          const lineTotal = Math.round(pu * qty * 100) / 100
+          montantTotalHt += lineTotal
+          lineBySheetRow.set(rowId, lineTotal)
+        }
+
+        // Write total HT only for non-formula cells
         if (meta.totalColIdx !== undefined && qty != null) {
           const formulaCols = formulaLookup.get(rowId) ?? []
           const totalHasFormula = formulaCols.includes(meta.totalColIdx)
@@ -119,25 +163,74 @@ export async function POST(req: NextRequest) {
       })
     })
 
-    if (puByRowId.size > nbRapprochees) {
-      avertissements.push(`${puByRowId.size - nbRapprochees} ligne(s) non trouvée(s) dans le fichier original.`)
+    // Formula coverage check: detect total formulas that miss filled price rows
+    workbook.eachSheet((worksheet) => {
+      const sheetName = worksheet.name
+      const meta = sheetMeta.get(sheetName)
+      if (!meta || meta.totalColIdx === undefined) return
+
+      const totalColNum = meta.totalColIdx + 1
+      const colLetter = getColLetter(meta.totalColIdx)
+
+      worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+        const cell = row.getCell(totalColNum)
+        const cv = cell.value
+        if (!cv || typeof cv !== 'object') return
+
+        let formulaStr = ''
+        if ('formula' in cv) formulaStr = (cv as { formula?: string }).formula ?? ''
+        if (!formulaStr.toUpperCase().includes('SUM')) return
+
+        const referenced = parseFormulaRowRefs(formulaStr, colLetter)
+        if (referenced.size === 0) return
+        const minRef = Math.min(...referenced)
+        const maxRef = Math.max(...referenced)
+
+        const missingRows: number[] = []
+        for (const [key, lineTotal] of lineBySheetRow) {
+          const [rowSheet, rowNumStr] = key.split('__')
+          if (rowSheet !== sheetName) continue
+          const rowNum = parseInt(rowNumStr)
+          // Only flag rows within the range of this formula (avoids flagging PSE rows)
+          if (rowNum >= minRef && rowNum <= maxRef && !referenced.has(rowNum) && lineTotal > 0) {
+            missingRows.push(rowNum)
+          }
+        }
+
+        if (missingRows.length > 0) {
+          const gapEuros = missingRows.reduce((s, rn) => s + (lineBySheetRow.get(`${sheetName}__${rn}`) ?? 0), 0)
+          const desigs = missingRows.map(rn => {
+            const d = designationByRowId.get(`${sheetName}__${rn}`)
+            return d ? `ligne ${rn} (${d.slice(0, 40)})` : `ligne ${rn}`
+          }).join(', ')
+          avertissements.push(
+            `Feuille "${sheetName}" : la formule du total (ligne ${rowNumber}) omet ${desigs}. ` +
+            `Écart : ${gapEuros.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €.`
+          )
+        }
+      })
+    })
+
+    if (matchByRowId.size > nbRapprochees) {
+      avertissements.push(`${matchByRowId.size - nbRapprochees} ligne(s) non trouvée(s) dans le fichier original.`)
     }
 
     const buffer = await workbook.xlsx.writeBuffer()
-
     const baseName = acheteurFile.name.replace(/\.xlsx$/i, '')
     const outputName = `${baseName}_chiffré.xlsx`
 
-    // Save record to DB
-    await supabase.from('chiffrages').insert({
-      user_id: user.id,
-      nom_fichier_acheteur: acheteurFile.name,
-      nom_fichier_crm: 'N/A',
-      nb_lignes: matches.length,
-      nb_rapprochees: nbRapprochees,
-      montant_total_ht: montantTotalHt > 0 ? montantTotalHt : null,
-      statut: 'ok',
-    })
+    // Save record — only when at least one line was filled
+    if (nbRapprochees > 0) {
+      await supabase.from('chiffrages').insert({
+        user_id: user.id,
+        nom_fichier_acheteur: acheteurFile.name,
+        nom_fichier_crm: crmFileName ?? 'N/A',
+        nb_lignes: matches.length,
+        nb_rapprochees: nbRapprochees,
+        montant_total_ht: montantTotalHt > 0 ? montantTotalHt : null,
+        statut: 'ok',
+      })
+    }
 
     return new NextResponse(Buffer.from(buffer as ArrayBuffer), {
       status: 200,
@@ -147,6 +240,7 @@ export async function POST(req: NextRequest) {
         'X-Montant-Total-Ht': String(montantTotalHt),
         'X-Nb-Rapprochees': String(nbRapprochees),
         'X-Nb-Lignes': String(matches.length),
+        'X-Avertissements': encodeURIComponent(JSON.stringify(avertissements)),
       },
     })
   } catch (err) {

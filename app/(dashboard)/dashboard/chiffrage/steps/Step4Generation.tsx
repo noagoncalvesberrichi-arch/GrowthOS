@@ -10,13 +10,14 @@ type Props = {
   acheteurAnalysis: FileAnalysis
   acheteurMappings: Record<string, ColumnMapping>
   matches: MatchedRow[]
+  crmFileName: string | null
   profil: Partial<ProfilEntreprise> | null
   onReset: () => void
 }
 
 const INPUT = 'w-full bg-background border border-border rounded-xl px-4 py-3 font-syne text-[13px] text-text placeholder:text-text-subtle focus:outline-none focus:border-brand-amber focus:ring-2 focus:ring-brand-amber/10 transition-all'
 
-export function Step4Generation({ acheteurFile, acheteurAnalysis, acheteurMappings, matches, profil, onReset }: Props) {
+export function Step4Generation({ acheteurFile, acheteurAnalysis, acheteurMappings, matches, crmFileName, profil, onReset }: Props) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [generated, setGenerated] = useState(false)
@@ -48,9 +49,14 @@ export function Step4Generation({ acheteurFile, acheteurAnalysis, acheteurMappin
     try {
       const fd = new FormData()
       fd.append('acheteur', acheteurFile)
-      fd.append('matches', JSON.stringify(matches.filter(m => m.pu_ht_crm != null).map(m => ({ rowId: m.acheteurRowId, pu_ht: m.pu_ht_crm }))))
+      fd.append('matches', JSON.stringify(
+        matches
+          .filter(m => m.pu_ht_crm != null)
+          .map(m => ({ rowId: m.acheteurRowId, pu_ht: m.pu_ht_crm, qty_crm: m.qty_crm ?? null }))
+      ))
       fd.append('acheteurMappings', JSON.stringify(acheteurMappings))
       fd.append('acheteurStructure', JSON.stringify(acheteurAnalysis))
+      if (crmFileName) fd.append('crmFileName', crmFileName)
 
       const res = await fetch('/api/chiffrage/generer', { method: 'POST', body: fd })
       if (!res.ok) {
@@ -61,10 +67,13 @@ export function Step4Generation({ acheteurFile, acheteurAnalysis, acheteurMappin
       const ht = parseFloat(res.headers.get('X-Montant-Total-Ht') ?? '0')
       const nb = parseInt(res.headers.get('X-Nb-Lignes') ?? '0', 10)
       const nbR = parseInt(res.headers.get('X-Nb-Rapprochees') ?? '0', 10)
+      const avStr = res.headers.get('X-Avertissements')
+      const averts: string[] = avStr ? (JSON.parse(decodeURIComponent(avStr)) as string[]) : []
 
       setMontantHt(isNaN(ht) ? 0 : ht)
       setNbLignes(isNaN(nb) ? 0 : nb)
       setNbRapprochees(isNaN(nbR) ? 0 : nbR)
+      setAvertissements(averts)
       setGenerated(true)
 
       // Download

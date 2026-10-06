@@ -2,7 +2,6 @@ export function normalizeDesignation(s: string): string {
   return s
     .toLowerCase()
     .normalize('NFD').replace(/[̀-ͯ]/g, '')
-    // Unit normalization BEFORE punctuation strip (² and ³ are not combining chars)
     .replace(/m²/g, 'm2')
     .replace(/m³/g, 'm3')
     .replace(/[^a-z0-9\s]/g, ' ')
@@ -26,6 +25,19 @@ export function similarity(a: string, b: string): number {
   if (wa.size === 0 || wb.size === 0) return 0
   let inter = 0
   wa.forEach(w => { if (wb.has(w)) inter++ })
-  // Overlap coefficient: penalizes only on the smaller set, handles subset designations
   return inter / Math.min(wa.size, wb.size)
+}
+
+// Normalize a numero value: convert floats to consistent string (2.10 → "2.1")
+export function normalizeNumero(s: string): string {
+  const n = parseFloat(s.replace(',', '.'))
+  if (!isNaN(n)) return String(n)
+  return s.toLowerCase().trim()
+}
+
+// Normalize a unit value for comparison
+export function normalizeUnit(u: string): string {
+  return u.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim()
+    .replace(/\bforfait\b/g, 'f')
+    .replace(/\s+/g, '')
 }

@@ -112,15 +112,11 @@ export function Step2Mapping({
   const visibleAcheteur = acheteurAnalysis.sheets.filter(s => !s.isHidden)
   const visibleCrm = crmAnalysis.sheets.filter(s => !s.isHidden)
 
-  // Detect if any acheteur sheet has price data in the mapped column
+  // Detect if any acheteur sheet has the PU column mapped.
+  // A blank DPGF (all PU cells empty) is valid — we're filling it. Only warn when the column itself is unmapped.
   const hasPriceData = visibleAcheteur.some(sheet => {
     const mapping = acheteurMappings[sheet.sheetName] ?? sheet.mapping
-    const puIdx = mapping.pu_ht
-    if (puIdx === undefined) return false
-    return sheet.rawRows.some(row => {
-      const val = row.values[puIdx]
-      return typeof val === 'number' && val > 0 && !row.isTitle && !row.isSubtotal
-    })
+    return mapping.pu_ht !== undefined && mapping.designation !== undefined
   })
 
   const handleHeaderOverride = (sheetName: string, rawRowIdx: number) => {

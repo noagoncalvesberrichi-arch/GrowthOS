@@ -83,7 +83,7 @@ export function Step3Matching({
         : m
     )
     if (!next.find(m => m.acheteurRowId === acheteurRowId)) {
-      next.push({ acheteurRowId, crmRowId, confidence: crmRowId ? 1.0 : 0, pu_ht_crm: crm?.pu_ht ?? null, quantityMismatch: false })
+      next.push({ acheteurRowId, crmRowId, confidence: crmRowId ? 1.0 : 0, pu_ht_crm: crm?.pu_ht ?? null, qty_crm: crm?.quantity ?? null, unit_acheteur: null, unit_crm: crm?.unit ?? null, quantityMismatch: false, unitMismatch: false, numeroMismatch: false })
     }
     onMatchesChange(next)
   }
@@ -126,7 +126,15 @@ export function Step3Matching({
                     <td className="px-3 py-2">
                       <p className="font-syne text-[12px] text-text leading-snug line-clamp-2">{aRow.designation}</p>
                       {match?.quantityMismatch && (
-                        <p className="font-mono text-[10px] text-yellow-400 mt-0.5">Qtés différentes</p>
+                        <p className="font-mono text-[10px] text-yellow-400 mt-0.5">⚠ Qtés différentes</p>
+                      )}
+                      {match?.unitMismatch && (
+                        <p className="font-mono text-[10px] text-amber-400 mt-0.5">
+                          ⚠ Unité : {match.unit_acheteur} ≠ {match.unit_crm}
+                        </p>
+                      )}
+                      {match?.numeroMismatch && (
+                        <p className="font-mono text-[10px] text-orange-400 mt-0.5">⚠ N° contradictoire — rapprochement par désignation</p>
                       )}
                     </td>
                     <td className="px-3 py-2">
