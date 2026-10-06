@@ -4,7 +4,7 @@ import { useState, useTransition, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import {
   genererMemoire, sauvegarderMemoire, chargerMemoire,
-  preparerGenerationV2, genererSectionV2, genererConclusionV2,
+  preparerGenerationV2, genererSectionV2, genererConclusionV2, planifierSousPartiesSection,
   type SectionPlan, type SectionResult,
 } from './actions'
 import type { AnalyseItem } from './page'
@@ -153,12 +153,26 @@ const INPUT_CLASS = 'w-full bg-background border border-border rounded-xl px-4 p
 
 // ─── V2 Generation state machine ─────────────────────────────────────────────
 
+type SubPartState = {
+  sectionPlanIndex: number
+  parts: { titre: string; targetWords: number }[]
+  currentPartIndex: number
+  texts: string[]
+}
+
+type ResumeState = {
+  plan: SectionPlan[]
+  introBlocs: { id: string; titre: string }[]
+  currentIndex: number
+  total: number
+}
+
 type V2Phase =
   | { phase: 'idle' }
   | { phase: 'planning' }
-  | { phase: 'generating'; plan: SectionPlan[]; introBlocs: { id: string; titre: string }[]; currentIndex: number; total: number; results: SectionResult[]; missingFields: string[] }
+  | { phase: 'generating'; plan: SectionPlan[]; introBlocs: { id: string; titre: string }[]; currentIndex: number; total: number; results: SectionResult[]; missingFields: string[]; subPart?: SubPartState }
   | { phase: 'done'; results: SectionResult[]; missingFields: string[] }
-  | { phase: 'error'; message: string }
+  | { phase: 'error'; message: string; partialResults: SectionResult[]; missingFields: string[]; resumeState?: ResumeState }
 
 // ─── BlocPickerModal ──────────────────────────────────────────────────────────
 
@@ -382,104 +396,176 @@ export function MemoireForm({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // V2 generation loop — fires each time currentIndex advances
+  function buildTrameFromSections(sections: SectionResult[]): string {
+    return sections.map(s => s.text).join('\n\n')
+  }
+
+  // Timeout helper : 90 s par appel serveur (bien en dessous du maxDuration Vercel de 300 s)
+  function withTimeout<T>(promise: Promise<T>): Promise<T> {
+    return Promise.race([
+      promise,
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Délai dépassé (90 s) — vérifiez votre connexion et réessayez la section.')), 90_000)
+      ),
+    ])
+  }
+
+  // Clé de déclenchement : change à chaque avancement (section OU sous-partie)
+  const v2GenKey = v2State.phase === 'generating'
+    ? `${v2State.currentIndex}:${v2State.subPart?.currentPartIndex ?? 'none'}`
+    : 'idle'
+
+  // V2 generation loop
   useEffect(() => {
     if (v2State.phase !== 'generating') return
     if (v2RunRef.current) return
     v2RunRef.current = true
 
     const runNext = async () => {
-      const { plan, introBlocs, currentIndex, total, results, missingFields } = v2State
+      if (v2State.phase !== 'generating') return
+      const { plan, introBlocs, currentIndex, total, results, missingFields, subPart } = v2State
 
-      if (currentIndex >= total) {
-        // All sections done — generate conclusion
-        const concRes = await genererConclusionV2({
-          analyseId: mode === 'analyse' ? selectedAnalyseId : null,
-          descriptionManuelle: mode === 'manuel' ? descriptionMarche : null,
-          longueur,
-        })
-        const conclusionText = 'text' in concRes ? concRes.text : ''
+      const analyseIdForCall = mode === 'analyse' ? selectedAnalyseId : null
+      const descriptionForCall = mode === 'manuel' ? descriptionMarche : null
 
-        const allSections: SectionResult[] = [
-          ...results,
-          ...(conclusionText ? [{ titre: 'Conclusion', ponderation: '', text: conclusionText, blocs: [], wordCount: conclusionText.split(/\s+/).filter(Boolean).length }] : []),
-        ]
+      try {
+        // ── Mode sous-partie : générer la sous-partie courante ──────────────────
+        if (subPart) {
+          const { sectionPlanIndex, parts, currentPartIndex, texts } = subPart
+          const sectionPlan = plan[sectionPlanIndex]
+          const part = parts[currentPartIndex]
 
-        const assembled = buildTrameFromSections(allSections)
-        setV2Sections(allSections)
-        setTrame(assembled)
-        setV2State({ phase: 'done', results: allSections, missingFields })
+          const res = await withTimeout(genererSectionV2({
+            analyseId: analyseIdForCall,
+            descriptionManuelle: descriptionForCall,
+            sectionTitre: part.titre,
+            sectionPonderation: sectionPlan.ponderation,
+            blocsIds: sectionPlan.blocs.map(b => b.id),
+            longueur,
+            targetWords: part.targetWords,
+            isSubPart: true,
+          }))
 
-        if (mode === 'analyse' && selectedAnalyseId) {
-          skipNextSaveRef.current = true
-          sauvegarderMemoire(selectedAnalyseId, assembled).then(() => setSaveStatus('saved'))
+          if ('error' in res) {
+            setV2Sections(results); setTrame(buildTrameFromSections(results))
+            setV2State({ phase: 'error', message: res.error, partialResults: results, missingFields, resumeState: { plan, introBlocs, currentIndex, total } })
+            v2RunRef.current = false; return
+          }
+
+          const newTexts = [...texts, res.text]
+
+          if (currentPartIndex + 1 >= parts.length) {
+            // Dernière sous-partie : assembler la section complète
+            const sectionBody = newTexts.join('\n\n')
+            const combinedWC = sectionBody.split(/\s+/).filter(Boolean).length
+            const assembled = sectionPlan.ponderation
+              ? `## ${sectionPlan.titre.toUpperCase()}\n\n${sectionBody}`
+              : `## ${sectionPlan.titre}\n\n${sectionBody}`
+            const newResult: SectionResult = {
+              titre: sectionPlan.titre, ponderation: sectionPlan.ponderation,
+              text: assembled, blocs: res.blocs, wordCount: combinedWC, targetWords: sectionPlan.targetWords,
+            }
+            const newResults = [...results, newResult]
+            if (analyseIdForCall) sauvegarderMemoire(analyseIdForCall, buildTrameFromSections(newResults)).catch(() => {})
+            v2RunRef.current = false
+            setV2State({ phase: 'generating', plan, introBlocs, currentIndex: currentIndex + 1, total, results: newResults, missingFields, subPart: undefined })
+          } else {
+            v2RunRef.current = false
+            setV2State({ phase: 'generating', plan, introBlocs, currentIndex, total, results, missingFields, subPart: { ...subPart, currentPartIndex: currentPartIndex + 1, texts: newTexts } })
+          }
+          return
         }
+
+        // ── Fin : générer la conclusion ────────────────────────────────────────
+        if (currentIndex >= total) {
+          const concRes = await withTimeout(genererConclusionV2({ analyseId: analyseIdForCall, descriptionManuelle: descriptionForCall, longueur }))
+          const conclusionText = 'text' in concRes ? concRes.text : ''
+          const allSections: SectionResult[] = [
+            ...results,
+            ...(conclusionText ? [{ titre: 'Conclusion', ponderation: '', text: conclusionText, blocs: [], wordCount: conclusionText.split(/\s+/).filter(Boolean).length }] : []),
+          ]
+          const assembled = buildTrameFromSections(allSections)
+          setV2Sections(allSections); setTrame(assembled)
+          setV2State({ phase: 'done', results: allSections, missingFields })
+          if (mode === 'analyse' && analyseIdForCall) {
+            skipNextSaveRef.current = true
+            sauvegarderMemoire(analyseIdForCall, assembled).then(() => setSaveStatus('saved'))
+          }
+          v2RunRef.current = false; return
+        }
+
+        // ── Section suivante ──────────────────────────────────────────────────
+        let sectionPlan: SectionPlan | undefined
+        let blocsIds: string[]
+        let isIntro = false
+        const introTargetWords = longueur === 'court' ? 150 : longueur === 'complet' ? 300 : 200
+
+        if (currentIndex === 0) {
+          isIntro = true
+          sectionPlan = { titre: 'Introduction', ponderation: '', blocs: introBlocs.map(b => ({ ...b, categorie: 'presentation' })), targetWords: introTargetWords }
+          blocsIds = introBlocs.map(b => b.id)
+        } else {
+          sectionPlan = plan[currentIndex - 1]
+          blocsIds = sectionPlan?.blocs.map(b => b.id) ?? []
+        }
+
+        const sectionTargetWords = sectionPlan?.targetWords ?? 500
+
+        // Si la cible dépasse 1 000 mots : découper en sous-parties d'abord
+        if (!isIntro && sectionTargetWords > 1000) {
+          const planRes = await withTimeout(planifierSousPartiesSection({
+            analyseId: analyseIdForCall,
+            descriptionManuelle: descriptionForCall,
+            sectionTitre: sectionPlan?.titre ?? '',
+            sectionPonderation: sectionPlan?.ponderation ?? '',
+            targetWords: sectionTargetWords,
+          }))
+          if (!('error' in planRes) && planRes.parts.length > 0) {
+            v2RunRef.current = false
+            setV2State({ phase: 'generating', plan, introBlocs, currentIndex, total, results, missingFields, subPart: { sectionPlanIndex: currentIndex - 1, parts: planRes.parts, currentPartIndex: 0, texts: [] } })
+            return
+          }
+          // Si le plan échoue : génération directe plafonnée à 1 000 mots
+        }
+
+        // Génération directe (section courte, ou repli)
+        const res = await withTimeout(genererSectionV2({
+          analyseId: analyseIdForCall,
+          descriptionManuelle: descriptionForCall,
+          sectionTitre: sectionPlan?.titre ?? '',
+          sectionPonderation: sectionPlan?.ponderation ?? '',
+          blocsIds,
+          longueur,
+          isIntro,
+          targetWords: Math.min(sectionTargetWords, 1000),
+        }))
+
+        if ('error' in res) {
+          setV2Sections(results); setTrame(buildTrameFromSections(results))
+          setV2State({ phase: 'error', message: res.error, partialResults: results, missingFields, resumeState: { plan, introBlocs, currentIndex, total } })
+          v2RunRef.current = false; return
+        }
+
+        const newResult: SectionResult = {
+          titre: sectionPlan?.titre ?? '', ponderation: sectionPlan?.ponderation ?? '',
+          text: res.text, blocs: res.blocs, wordCount: res.wordCount, targetWords: sectionPlan?.targetWords,
+        }
+        const newResults = [...results, newResult]
+        if (analyseIdForCall) sauvegarderMemoire(analyseIdForCall, buildTrameFromSections(newResults)).catch(() => {})
         v2RunRef.current = false
-        return
-      }
+        setV2State({ phase: 'generating', plan, introBlocs, currentIndex: currentIndex + 1, total, results: newResults, missingFields, subPart: undefined })
 
-      // Generate current section
-      let sectionPlan: SectionPlan | undefined
-      let blocsIds: string[]
-      let isIntro = false
-      const introTargetWords = longueur === 'court' ? 150 : longueur === 'complet' ? 300 : 200
-
-      if (currentIndex === 0) {
-        isIntro = true
-        sectionPlan = { titre: 'Introduction', ponderation: '', blocs: introBlocs.map(b => ({ ...b, categorie: 'presentation' })), targetWords: introTargetWords }
-        blocsIds = introBlocs.map(b => b.id)
-      } else {
-        sectionPlan = plan[currentIndex - 1]
-        blocsIds = sectionPlan?.blocs.map(b => b.id) ?? []
-      }
-
-      const res = await genererSectionV2({
-        analyseId: mode === 'analyse' ? selectedAnalyseId : null,
-        descriptionManuelle: mode === 'manuel' ? descriptionMarche : null,
-        sectionTitre: sectionPlan?.titre ?? '',
-        sectionPonderation: sectionPlan?.ponderation ?? '',
-        blocsIds,
-        longueur,
-        isIntro,
-        targetWords: sectionPlan?.targetWords,
-      })
-
-      if ('error' in res) {
-        setV2State({ phase: 'error', message: res.error })
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Erreur inattendue lors de la génération.'
+        setV2Sections(results); setTrame(buildTrameFromSections(results))
+        setV2State({ phase: 'error', message: msg, partialResults: results, missingFields, resumeState: { plan, introBlocs, currentIndex, total } })
         v2RunRef.current = false
-        return
       }
-
-      const newResult: SectionResult = {
-        titre: sectionPlan?.titre ?? '',
-        ponderation: sectionPlan?.ponderation ?? '',
-        text: res.text,
-        blocs: res.blocs,
-        wordCount: res.wordCount,
-        targetWords: sectionPlan?.targetWords,
-      }
-
-      const newResults = [...results, newResult]
-
-      v2RunRef.current = false
-      setV2State({
-        phase: 'generating',
-        plan,
-        introBlocs,
-        currentIndex: currentIndex + 1,
-        total,
-        results: newResults,
-        missingFields,
-      })
     }
 
     runNext()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [v2State.phase === 'generating' ? (v2State as Extract<V2Phase, {phase:'generating'}>).currentIndex : -1])
-
-  function buildTrameFromSections(sections: SectionResult[]): string {
-    return sections.map(s => s.text).join('\n\n')
-  }
+  }, [v2GenKey])
 
   const handleGenerer = () => {
     setError(null)
@@ -491,30 +577,24 @@ export function MemoireForm({
     const descriptionForGen = mode === 'manuel' ? descriptionMarche : null
 
     if (useV2) {
-      // V2 flow: plan first, then section by section
       v2RunRef.current = false
       setV2State({ phase: 'planning' })
       preparerGenerationV2(analyseIdForGen, descriptionForGen, longueur).then(planRes => {
-        if ('error' in planRes) { setV2State({ phase: 'error', message: planRes.error }); return }
-        if (!planRes.sections.length && !planRes.introBlocs.length) {
-          // Fallback to V1
-          runV1Generation()
-          return
-        }
-        const total = 1 + planRes.sections.length // 1 intro + N sections (conclusion is handled at the end)
-        setV2State({
-          phase: 'generating',
-          plan: planRes.sections,
-          introBlocs: planRes.introBlocs,
-          currentIndex: 0,
-          total,
-          results: [],
-          missingFields: planRes.missingFields,
-        })
+        if ('error' in planRes) { setV2State({ phase: 'error', message: planRes.error, partialResults: [], missingFields: [] }); return }
+        if (!planRes.sections.length && !planRes.introBlocs.length) { runV1Generation(); return }
+        const total = 1 + planRes.sections.length
+        setV2State({ phase: 'generating', plan: planRes.sections, introBlocs: planRes.introBlocs, currentIndex: 0, total, results: [], missingFields: planRes.missingFields })
       })
     } else {
       runV1Generation()
     }
+  }
+
+  const handleResume = () => {
+    if (v2State.phase !== 'error' || !v2State.resumeState) return
+    v2RunRef.current = false
+    const { plan, introBlocs, currentIndex, total } = v2State.resumeState
+    setV2State({ phase: 'generating', plan, introBlocs, currentIndex, total, results: v2State.partialResults, missingFields: v2State.missingFields })
   }
 
   const runV1Generation = () => {
@@ -543,7 +623,51 @@ export function MemoireForm({
     if (!section) { setRegenIdx(null); return }
 
     const blocsIds = customBlocsIds ?? section.blocs.map(b => b.id)
+    const sectionTargetWords = section.targetWords ?? 500
 
+    // Grandes sections : découper en sous-parties
+    if (sectionTargetWords > 1000 && section.titre !== 'Introduction') {
+      const planRes = await planifierSousPartiesSection({
+        analyseId: mode === 'analyse' ? selectedAnalyseId : null,
+        descriptionManuelle: mode === 'manuel' ? descriptionMarche : null,
+        sectionTitre: section.titre,
+        sectionPonderation: section.ponderation,
+        targetWords: sectionTargetWords,
+      }).catch(() => ({ error: 'Échec du découpage' }))
+
+      if (!('error' in planRes) && planRes.parts.length > 0) {
+        const texts: string[] = []
+        let lastBlocs: { id: string; titre: string }[] = []
+        for (const part of planRes.parts) {
+          const res = await genererSectionV2({
+            analyseId: mode === 'analyse' ? selectedAnalyseId : null,
+            descriptionManuelle: mode === 'manuel' ? descriptionMarche : null,
+            sectionTitre: part.titre,
+            sectionPonderation: section.ponderation,
+            blocsIds,
+            longueur,
+            targetWords: part.targetWords,
+            isSubPart: true,
+          })
+          if ('error' in res) { setRegenIdx(null); return }
+          texts.push(res.text)
+          lastBlocs = res.blocs
+        }
+        const body = texts.join('\n\n')
+        const assembled = section.ponderation ? `## ${section.titre.toUpperCase()}\n\n${body}` : `## ${section.titre}\n\n${body}`
+        const updated = [...v2Sections]
+        updated[index] = { ...section, text: assembled, blocs: lastBlocs, wordCount: assembled.split(/\s+/).filter(Boolean).length }
+        setV2Sections(updated)
+        const newTrame = buildTrameFromSections(updated)
+        setTrame(newTrame)
+        skipNextSaveRef.current = true
+        if (mode === 'analyse' && selectedAnalyseId) sauvegarderMemoire(selectedAnalyseId, newTrame).then(() => setSaveStatus('saved'))
+        setRegenIdx(null)
+        return
+      }
+    }
+
+    // Section courte ou repli
     const res = await genererSectionV2({
       analyseId: mode === 'analyse' ? selectedAnalyseId : null,
       descriptionManuelle: mode === 'manuel' ? descriptionMarche : null,
@@ -552,20 +676,16 @@ export function MemoireForm({
       blocsIds,
       longueur,
       isIntro: section.titre === 'Introduction',
-      targetWords: section.targetWords,
+      targetWords: Math.min(sectionTargetWords, 1000),
     })
-
     if ('error' in res) { setRegenIdx(null); return }
-
     const updated = [...v2Sections]
     updated[index] = { ...section, text: res.text, blocs: res.blocs, wordCount: res.wordCount }
     setV2Sections(updated)
-    const assembled = buildTrameFromSections(updated)
-    setTrame(assembled)
+    const newTrame = buildTrameFromSections(updated)
+    setTrame(newTrame)
     skipNextSaveRef.current = true
-    if (mode === 'analyse' && selectedAnalyseId) {
-      sauvegarderMemoire(selectedAnalyseId, assembled).then(() => setSaveStatus('saved'))
-    }
+    if (mode === 'analyse' && selectedAnalyseId) sauvegarderMemoire(selectedAnalyseId, newTrame).then(() => setSaveStatus('saved'))
     setRegenIdx(null)
   }
 
@@ -711,7 +831,19 @@ export function MemoireForm({
         )}
 
         {error && <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3"><p className="font-syne text-[13px] font-semibold text-red-600">{error}</p></div>}
-        {v2State.phase === 'error' && <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3"><p className="font-syne text-[13px] font-semibold text-red-600">{v2State.message}</p></div>}
+        {v2State.phase === 'error' && (
+          <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 space-y-2">
+            <p className="font-syne text-[13px] font-semibold text-red-600">{v2State.message}</p>
+            {v2State.partialResults.length > 0 && (
+              <p className="font-syne text-[12px] text-red-500">{v2State.partialResults.length} section{v2State.partialResults.length > 1 ? 's' : ''} déjà générée{v2State.partialResults.length > 1 ? 's' : ''} — vous pouvez reprendre sans tout relancer.</p>
+            )}
+            {v2State.resumeState && (
+              <button type="button" onClick={handleResume} className="mt-1 font-syne text-[12px] font-semibold text-red-700 underline underline-offset-2 hover:text-red-900 transition-colors">
+                Reprendre la génération →
+              </button>
+            )}
+          </div>
+        )}
 
         <button
           type="button"
@@ -742,10 +874,16 @@ export function MemoireForm({
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <p className="font-syne text-[12px] text-text-subtle">
-                    Section {Math.min(v2Progress.current + 1, v2Progress.total)}/{v2Progress.total}
-                    {v2State.currentIndex === 0 ? ' — Introduction' : v2State.plan[v2State.currentIndex - 1] ? ` — ${v2State.plan[v2State.currentIndex - 1].titre}` : ' — Conclusion'}
+                    {(() => {
+                      const sectionLabel = v2State.currentIndex === 0 ? 'Introduction' : v2State.plan[v2State.currentIndex - 1]?.titre ?? 'Conclusion'
+                      const sectionNum = Math.min(v2State.currentIndex + 1, v2Progress.total)
+                      if (v2State.subPart) {
+                        return `Section ${sectionNum}/${v2Progress.total} — ${sectionLabel} (partie ${v2State.subPart.currentPartIndex + 1}/${v2State.subPart.parts.length})`
+                      }
+                      return `Section ${sectionNum}/${v2Progress.total} — ${sectionLabel}`
+                    })()}
                   </p>
-                  <p className="font-syne text-[11px] text-text-subtle">{Math.round(((v2Progress.current) / v2Progress.total) * 100)}%</p>
+                  <p className="font-syne text-[11px] text-text-subtle">{Math.round((v2Progress.current / v2Progress.total) * 100)}%</p>
                 </div>
                 <div className="w-full bg-border rounded-full h-1.5 overflow-hidden">
                   <div
@@ -765,7 +903,11 @@ export function MemoireForm({
                     <div className="flex items-center gap-2">
                       <div className="flex gap-0.5">{[0,1,2].map(i => <div key={i} className="w-1 h-1 rounded-full bg-accent animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />)}</div>
                       <p className="font-syne text-[11px] text-accent">
-                        {v2State.currentIndex === 0 ? 'Introduction' : v2State.plan[v2State.currentIndex - 1]?.titre ?? 'Conclusion'} en cours…
+                        {(() => {
+                          const label = v2State.currentIndex === 0 ? 'Introduction' : v2State.plan[v2State.currentIndex - 1]?.titre ?? 'Conclusion'
+                          if (v2State.subPart) return `${label} — partie ${v2State.subPart.currentPartIndex + 1}/${v2State.subPart.parts.length} en cours…`
+                          return `${label} en cours…`
+                        })()}
                       </p>
                     </div>
                   </div>

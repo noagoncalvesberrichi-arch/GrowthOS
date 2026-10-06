@@ -753,6 +753,7 @@ export async function genererSectionV2(params: {
   longueur: 'court' | 'standard' | 'complet'
   isIntro?: boolean
   targetWords?: number
+  isSubPart?: boolean
 }): Promise<GenSectionResult> {
   try {
     const supabase = await createClient()
@@ -787,7 +788,9 @@ export async function genererSectionV2(params: {
       ? params.descriptionManuelle
       : buildMarcheBlock(resultat, null)
 
-    // Token budget : 2,2 tokens/mot français + 300 de marge, plafonné à 8000 (limite Sonnet)
+    // Budget tokens : 2,2 tokens/mot + 300 marge. Plafonné à 2 500 (≈ 1 000 mots)
+    // pour garantir que chaque appel tient en < 60 s sur Vercel.
+    // Les sections > 1 000 mots sont découpées en sous-parties côté client.
     const pondVal = parsePonderation(params.sectionPonderation)
     const targetWords = params.targetWords !== undefined
       ? params.targetWords
@@ -796,7 +799,7 @@ export async function genererSectionV2(params: {
         : !params.sectionPonderation
           ? 400
           : Math.max(150, Math.round((WORD_TARGETS_TOTAL[params.longueur] ?? 7000) * pondVal / 100))
-    const maxT = Math.min(8000, Math.ceil(targetWords * 2.2) + 300)
+    const maxT = Math.min(2500, Math.ceil(targetWords * 2.2) + 300)
 
     const blocsBlock = blocsContent.length > 0
       ? `\nBLOCS DE RÉFÉRENCE DE L'ENTREPRISE (contenu technique réel) :\n${blocsContent.map((b, i) => `[Bloc ${i + 1} — ${b.titre}]\n${b.contenu.slice(0, 1500)}`).join('\n\n')}\n`
@@ -821,11 +824,11 @@ ${marcheBlock}
 PROFIL DE L'ENTREPRISE :
 ${profilBlock}
 ${blocsBlock}
-SECTION À RÉDIGER : ${params.isIntro ? 'INTRODUCTION — PRÉSENTATION DE L\'ENTREPRISE' : params.sectionTitre} ${params.isIntro ? '' : `(${params.sectionPonderation})`}
+SECTION À RÉDIGER : ${params.isIntro ? 'INTRODUCTION — PRÉSENTATION DE L\'ENTREPRISE' : params.isSubPart ? `SOUS-PARTIE — ${params.sectionTitre}` : params.sectionTitre} ${params.isIntro || params.isSubPart ? '' : `(${params.sectionPonderation})`}
 
 ${vigilance.length > 0 ? `POINTS DE VIGILANCE à adresser dans cette section :\n${vigilance.map(p => `- ${p}`).join('\n')}\n` : ''}
 INSTRUCTIONS :
-- Commence directement par le titre de la section en majuscules (ex: ## ${params.isIntro ? 'INTRODUCTION — PRÉSENTATION DE L\'ENTREPRISE' : params.sectionTitre.toUpperCase()})
+- Commence directement par ${params.isSubPart ? `le titre de la sous-partie (ex: ### ${params.sectionTitre})` : `le titre de la section en majuscules (ex: ## ${params.isIntro ? 'INTRODUCTION — PRÉSENTATION DE L\'ENTREPRISE' : params.sectionTitre.toUpperCase()})`}
 - Utilise les blocs de référence comme BASE de contenu : réécris pour CET appel d'offres spécifique, cite l'acheteur, adapte au contexte. Ne recopie jamais un bloc verbatim.
 - N'invente aucun moyen, chiffre ou certification absent des blocs ou du profil. Si une information spécifique manque, écris [À COMPLÉTER : ...].
 - Si aucun bloc ne correspond, rédige à partir du profil uniquement et ajoute ⚠ à vérifier en fin de section.
@@ -841,28 +844,7 @@ INSTRUCTIONS :
       messages: [{ role: 'user', content: userPrompt }],
     })
 
-    let text = firstMsg.content[0].type === 'text' ? firstMsg.content[0].text.trim() : ''
-    let lastStopReason = firstMsg.stop_reason
-
-    // Continuation si la section a été tronquée (max 2 appels supplémentaires)
-    let continueCount = 0
-    while (lastStopReason === 'max_tokens' && continueCount < 2) {
-      const contMsg = await anthropic.messages.create({
-        model: 'claude-sonnet-4-6',
-        max_tokens: Math.min(4000, maxT),
-        system: SYSTEM_PROMPT,
-        messages: [
-          { role: 'user', content: userPrompt },
-          { role: 'assistant', content: text },
-          { role: 'user', content: 'Continue la rédaction depuis exactement où tu t\'es arrêté. Ne répète rien du texte déjà écrit, continue directement.' },
-        ],
-      })
-      const chunk = contMsg.content[0].type === 'text' ? contMsg.content[0].text : ''
-      text += chunk
-      lastStopReason = contMsg.stop_reason
-      continueCount++
-    }
-
+    const text = firstMsg.content[0].type === 'text' ? firstMsg.content[0].text.trim() : ''
     if (!text) return { error: 'Réponse vide.' }
 
     const wordCount = text.split(/\s+/).filter(Boolean).length
@@ -929,5 +911,61 @@ Réponds UNIQUEMENT avec le texte de la conclusion.`
   } catch (err) {
     console.error('[genererConclusionV2]', err)
     return { error: 'Erreur conclusion.' }
+  }
+}
+
+/** Découpe une grande section en sous-parties (appel Haiku rapide, < 5 s) */
+export async function planifierSousPartiesSection(params: {
+  analyseId: string | null
+  descriptionManuelle: string | null
+  sectionTitre: string
+  sectionPonderation: string
+  targetWords: number
+}): Promise<{ parts: { titre: string; targetWords: number }[] } | { error: string }> {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'Non authentifié.' }
+
+    const analyseData = params.analyseId
+      ? await supabase.from('analyses').select('resultat').eq('id', params.analyseId).single()
+      : { data: null }
+    const resultat = (analyseData as { data: { resultat: unknown } | null }).data?.resultat as AnalyseResultat | null
+    const acheteur = resultat?.acheteur ?? ''
+    const objet = resultat?.objet ?? params.descriptionManuelle?.slice(0, 100) ?? ''
+
+    const nParts = Math.min(6, Math.max(2, Math.ceil(params.targetWords / 800)))
+    const partWords = Math.round(params.targetWords / nParts)
+
+    const prompt = `Découpe la section "${params.sectionTitre}"${params.sectionPonderation ? ` (${params.sectionPonderation})` : ''} d'un mémoire technique${acheteur ? ` pour ${acheteur}` : ''}${objet ? ` — ${objet}` : ''} en ${nParts} sous-parties distinctes d'environ ${partWords} mots chacune.
+Chaque sous-partie couvre un aspect précis et complémentaire de "${params.sectionTitre}". Cible totale : ${params.targetWords} mots.
+Réponds UNIQUEMENT avec ce JSON (exactement ${nParts} objets) :
+[{"titre":"...","targetWords":${partWords}},...]`
+
+    const message = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 400,
+      messages: [{ role: 'user', content: prompt }],
+    })
+
+    const text = message.content[0].type === 'text' ? message.content[0].text : ''
+    const match = text.match(/\[[\s\S]*\]/)
+    if (!match) return { error: 'Plan de section non parseable' }
+
+    const raw = JSON.parse(match[0]) as { titre: string; targetWords: number }[]
+    if (!raw.length) return { error: 'Aucune sous-partie retournée' }
+
+    // Normalise les targetWords pour que leur somme = targetWords
+    const totalAssigned = raw.reduce((s, p) => s + (p.targetWords ?? partWords), 0)
+    const parts = raw.map((p, i) => ({
+      titre: String(p.titre || `Partie ${i + 1}`),
+      targetWords: i < raw.length - 1
+        ? Math.round(params.targetWords * (p.targetWords ?? partWords) / totalAssigned)
+        : params.targetWords - raw.slice(0, -1).reduce((s, pp) => s + Math.round(params.targetWords * (pp.targetWords ?? partWords) / totalAssigned), 0),
+    }))
+    return { parts }
+  } catch (err) {
+    console.error('[planifierSousPartiesSection]', err)
+    return { error: 'Erreur lors du découpage en sous-parties.' }
   }
 }
