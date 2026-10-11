@@ -4,6 +4,7 @@ import { extractText, getDocumentProxy } from 'unpdf'
 import { anthropic } from '@/lib/anthropic'
 import { createClient } from '@/lib/supabase/server'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
+import JSZip from 'jszip'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -40,6 +41,15 @@ export type AOResult = {
   }
   points_de_vigilance: string[]
   go_no_go: GoNoGo | null
+  /** C4 — documents de l'acheteur à compléter (acte d'engagement, DPGF, cadre technique…) */
+  documents_a_remplir: { nom_fichier: string; type_document: string }[]
+}
+
+// C2 — statut détaillé par fichier
+export type FichierStatut = {
+  nom: string
+  statut: 'analysé' | 'ignoré'
+  raison?: string
 }
 
 export type AOMetadata = {
@@ -48,6 +58,11 @@ export type AOMetadata = {
   chars_total: number
   fichiers_lus: string[]
   fichiers_illisibles: string[]
+  /** C2 — liste complète avec statut pour chaque fichier reçu */
+  fichiers_statuts: FichierStatut[]
+  /** C3 — avertissement si pièces essentielles manquantes */
+  dossier_incomplet: boolean
+  pieces_essentielles_manquantes: string[]
 }
 
 export type AnalyserAOState =
@@ -99,7 +114,7 @@ function buildRefsBlock(refs: ReferenceChantierItem[]): string {
   }).join('\n')
 }
 
-function buildUserPrompt(texte: string, nbDocs: number, profil: ProfilRow | null, references: ReferenceChantierItem[]): string {
+function buildUserPrompt(texte: string, nbDocs: number, profil: ProfilRow | null, references: ReferenceChantierItem[], fichiersLus: string[] = []): string {
   const profilBlock = profil ? `
 
 PROFIL DE L'ENTREPRISE (pour l'analyse Go/No-Go) :
@@ -133,6 +148,11 @@ PROFIL DE L'ENTREPRISE (pour l'analyse Go/No-Go) :
 RÉFÉRENCES CHANTIERS RÉALISÉES (pour valider l'expérience) :
 ${buildRefsBlock(references)}` : ''
 
+  // C4 — list of uploaded filenames to help identify fillable docs
+  const fichiersBlock = fichiersLus.length > 0
+    ? `\n\nFICHIERS DÉPOSÉS DANS CE DCE :\n${fichiersLus.map(f => `- ${f}`).join('\n')}`
+    : ''
+
   const goNoGoRules = profil ? `
 
 RÈGLES pour go_no_go :
@@ -144,7 +164,7 @@ RÈGLES pour go_no_go :
 - score_eligibilite : entier de 0 (aucune chance) à 100 (toutes conditions remplies).
 - Si une info du profil est "non renseigné", marquer le critère correspondant "incertain".${references.length > 0 ? '\n- RÉFÉRENCES : si des références ci-dessus correspondent au type de marché (domaines, ampleur similaire), les mentionner dans situation_entreprise pour justifier les critères d\'expérience.' : ''}` : ''
 
-  return `Voici le contenu d'un dossier de consultation des entreprises (DCE)${nbDocs > 1 ? ` composé de ${nbDocs} documents` : ''}. Analyse l'ensemble${nbDocs > 1 ? ' en croisant les informations de tous les documents' : ''} et extrais les informations clés en JSON.${profilBlock}${refsBlock}
+  return `Voici le contenu d'un dossier de consultation des entreprises (DCE)${nbDocs > 1 ? ` composé de ${nbDocs} documents` : ''}. Analyse l'ensemble${nbDocs > 1 ? ' en croisant les informations de tous les documents' : ''} et extrais les informations clés en JSON.${profilBlock}${refsBlock}${fichiersBlock}
 
 TEXTE DU DOSSIER :
 ${texte}
@@ -174,6 +194,9 @@ Retourne UNIQUEMENT ce JSON (toutes les clés sont requises, utilise null si l'i
     ]
   },
   "points_de_vigilance": ["string"],
+  "documents_a_remplir": [
+    { "nom_fichier": "string — nom exact du fichier parmi FICHIERS DÉPOSÉS ou mentionné dans le DCE", "type_document": "string — ex: Acte d'engagement, DPGF, DQE, BPU, Cadre de réponse technique, Mémoire technique, DC1, DC2, DUME" }
+  ],
 ${goNoGoSchema}
 }
 
@@ -181,45 +204,191 @@ RÈGLES STRICTES pour dates_cles :
 - date_limite_offres : UNIQUEMENT la date/heure de dépôt des offres. Pas de réunion, pas de visite.
 - visite : UNIQUEMENT la visite physique du site. Pas la réunion de lancement.
 - autres_dates : tout le reste (réunion de lancement, date prévisionnelle de démarrage, période de questions, notification du marché, etc.)
-- Ne duplique jamais une date dans plusieurs champs.${goNoGoRules}`
+- Ne duplique jamais une date dans plusieurs champs.
+
+RÈGLES STRICTES pour documents_a_remplir :
+- Identifie UNIQUEMENT les documents fournis par l'acheteur que le soumissionnaire doit compléter et retourner : acte d'engagement, DPGF, DQE, BPU, cadre de réponse technique, DC1, DC2, mémoire technique imposé avec grille.
+- Si le fichier figure dans FICHIERS DÉPOSÉS, utilise son nom exact. Sinon, utilise le nom mentionné dans le DCE.
+- N'inclus pas les documents à rédiger librement (références, RIB, attestations Urssaf) ni les documents informatifs (CCTP, RC, plans).
+- Si aucun document à remplir n'est identifiable, retourner [].${goNoGoRules}`
 }
 
 // ─── Server action ────────────────────────────────────────────────────────────
+
+// ─── Extracteurs de texte par format ─────────────────────────────────────────
+
+const FORMATS_SUPPORTES = ['.pdf', '.docx', '.doc', '.xlsx', '.xls', '.csv', '.odt', '.zip']
+
+function extensionFichier(name: string): string {
+  return name.toLowerCase().match(/\.[^.]+$/)?.[0] ?? ''
+}
+
+async function extraireTexte(
+  name: string,
+  buffer: Buffer
+): Promise<{ texte: string } | { ignore: true; raison: string }> {
+  const ext = extensionFichier(name)
+
+  // PDF
+  if (ext === '.pdf') {
+    try {
+      const pdf = await getDocumentProxy(new Uint8Array(buffer))
+      const { text } = await extractText(pdf, { mergePages: true })
+      const t = text?.trim() ?? ''
+      if (t.length < 80) return { ignore: true, raison: 'PDF sans texte sélectionnable (scan image ?)' }
+      return { texte: t }
+    } catch {
+      return { ignore: true, raison: 'Erreur de lecture PDF' }
+    }
+  }
+
+  // Word .docx / .doc
+  if (ext === '.docx' || ext === '.doc') {
+    try {
+      const mammoth = await import('mammoth')
+      const res = await mammoth.extractRawText({ buffer })
+      const t = res.value?.trim() ?? ''
+      if (t.length < 80) return { ignore: true, raison: 'Fichier Word vide ou illisible' }
+      return { texte: t }
+    } catch {
+      return { ignore: true, raison: 'Erreur de lecture Word' }
+    }
+  }
+
+  // Excel .xlsx / .xls
+  if (ext === '.xlsx' || ext === '.xls') {
+    try {
+      const XLSX = await import('xlsx')
+      const wb = XLSX.read(buffer, { type: 'buffer' })
+      const parts: string[] = []
+      for (const sheetName of wb.SheetNames) {
+        const ws = wb.Sheets[sheetName]
+        const rows = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: '' })
+        const lines = (rows as (string | number)[][])
+          .filter(row => row.some(cell => cell !== '' && cell !== null && cell !== undefined))
+          .map(row => row.map(cell => String(cell ?? '')).join('\t'))
+        if (lines.length > 0) {
+          parts.push(`--- Feuille : ${sheetName} ---\n${lines.join('\n')}`)
+        }
+      }
+      const t = parts.join('\n\n').trim()
+      if (t.length < 20) return { ignore: true, raison: 'Fichier Excel vide' }
+      return { texte: t }
+    } catch {
+      return { ignore: true, raison: 'Erreur de lecture Excel' }
+    }
+  }
+
+  // CSV
+  if (ext === '.csv') {
+    try {
+      const t = buffer.toString('utf-8').trim()
+      if (t.length < 20) return { ignore: true, raison: 'Fichier CSV vide' }
+      return { texte: t }
+    } catch {
+      return { ignore: true, raison: 'Erreur de lecture CSV' }
+    }
+  }
+
+  // ODT (texte brut via XML zip)
+  if (ext === '.odt') {
+    try {
+      const zip = await JSZip.loadAsync(buffer)
+      const content = zip.file('content.xml')
+      if (!content) return { ignore: true, raison: 'Fichier ODT invalide' }
+      const xml = await content.async('text')
+      // Strip XML tags
+      const t = xml.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+      if (t.length < 80) return { ignore: true, raison: 'Fichier ODT vide' }
+      return { texte: t }
+    } catch {
+      return { ignore: true, raison: 'Erreur de lecture ODT' }
+    }
+  }
+
+  return { ignore: true, raison: `Format non pris en charge (${ext || 'inconnu'})` }
+}
+
+// C3 — Detect if essential DCE documents are present
+function detecterDossierIncomplet(fichiersLus: string[]): { incomplet: boolean; manquants: string[] } {
+  const all = fichiersLus.map(n => n.toLowerCase())
+  const hasRC = all.some(n => /r[eèé]glement|r\.c\.|rc[_\s-]|reglement.consult/i.test(n))
+  const hasCCTP = all.some(n => /cctp|cahier.*(clauses|technique)|technique.*prestations/i.test(n))
+  const manquants: string[] = []
+  if (!hasRC) manquants.push('Règlement de consultation (RC)')
+  if (!hasCCTP) manquants.push('Cahier des clauses techniques particulières (CCTP)')
+  return { incomplet: manquants.length > 0, manquants }
+}
 
 export async function analyserAO(formData: FormData): Promise<AnalyserAOState> {
   try {
     const files = (formData.getAll('files') as File[]).filter(f => f.size > 0)
     if (files.length === 0) return { error: 'Aucun fichier reçu.' }
 
-    const invalidFile = files.find(f => f.type !== 'application/pdf' && !f.name.endsWith('.pdf'))
-    if (invalidFile) return { error: `"${invalidFile.name}" n'est pas un PDF.` }
+    // C1 — Expand ZIP files into their contents
+    const expanded: { name: string; buffer: Buffer }[] = []
+    for (const file of files) {
+      const ext = extensionFichier(file.name)
+      const buf = Buffer.from(await file.arrayBuffer())
+      if (ext === '.zip') {
+        try {
+          const zip = await JSZip.loadAsync(buf)
+          for (const [path, entry] of Object.entries(zip.files)) {
+            if (entry.dir) continue
+            const fname = path.split('/').pop() ?? path
+            if (fname.startsWith('.') || fname.startsWith('__MACOSX')) continue
+            const subExt = extensionFichier(fname)
+            if (!FORMATS_SUPPORTES.includes(subExt)) continue
+            const subBuf = Buffer.from(await entry.async('arraybuffer'))
+            expanded.push({ name: fname, buffer: subBuf })
+          }
+        } catch {
+          expanded.push({ name: file.name, buffer: buf }) // traiter comme fichier brut si unzip échoue
+        }
+      } else {
+        expanded.push({ name: file.name, buffer: buf })
+      }
+    }
 
-    // Extract text from each PDF
+    // C2 — Extract text + build status for each file
     const fichiers_lus: string[] = []
     const fichiers_illisibles: string[] = []
+    const fichiers_statuts: FichierStatut[] = []
     const parts: string[] = []
 
-    for (const file of files) {
-      try {
-        const buffer = Buffer.from(await file.arrayBuffer())
-        const pdf = await getDocumentProxy(new Uint8Array(buffer))
-        const { text } = await extractText(pdf, { mergePages: true })
-        const texte = text?.trim() ?? ''
+    // Guard total size (Vercel)
+    const MAX_UPLOAD_BYTES = 4 * 1024 * 1024
+    let totalBytes = 0
 
-        if (texte.length < 100) {
-          fichiers_illisibles.push(file.name)
-        } else {
-          fichiers_lus.push(file.name)
-          parts.push(`\n\n===== DOCUMENT : ${file.name} =====\n\n${texte}`)
-        }
-      } catch {
-        fichiers_illisibles.push(file.name)
+    for (const { name, buffer } of expanded) {
+      const ext = extensionFichier(name)
+      if (!FORMATS_SUPPORTES.includes(ext)) {
+        fichiers_statuts.push({ nom: name, statut: 'ignoré', raison: `Format non pris en charge (${ext || 'inconnu'})` })
+        continue
+      }
+      totalBytes += buffer.length
+      if (totalBytes > MAX_UPLOAD_BYTES) {
+        fichiers_statuts.push({ nom: name, statut: 'ignoré', raison: 'Volume total trop important — déposer séparément' })
+        continue
+      }
+
+      const res = await extraireTexte(name, buffer)
+      if ('ignore' in res) {
+        fichiers_illisibles.push(name)
+        fichiers_statuts.push({ nom: name, statut: 'ignoré', raison: res.raison })
+      } else {
+        fichiers_lus.push(name)
+        fichiers_statuts.push({ nom: name, statut: 'analysé' })
+        parts.push(`\n\n===== DOCUMENT : ${name} =====\n\n${res.texte}`)
       }
     }
 
     if (fichiers_lus.length === 0) {
-      return { error: 'Aucun fichier lisible. Les PDFs sont peut-être des scans image sans texte sélectionnable.' }
+      return { error: 'Aucun fichier lisible. Les PDFs sont peut-être des scans image sans texte sélectionnable. Formats acceptés : PDF, Word (.docx), Excel (.xlsx), CSV, ODT, ZIP.' }
     }
+
+    // C3 — Check for missing essential documents
+    const { incomplet: dossier_incomplet, manquants: pieces_essentielles_manquantes } = detecterDossierIncomplet(fichiers_lus)
 
     const texteTotal = parts.join('')
     const LIMIT = 500000
@@ -231,6 +400,9 @@ export async function analyserAO(formData: FormData): Promise<AnalyserAOState> {
       chars_total: texteTotal.length,
       fichiers_lus,
       fichiers_illisibles,
+      fichiers_statuts,
+      dossier_incomplet,
+      pieces_essentielles_manquantes,
     }
 
     // Load user
@@ -292,7 +464,7 @@ export async function analyserAO(formData: FormData): Promise<AnalyserAOState> {
       model: 'claude-sonnet-4-6',
       max_tokens: profil ? 8192 : 4096,
       system: SYSTEM_PROMPT,
-      messages: [{ role: 'user', content: buildUserPrompt(texteEnvoye, fichiers_lus.length, profil, references) }],
+      messages: [{ role: 'user', content: buildUserPrompt(texteEnvoye, fichiers_lus.length, profil, references, fichiers_lus) }],
     })
 
     const content = message.content[0].type === 'text' ? message.content[0].text : ''

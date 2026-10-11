@@ -61,7 +61,7 @@ type AnalyseResultat = {
   objet?: string
   type_procedure?: string
   acheteur?: string
-  lots?: { numero: string; designation: string }[]
+  lots?: { numero: string; designation: string; estimation?: string | null }[]
   criteres_notation?: { critere: string; ponderation: string }[]
   pieces_a_fournir?: string[]
   dates_cles?: DatesCles
@@ -701,36 +701,52 @@ export async function preparerGenerationV2(
       const pondVal = parsePonderation(c.ponderation)
       const targetWords = Math.max(150, Math.round(totalTargetWords * pondVal / 100))
 
+      const isProcedeSection = /proc[eé]d[eé]|ex[eé]cution|m[eé]thod|organisation.*travaux/i.test(c.critere)
+      const maxBlocs = isProcedeSection ? 6 : 3  // procede_execution gets more blocs
+
       let selectedBlocs: { id: string; titre: string; categorie: string }[]
       if (claudeSelection && Array.isArray(claudeSelection[c.critere]) && claudeSelection[c.critere].length > 0) {
         const selectedIds = new Set(claudeSelection[c.critere])
         selectedBlocs = biblio
           .filter(b => selectedIds.has(b.id))
           .map(b => ({ id: b.id, titre: b.titre, categorie: b.categorie }))
+        // For procede sections, also add all procede_execution blocs not already selected
+        if (isProcedeSection) {
+          const extra = biblio
+            .filter(b => b.categorie === 'procede_execution' && !selectedIds.has(b.id))
+            .map(b => ({ id: b.id, titre: b.titre, categorie: b.categorie }))
+          selectedBlocs = [...selectedBlocs, ...extra].slice(0, maxBlocs)
+        }
       } else {
         const scored = biblio
           .map(b => ({ b, score: scoreBlocForSection(b, c.critere) }))
           .filter(x => x.score > 0)
           .sort((a, b) => b.score - a.score)
-          .slice(0, 3)
+          .slice(0, maxBlocs)
         selectedBlocs = scored.map(x => ({ id: x.b.id, titre: x.b.titre, categorie: x.b.categorie }))
       }
 
       return { titre: c.critere, ponderation: c.ponderation, blocs: selectedBlocs, targetWords }
     })
 
-    // Standard/Complet: add chapters for library categories not covered by graded sections
+    // Standard/Complet: add chapters for library categories not covered by graded sections.
+    // Skip a category if: a graded section title matches its keywords, OR any graded section
+    // already uses blocs from that category (prevents "moyens humains" doubling with
+    // a notated "Organisation / Moyens / Planning" criterion).
     if (longueur !== 'court' && expandedCriteres.length > 0) {
       const coveredText = sections.map(s => s.titre.toLowerCase()).join(' ')
+      const coveredCategories = new Set<string>()
+      for (const s of sections) for (const b of s.blocs) coveredCategories.add(b.categorie)
       const extraTargetWords = longueur === 'complet' ? 500 : 300
       for (const def of EXTRA_CHAPTER_DEFS) {
         if (def.keywords.some(kw => coveredText.includes(kw))) continue
-        const catBlocs = biblio.filter(b => b.categorie === def.category).slice(0, 2)
+        if (coveredCategories.has(def.category)) continue
+        const catBlocs = biblio.filter(b => b.categorie === def.category)
         if (!catBlocs.length) continue
         sections.push({
           titre: def.titre,
           ponderation: '',
-          blocs: catBlocs.map(b => ({ id: b.id, titre: b.titre, categorie: b.categorie })),
+          blocs: catBlocs.slice(0, 3).map(b => ({ id: b.id, titre: b.titre, categorie: b.categorie })),
           targetWords: extraTargetWords,
         })
       }
@@ -816,6 +832,18 @@ export async function genererSectionV2(params: {
              pt.includes('phasage')
     })
 
+    // Pass all vigilance points to every section, not just filtered ones
+    const allVigilance = resultat?.points_de_vigilance ?? []
+    const vigilanceBlock = allVigilance.length > 0
+      ? `POINTS DE VIGILANCE DU MARCHÉ (adresser ceux pertinents à cette section) :\n${allVigilance.map(p => `- ${p}`).join('\n')}\n`
+      : ''
+
+    // For procede_execution sections: list all lots/work items to structure one sub-part per item
+    const isProcedeSection = /proc[eé]d[eé]|ex[eé]cution|m[eé]thod|organisation.*travaux/i.test(params.sectionTitre)
+    const lotsBlock = isProcedeSection && resultat?.lots?.length
+      ? `POSTES DE TRAVAUX DU MARCHÉ (créer une sous-partie par poste) :\n${resultat.lots.map(l => `- Lot/Poste ${l.numero} : ${l.designation}${l.estimation ? ` (${l.estimation})` : ''}`).join('\n')}\n`
+      : ''
+
     const userPrompt = `Rédige la section suivante d'un mémoire technique de réponse à appel d'offres.
 
 MARCHÉ :${acheteur}
@@ -824,13 +852,17 @@ ${marcheBlock}
 PROFIL DE L'ENTREPRISE :
 ${profilBlock}
 ${blocsBlock}
-SECTION À RÉDIGER : ${params.isIntro ? 'INTRODUCTION — PRÉSENTATION DE L\'ENTREPRISE' : params.isSubPart ? `SOUS-PARTIE — ${params.sectionTitre}` : params.sectionTitre} ${params.isIntro || params.isSubPart ? '' : `(${params.sectionPonderation})`}
+${vigilanceBlock}${lotsBlock}SECTION À RÉDIGER : ${params.isIntro ? 'INTRODUCTION — PRÉSENTATION DE L\'ENTREPRISE' : params.isSubPart ? `SOUS-PARTIE — ${params.sectionTitre}` : params.sectionTitre} ${params.isIntro || params.isSubPart ? '' : `(${params.sectionPonderation})`}
 
-${vigilance.length > 0 ? `POINTS DE VIGILANCE à adresser dans cette section :\n${vigilance.map(p => `- ${p}`).join('\n')}\n` : ''}
 INSTRUCTIONS :
 - Commence directement par ${params.isSubPart ? `le titre de la sous-partie (ex: ### ${params.sectionTitre})` : `le titre de la section en majuscules (ex: ## ${params.isIntro ? 'INTRODUCTION — PRÉSENTATION DE L\'ENTREPRISE' : params.sectionTitre.toUpperCase()})`}
 - Utilise les blocs de référence comme BASE de contenu : réécris pour CET appel d'offres spécifique, cite l'acheteur, adapte au contexte. Ne recopie jamais un bloc verbatim.
-- N'invente aucun moyen, chiffre ou certification absent des blocs ou du profil. Si une information spécifique manque, écris [À COMPLÉTER : ...].
+${isProcedeSection ? '- PROCÉDÉS D\'EXÉCUTION : structure cette section avec une sous-partie par poste ou type de travaux listé ci-dessus. Pour chaque sous-partie : chronologie des opérations, matériaux et techniques utilisés, précautions spécifiques au chantier.\n' : ''}${lotsBlock ? '' : ''}
+RÈGLES ABSOLUES — VÉRACITÉ :
+- NORMES : cite une norme, un chiffre technique ou une exigence réglementaire UNIQUEMENT pour l'objet auquel ta source (blocs, profil, analyse) la rattache explicitement. En cas de doute, ne cite pas la norme.
+- STATUT ENTREPRISE : n'affirme aucun statut juridique, fiscal ou social (PME, TPE, ETI, qualifiée, agréée, labellisée, avance de 10 %) absent du profil. N'invente aucune certification.
+- MAIN-D'ŒUVRE : n'emploie jamais de formulation sur la nationalité ou l'origine de la main-d'œuvre. Si pertinent, écris uniquement "équipes en CDI, sans sous-traitance" — et seulement si ces informations figurent dans le profil.
+- SOURCES UNIQUEMENT : n'invente aucun moyen, chiffre, procédé ou référence absent des blocs, du profil ou de l'analyse. Ce qui figure dans ces sources, utilise-le directement sans [À COMPLÉTER]. N'écris [À COMPLÉTER : description précise] QUE si l'information est absente de TOUTES les sources.
 - Si aucun bloc ne correspond, rédige à partir du profil uniquement et ajoute ⚠ à vérifier en fin de section.
 - Cible de longueur : environ ${targetWords} mots${params.sectionPonderation ? `, proportionnel à la pondération ${params.sectionPonderation}` : ''}. ${params.longueur === 'court' ? 'Sois concis et ciblé.' : params.longueur === 'complet' ? 'Développe avec des exemples concrets et des détails.' : 'Équilibre précision et lisibilité.'}
 - N'invente jamais la forme juridique ni la raison sociale. Si le profil contient "[À COMPLÉTER : raison sociale]", utilise cette mention exactement, sans la remplacer.
@@ -967,5 +999,68 @@ Réponds UNIQUEMENT avec ce JSON (exactement ${nParts} objets) :
   } catch (err) {
     console.error('[planifierSousPartiesSection]', err)
     return { error: 'Erreur lors du découpage en sous-parties.' }
+  }
+}
+
+/**
+ * B2 — Relecture automatique d'une section générée.
+ * Repère les affirmations non traçables dans les sources (profil, blocs, analyse)
+ * et les remplace par [À VÉRIFIER : ...].
+ * Appel Haiku rapide, ~300 ms. Fail-open : retourne le texte original en cas d'erreur.
+ */
+export async function relireSectionV2(params: {
+  sectionText: string
+  analyseId: string | null
+  descriptionManuelle: string | null
+}): Promise<{ text: string }> {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { text: params.sectionText }
+
+    const [{ data: profilData }, analyseData] = await Promise.all([
+      supabase.from('profil_entreprise')
+        .select('raison_sociale, ca_dernier_exercice, effectif, annees_experience, certifications, domaines, zone_geographique, notes, moyens_humains, moyens_materiels')
+        .maybeSingle(),
+      params.analyseId
+        ? supabase.from('analyses').select('resultat').eq('id', params.analyseId).single()
+        : Promise.resolve({ data: null }),
+    ])
+
+    const profil = profilData as ProfilRow | null
+    const resultat = (analyseData as { data: { resultat: unknown } | null }).data?.resultat as AnalyseResultat | null
+
+    const profilResume = buildProfilBlock(profil)
+    const marcheResume = params.descriptionManuelle ?? buildMarcheBlock(resultat, null)
+
+    const prompt = `Tu es un relecteur de mémoires techniques de marchés publics. Ta mission : détecter dans le texte ci-dessous les affirmations non vérifiables au vu des sources fournies, et les remplacer par [À VÉRIFIER : ...].
+
+PROFIL ENTREPRISE :
+${profilResume}
+
+MARCHÉ :
+${marcheResume}
+
+RÈGLES DE DÉTECTION (appliquer seulement si clairement violées) :
+1. Statut juridique, fiscal ou social (PME, ETI, qualifiée, agréée, labellisée, avance de 10 %) absent du profil → [À VÉRIFIER : statut non confirmé dans le profil]
+2. Nationalité ou origine de la main-d'œuvre (mentions type "personnel français", "main-d'œuvre locale", "excluons les étrangers") → remplacer par "équipes mobilisées en CDI"
+3. Certification ou norme citée pour un objet auquel les sources ne la rattachent pas → [À VÉRIFIER : vérifier application de cette norme]
+4. Chiffre précis (effectif, CA, montant) contredisant les sources → [À VÉRIFIER : chiffre à confirmer]
+Ne modifie rien d'autre. Conserve la structure, le style, les titres et la mise en forme (##, ###, *, **). Réponds UNIQUEMENT avec le texte corrigé.
+
+TEXTE :
+${params.sectionText}`
+
+    const message = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: Math.min(4096, Math.ceil(params.sectionText.split(/\s+/).length * 2.5) + 300),
+      messages: [{ role: 'user', content: prompt }],
+    })
+
+    const text = message.content[0].type === 'text' ? message.content[0].text.trim() : ''
+    return { text: text || params.sectionText }
+  } catch (err) {
+    console.error('[relireSectionV2]', err)
+    return { text: params.sectionText }
   }
 }

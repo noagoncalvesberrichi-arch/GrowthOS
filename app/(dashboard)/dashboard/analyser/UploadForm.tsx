@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition, useRef, useEffect } from 'react'
-import { analyserAO, type AnalyserAOState } from './actions'
+import { analyserAO, type AnalyserAOState, type FichierStatut } from './actions'
 import { AOResultDisplay } from './AOResultDisplay'
 import { RecoPrix } from '@/components/RecoPrix'
 import { HistoriqueAcheteur } from '@/components/HistoriqueAcheteur'
@@ -111,10 +111,10 @@ export function UploadForm({ isPro }: { isPro?: boolean }) {
           ) : (
             <>
               <p className="font-syne text-[14px] font-semibold text-text">
-                {files.length > 0 ? "Ajouter d'autres fichiers" : 'Déposez vos PDFs ici ou cliquez pour sélectionner'}
+                {files.length > 0 ? "Ajouter d'autres fichiers" : 'Déposez vos documents ici ou cliquez pour sélectionner'}
               </p>
               <p className="font-syne text-[12px] text-text-subtle mt-1">
-                PDF uniquement · Plusieurs fichiers acceptés (RC, CCTP, CCAP…)
+                PDF, Word, Excel, CSV, ODT, ZIP · Plusieurs fichiers acceptés (RC, CCTP, CCAP, DPGF…)
               </p>
             </>
           )}
@@ -122,7 +122,7 @@ export function UploadForm({ isPro }: { isPro?: boolean }) {
           <input
             ref={inputRef}
             type="file"
-            accept=".pdf,application/pdf"
+            accept=".pdf,.docx,.doc,.xlsx,.xls,.csv,.odt,.zip,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-word,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv,application/vnd.oasis.opendocument.text,application/zip"
             multiple
             onChange={handleChange}
             className="hidden"
@@ -224,6 +224,59 @@ export function UploadForm({ isPro }: { isPro?: boolean }) {
               : <>Il vous reste <span className="font-semibold">1 analyse gratuite</span>. <a href="/pricing" className="font-semibold underline underline-offset-2 hover:text-amber-900">Voir les offres</a>.</>
             }
           </p>
+        </div>
+      )}
+
+      {/* C2 — Statut fichiers + C3 — Dossier incomplet */}
+      {result && 'data' in result && result.meta && (
+        <div className="mt-6 space-y-3">
+          {/* C2 — tableau des fichiers analysés/ignorés */}
+          {result.meta.fichiers_statuts && result.meta.fichiers_statuts.length > 0 && (
+            <div className="bg-surface border border-border rounded-xl px-4 py-3">
+              <p className="font-syne text-[12px] font-bold text-text-subtle uppercase tracking-wide mb-2">
+                Fichiers reçus
+              </p>
+              <ul className="space-y-1">
+                {result.meta.fichiers_statuts.map((f: FichierStatut) => (
+                  <li key={f.nom} className="flex items-start gap-2">
+                    <span className={`shrink-0 font-syne text-[11px] font-bold px-1.5 py-0.5 rounded-md mt-0.5 ${
+                      f.statut === 'analysé'
+                        ? 'bg-emerald-100 text-emerald-700'
+                        : 'bg-gray-100 text-gray-500'
+                    }`}>
+                      {f.statut === 'analysé' ? '✓ analysé' : '— ignoré'}
+                    </span>
+                    <span className="font-syne text-[12px] text-text leading-tight">
+                      {f.nom}
+                      {f.raison && <span className="text-text-subtle ml-1">({f.raison})</span>}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* C3 — Avertissement pièces essentielles manquantes */}
+          {result.meta.dossier_incomplet && result.meta.pieces_essentielles_manquantes.length > 0 && (
+            <div className="flex items-start gap-3 bg-amber-50 border border-amber-300 rounded-xl px-4 py-3">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-0.5">
+                <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+              <div>
+                <p className="font-syne text-[13px] font-bold text-amber-800">Dossier potentiellement incomplet</p>
+                <p className="font-syne text-[12px] text-amber-700 mt-0.5">
+                  Pièces essentielles non détectées dans les fichiers déposés :
+                </p>
+                <ul className="mt-1 space-y-0.5">
+                  {result.meta.pieces_essentielles_manquantes.map((p: string) => (
+                    <li key={p} className="font-syne text-[12px] text-amber-700 before:content-['•'] before:mr-1.5">{p}</li>
+                  ))}
+                </ul>
+                <p className="font-syne text-[11px] text-amber-600 mt-1.5 italic">L&apos;analyse peut être partielle. Ajoutez les documents manquants pour une analyse complète.</p>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

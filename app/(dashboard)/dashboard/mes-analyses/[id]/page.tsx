@@ -36,6 +36,9 @@ export default async function AnalyseDetailPage({ params }: { params: Promise<{ 
     chars_total: 0,
     fichiers_lus: [],
     fichiers_illisibles: [],
+    fichiers_statuts: [],
+    dossier_incomplet: false,
+    pieces_essentielles_manquantes: [],
   }
 
   return (

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import {
   genererMemoire, sauvegarderMemoire, chargerMemoire,
   preparerGenerationV2, genererSectionV2, genererConclusionV2, planifierSousPartiesSection,
+  relireSectionV2,
   type SectionPlan, type SectionResult,
 } from './actions'
 import type { AnalyseItem } from './page'
@@ -455,12 +456,15 @@ export function MemoireForm({
           const newTexts = [...texts, res.text]
 
           if (currentPartIndex + 1 >= parts.length) {
-            // Dernière sous-partie : assembler la section complète
+            // Dernière sous-partie : assembler + relire la section complète
             const sectionBody = newTexts.join('\n\n')
             const combinedWC = sectionBody.split(/\s+/).filter(Boolean).length
-            const assembled = sectionPlan.ponderation
+            const rawAssembled = sectionPlan.ponderation
               ? `## ${sectionPlan.titre.toUpperCase()}\n\n${sectionBody}`
               : `## ${sectionPlan.titre}\n\n${sectionBody}`
+            // B2 — relecture automatique
+            const relRes = await relireSectionV2({ sectionText: rawAssembled, analyseId: analyseIdForCall, descriptionManuelle: descriptionForCall })
+            const assembled = relRes.text
             const newResult: SectionResult = {
               titre: sectionPlan.titre, ponderation: sectionPlan.ponderation,
               text: assembled, blocs: res.blocs, wordCount: combinedWC, targetWords: sectionPlan.targetWords,
@@ -546,9 +550,15 @@ export function MemoireForm({
           v2RunRef.current = false; return
         }
 
+        // B2 — relecture automatique (sauf intro)
+        let sectionText = res.text
+        if (!isIntro) {
+          const relRes = await relireSectionV2({ sectionText: res.text, analyseId: analyseIdForCall, descriptionManuelle: descriptionForCall })
+          sectionText = relRes.text
+        }
         const newResult: SectionResult = {
           titre: sectionPlan?.titre ?? '', ponderation: sectionPlan?.ponderation ?? '',
-          text: res.text, blocs: res.blocs, wordCount: res.wordCount, targetWords: sectionPlan?.targetWords,
+          text: sectionText, blocs: res.blocs, wordCount: res.wordCount, targetWords: sectionPlan?.targetWords,
         }
         const newResults = [...results, newResult]
         if (analyseIdForCall) sauvegarderMemoire(analyseIdForCall, buildTrameFromSections(newResults)).catch(() => {})
@@ -967,7 +977,7 @@ export function MemoireForm({
                   // eslint-disable-next-line react/no-danger
                   <div className="w-full bg-background px-5 py-4 font-syne text-[13px] text-text leading-relaxed min-h-[400px]" dangerouslySetInnerHTML={{ __html: renderMarkdown(trame) }} />
                 ) : (
-                  <textarea value={trame} onChange={e => setTrame(e.target.value)} rows={45} spellCheck={false} className="w-full bg-background px-5 py-4 font-mono text-[12.5px] text-text leading-relaxed focus:outline-none resize-y" />
+                  <textarea data-memoire value={trame} onChange={e => setTrame(e.target.value)} rows={45} spellCheck={false} className="w-full bg-background px-5 py-4 font-mono text-[12.5px] text-text leading-relaxed focus:outline-none resize-y" />
                 )}
               </div>
             </>
@@ -1001,6 +1011,52 @@ export function MemoireForm({
           )}
         </div>
       )}
+
+      {/* B3 — Liste [À COMPLÉTER] restants après génération */}
+      {v2State.phase === 'done' && (() => {
+        const mentions: { label: string; sectionIndex: number }[] = []
+        v2Sections.forEach((s, si) => {
+          const re = /\[À COMPLÉTER\s*:\s*([^\]]{1,80})\]/g
+          let m
+          while ((m = re.exec(s.text)) !== null) {
+            mentions.push({ label: m[1].trim(), sectionIndex: si })
+          }
+        })
+        if (mentions.length === 0) return null
+        return (
+          <div className="bg-amber-500/6 border border-amber-400/30 rounded-xl p-4 space-y-2">
+            <p className="font-syne text-[13px] font-semibold text-amber-500">
+              {mentions.length} [À COMPLÉTER] restant{mentions.length > 1 ? 's' : ''} — à remplir avant envoi
+            </p>
+            <ul className="space-y-1 max-h-52 overflow-y-auto">
+              {mentions.map((m, i) => (
+                <li key={i} className="flex items-start gap-2">
+                  <span className="font-mono text-[10px] text-amber-400 shrink-0 mt-0.5">
+                    {v2Sections[m.sectionIndex]?.titre?.slice(0, 30)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // Switch to edit mode and scroll to textarea
+                      setPreviewMode(false)
+                      setTimeout(() => {
+                        const ta = document.querySelector<HTMLTextAreaElement>('textarea[data-memoire]')
+                        if (!ta) return
+                        const idx = ta.value.indexOf(`[À COMPLÉTER : ${m.label}`)
+                        if (idx >= 0) { ta.focus(); ta.setSelectionRange(idx, idx + m.label.length + 16) }
+                        ta.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                      }, 100)
+                    }}
+                    className="font-syne text-[12px] text-amber-400 hover:text-amber-300 text-left underline underline-offset-2"
+                  >
+                    {m.label}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )
+      })()}
 
       {/* Avertissement champs manquants */}
       {(v2State.phase === 'generating' || v2State.phase === 'done') && v2State.missingFields.length > 0 && (

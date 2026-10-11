@@ -8,6 +8,13 @@ export const maxDuration = 60
 
 type MatchInput = { rowId: string; pu_ht: number | null; qty_crm?: number | null }
 
+function classifySheet(name: string): 'base' | 'pse' | 'variante' {
+  const n = name.toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+  if (n.includes('VARIANTE') || / VAR$/.test(n) || /^VAR /.test(n)) return 'variante'
+  if (n.includes('PSE') || (n.includes('SUPPL') && n.includes('EVENT'))) return 'pse'
+  return 'base'
+}
+
 function getColLetter(colIdx: number): string {
   // Handles first 26 columns (A–Z)
   return String.fromCharCode(65 + colIdx)
@@ -106,7 +113,9 @@ export async function POST(req: NextRequest) {
     await workbook.xlsx.load(new Uint8Array(arrayBuffer) as any)
 
     let nbRapprochees = 0
-    let montantTotalHt = 0
+    let montantBaseHt = 0
+    let montantPseHt = 0
+    let montantVarianteHt = 0
     const avertissements: string[] = []
 
     // Track per-sheet: rowNumber → computed line total (for formula coverage check)
@@ -114,6 +123,7 @@ export async function POST(req: NextRequest) {
 
     workbook.eachSheet((worksheet) => {
       const sheetName = worksheet.name
+      const sheetType = classifySheet(sheetName)
       const meta = sheetMeta.get(sheetName)
       if (!meta || meta.puColIdx === undefined) return
 
@@ -144,7 +154,9 @@ export async function POST(req: NextRequest) {
 
         if (qty != null) {
           const lineTotal = Math.round(pu * qty * 100) / 100
-          montantTotalHt += lineTotal
+          if (sheetType === 'pse') montantPseHt += lineTotal
+          else if (sheetType === 'variante') montantVarianteHt += lineTotal
+          else montantBaseHt += lineTotal
           lineBySheetRow.set(rowId, lineTotal)
         }
 
@@ -219,7 +231,9 @@ export async function POST(req: NextRequest) {
     const baseName = acheteurFile.name.replace(/\.xlsx$/i, '')
     const outputName = `${baseName}_chiffré.xlsx`
 
-    // Save record — only when at least one line was filled
+    const montantOfreHt = Math.round((montantBaseHt + montantPseHt) * 100) / 100
+
+    // Save record — only when at least one line was filled; save only offre de base + PSE
     if (nbRapprochees > 0) {
       await supabase.from('chiffrages').insert({
         user_id: user.id,
@@ -227,7 +241,7 @@ export async function POST(req: NextRequest) {
         nom_fichier_crm: crmFileName ?? 'N/A',
         nb_lignes: matches.length,
         nb_rapprochees: nbRapprochees,
-        montant_total_ht: montantTotalHt > 0 ? montantTotalHt : null,
+        montant_total_ht: montantOfreHt > 0 ? montantOfreHt : null,
         statut: 'ok',
       })
     }
@@ -237,7 +251,9 @@ export async function POST(req: NextRequest) {
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(outputName)}`,
-        'X-Montant-Total-Ht': String(montantTotalHt),
+        'X-Montant-Base-Ht': String(Math.round(montantBaseHt * 100) / 100),
+        'X-Montant-Pse-Ht': String(Math.round(montantPseHt * 100) / 100),
+        'X-Montant-Variante-Ht': String(Math.round(montantVarianteHt * 100) / 100),
         'X-Nb-Rapprochees': String(nbRapprochees),
         'X-Nb-Lignes': String(matches.length),
         'X-Avertissements': encodeURIComponent(JSON.stringify(avertissements)),

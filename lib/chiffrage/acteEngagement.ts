@@ -11,10 +11,18 @@ export type ActeData = {
   qualite_signataire: string
   iban: string | null
   bic: string | null
-  montant_ht: number
+  /** Montant offre de base HT (hors PSE, hors variante) */
+  montant_base_ht: number
+  /** Montant PSE HT (prestations supplémentaires éventuelles) */
+  montant_pse_ht: number
+  /** Montant variante HT (offre alternative — NE PAS additionner à la base) */
+  montant_variante_ht: number
   taux_tva: number
   duree_marche: string
+  /** Lieu d'exécution des travaux/prestations */
   lieu_execution: string
+  /** Lieu de signature de l'acte ("Fait à …") */
+  lieu_signature: string
 }
 
 function formatEuro(n: number): string {
@@ -36,8 +44,15 @@ async function buildDocument(data: ActeData): Promise<any> {
     TableLayoutType,
   } = await import('docx')
 
-  const montant_tva = Math.round(data.montant_ht * data.taux_tva / 100 * 100) / 100
-  const montant_ttc = Math.round(data.montant_ht * (1 + data.taux_tva / 100) * 100) / 100
+  const montant_base_plus_pse = Math.round((data.montant_base_ht + data.montant_pse_ht) * 100) / 100
+  const montant_tva = Math.round(montant_base_plus_pse * data.taux_tva / 100 * 100) / 100
+  const montant_ttc = Math.round(montant_base_plus_pse * (1 + data.taux_tva / 100) * 100) / 100
+  const montant_variante_tva = data.montant_variante_ht > 0
+    ? Math.round(data.montant_variante_ht * data.taux_tva / 100 * 100) / 100
+    : 0
+  const montant_variante_ttc = data.montant_variante_ht > 0
+    ? Math.round(data.montant_variante_ht * (1 + data.taux_tva / 100) * 100) / 100
+    : 0
 
   const F = 'Arial'
   const B = 20  // 10 pt
@@ -151,53 +166,102 @@ async function buildDocument(data: ActeData): Promise<any> {
     ],
   })
 
-  // ── Section D – 3-column amount table ──────────────────────────────────────
+  // ── Helpers pour cellule span-3 ─────────────────────────────────────────────
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function spanCell3(children: any[]): any {
+    return new TableCell({ columnSpan: 3, width: { size: PW, type: DXA }, children })
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function spanRow3(children: any[]): any {
+    return new TableRow({ children: [spanCell3(children)] })
+  }
+
+  // ── Section D – montants base / PSE / variante ───────────────────────────────
+
+  const dRows = [
+    new TableRow({ children: [headerCell('D – Engagement du candidat', PW, 3)] }),
+    spanRow3([new Paragraph({
+      children: [new TextRun({
+        text: "Le candidat s'engage, aux prix figurant dans son offre, à exécuter les prestations aux conditions suivantes :",
+        size: B, font: F,
+      })],
+      spacing: { before: 80, after: 80 },
+    })]),
+
+    // ── Offre de base ─────────────────────────────────────────────────────────
+    new TableRow({
+      children: [new TableCell({
+        columnSpan: 3, width: { size: PW, type: DXA }, shading: { type: ShadingType.SOLID, fill: 'E8F0FE' },
+        children: [new Paragraph({
+          children: [new TextRun({ text: 'OFFRE DE BASE', bold: true, size: B, font: F, color: '1D4ED8' })],
+          spacing: { before: 80, after: 80 },
+        })],
+      })],
+    }),
+    new TableRow({ children: [amtCell('Base HT', true), amtCell('PSE HT', true), amtCell('Offre de base + PSE HT', true)] }),
+    new TableRow({ children: [amtCell(formatEuro(data.montant_base_ht), false), amtCell(formatEuro(data.montant_pse_ht), false), amtCell(formatEuro(montant_base_plus_pse), false)] }),
+    new TableRow({ children: [amtCell(`TVA (${data.taux_tva} %)`, true), amtCell('', true), amtCell('Total TTC', true)] }),
+    new TableRow({ children: [amtCell(formatEuro(montant_tva), false), amtCell('', false), amtCell(formatEuro(montant_ttc), false)] }),
+    spanRow3([
+      new Paragraph({
+        children: [
+          new TextRun({ text: 'Montant HT en toutes lettres : ', bold: true, size: B, font: F }),
+          new TextRun({ text: montantEnLettres(montant_base_plus_pse), italics: true, size: B, font: F }),
+        ],
+        spacing: { before: 80, after: 60 },
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({ text: 'Montant TTC en toutes lettres : ', bold: true, size: B, font: F }),
+          new TextRun({ text: montantEnLettres(montant_ttc), italics: true, size: B, font: F }),
+        ],
+        spacing: { before: 60, after: 80 },
+      }),
+    ]),
+  ]
+
+  // ── Variante (si > 0) ─────────────────────────────────────────────────────
+
+  if (data.montant_variante_ht > 0) {
+    dRows.push(
+      new TableRow({
+        children: [new TableCell({
+          columnSpan: 3, width: { size: PW, type: DXA }, shading: { type: ShadingType.SOLID, fill: 'FEF3C7' },
+          children: [new Paragraph({
+            children: [new TextRun({ text: 'VARIANTE — Offre alternative (non cumulable avec l\'offre de base)', bold: true, size: B, font: F, color: '92400E' })],
+            spacing: { before: 80, after: 80 },
+          })],
+        })],
+      }),
+      spanRow3([new Paragraph({
+        children: [new TextRun({
+          text: "L'offre variante ci-dessous est exclusive de l'offre de base. Ne pas additionner les deux montants.",
+          size: B, font: F, italics: true, color: '92400E',
+        })],
+        spacing: { before: 60, after: 60 },
+      })]),
+      new TableRow({ children: [amtCell('Variante HT', true), amtCell(`TVA (${data.taux_tva} %)`, true), amtCell('Variante TTC', true)] }),
+      new TableRow({ children: [amtCell(formatEuro(data.montant_variante_ht), false), amtCell(formatEuro(montant_variante_tva), false), amtCell(formatEuro(montant_variante_ttc), false)] }),
+      spanRow3([
+        new Paragraph({
+          children: [
+            new TextRun({ text: 'Variante HT en toutes lettres : ', bold: true, size: B, font: F }),
+            new TextRun({ text: montantEnLettres(data.montant_variante_ht), italics: true, size: B, font: F }),
+          ],
+          spacing: { before: 80, after: 80 },
+        }),
+      ])
+    )
+  }
 
   const sectionD = new Table({
     width: { size: PW, type: DXA },
     columnWidths: [T33, T33, PW - 2 * T33],
     layout: TableLayoutType.FIXED,
     borders: allThin,
-    rows: [
-      new TableRow({ children: [headerCell('D – Engagement du candidat', PW, 3)] }),
-      new TableRow({
-        children: [new TableCell({
-          columnSpan: 3,
-          width: { size: PW, type: DXA },
-          children: [new Paragraph({
-            children: [new TextRun({
-              text: "Le candidat s'engage, aux prix figurant dans son offre, à exécuter les prestations aux conditions suivantes :",
-              size: B, font: F,
-            })],
-            spacing: { before: 80, after: 80 },
-          })],
-        })],
-      }),
-      new TableRow({ children: [amtCell('Montant HT', true), amtCell(`TVA (${data.taux_tva} %)`, true), amtCell('Montant TTC', true)] }),
-      new TableRow({ children: [amtCell(formatEuro(data.montant_ht), false), amtCell(formatEuro(montant_tva), false), amtCell(formatEuro(montant_ttc), false)] }),
-      new TableRow({
-        children: [new TableCell({
-          columnSpan: 3,
-          width: { size: PW, type: DXA },
-          children: [
-            new Paragraph({
-              children: [
-                new TextRun({ text: 'Montant HT en toutes lettres : ', bold: true, size: B, font: F }),
-                new TextRun({ text: montantEnLettres(data.montant_ht), italics: true, size: B, font: F }),
-              ],
-              spacing: { before: 80, after: 60 },
-            }),
-            new Paragraph({
-              children: [
-                new TextRun({ text: 'Montant TTC en toutes lettres : ', bold: true, size: B, font: F }),
-                new TextRun({ text: montantEnLettres(montant_ttc), italics: true, size: B, font: F }),
-              ],
-              spacing: { before: 60, after: 80 },
-            }),
-          ],
-        })],
-      }),
-    ],
+    rows: dRows,
   })
 
   // ── Footer with page numbers ────────────────────────────────────────────────
@@ -290,7 +354,7 @@ async function buildDocument(data: ActeData): Promise<any> {
         spacer(),
 
         section('F', 'Signature du candidat', [
-          row2('Fait à', `${DOTS_S}  le  ${DOTS_S}`),
+          row2('Fait à', val(data.lieu_signature) + `  le  ${DOTS_S}`),
           row2('Nom du signataire', val(data.nom_signataire)),
           row2('Qualité', val(data.qualite_signataire)),
           frameRow(),

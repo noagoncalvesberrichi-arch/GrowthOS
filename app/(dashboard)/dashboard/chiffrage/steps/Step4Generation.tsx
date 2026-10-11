@@ -21,7 +21,9 @@ export function Step4Generation({ acheteurFile, acheteurAnalysis, acheteurMappin
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [generated, setGenerated] = useState(false)
-  const [montantHt, setMontantHt] = useState(0)
+  const [montantBaseHt, setMontantBaseHt] = useState(0)
+  const [montantPseHt, setMontantPseHt] = useState(0)
+  const [montantVarianteHt, setMontantVarianteHt] = useState(0)
   const [nbLignes, setNbLignes] = useState(0)
   const [nbRapprochees, setNbRapprochees] = useState(0)
   const [avertissements, setAvertissements] = useState<string[]>([])
@@ -30,7 +32,8 @@ export function Step4Generation({ acheteurFile, acheteurAnalysis, acheteurMappin
   const [acteObjet, setActeObjet] = useState('')
   const [acteAcheteur, setActeAcheteur] = useState('')
   const [acteDuree, setActeDuree] = useState('')
-  const [acteLieu, setActeLieu] = useState('')
+  const [acteLieuExecution, setActeLieuExecution] = useState('')
+  const [acteLieuSignature, setActeLieuSignature] = useState('')
   const [acteTva, setActeTva] = useState('20')
   const [acteLoading, setActeLoading] = useState(false)
   const [acteError, setActeError] = useState<string | null>(null)
@@ -64,13 +67,17 @@ export function Step4Generation({ acheteurFile, acheteurAnalysis, acheteurMappin
         throw new Error(d.error ?? 'Erreur serveur')
       }
 
-      const ht = parseFloat(res.headers.get('X-Montant-Total-Ht') ?? '0')
+      const base = parseFloat(res.headers.get('X-Montant-Base-Ht') ?? '0')
+      const pse  = parseFloat(res.headers.get('X-Montant-Pse-Ht') ?? '0')
+      const variante = parseFloat(res.headers.get('X-Montant-Variante-Ht') ?? '0')
       const nb = parseInt(res.headers.get('X-Nb-Lignes') ?? '0', 10)
       const nbR = parseInt(res.headers.get('X-Nb-Rapprochees') ?? '0', 10)
       const avStr = res.headers.get('X-Avertissements')
       const averts: string[] = avStr ? (JSON.parse(decodeURIComponent(avStr)) as string[]) : []
 
-      setMontantHt(isNaN(ht) ? 0 : ht)
+      setMontantBaseHt(isNaN(base) ? 0 : base)
+      setMontantPseHt(isNaN(pse) ? 0 : pse)
+      setMontantVarianteHt(isNaN(variante) ? 0 : variante)
       setNbLignes(isNaN(nb) ? 0 : nb)
       setNbRapprochees(isNaN(nbR) ? 0 : nbR)
       setAvertissements(averts)
@@ -110,10 +117,13 @@ export function Step4Generation({ acheteurFile, acheteurAnalysis, acheteurMappin
         qualite_signataire: profil?.qualite_signataire ?? '',
         iban: profil?.iban ?? null,
         bic: profil?.bic ?? null,
-        montant_ht: montantHt,
+        montant_base_ht: montantBaseHt,
+        montant_pse_ht: montantPseHt,
+        montant_variante_ht: montantVarianteHt,
         taux_tva: parseFloat(acteTva) || 20,
         duree_marche: acteDuree,
-        lieu_execution: acteLieu,
+        lieu_execution: acteLieuExecution,
+        lieu_signature: acteLieuSignature,
       }
       await genererActeEngagementDocx(data)
     } catch (e) {
@@ -154,8 +164,28 @@ export function Step4Generation({ acheteurFile, acheteurAnalysis, acheteurMappin
 
   if (!generated) return null
 
+  const montantOfreHt = Math.round((montantBaseHt + montantPseHt) * 100) / 100
+  const formulaWarnings = avertissements.filter(w => w.includes('formule') || w.includes('omet'))
+  const otherWarnings = avertissements.filter(w => !w.includes('formule') && !w.includes('omet'))
+
   return (
     <div className="space-y-6">
+      {/* Avertissements formule — en évidence avant tout */}
+      {formulaWarnings.length > 0 && (
+        <div className="bg-orange-500/8 border-2 border-orange-400/50 rounded-xl p-4 space-y-2">
+          <div className="flex items-center gap-2 mb-1">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            <p className="font-syne text-[13px] font-bold text-orange-500">Vérification requise sur les formules du fichier acheteur</p>
+          </div>
+          {formulaWarnings.map((w, i) => (
+            <p key={i} className="font-syne text-[12px] text-orange-400 leading-relaxed">{w}</p>
+          ))}
+          <p className="font-syne text-[11px] text-orange-300">Ouvrez le fichier téléchargé et vérifiez que la formule de total mentionnée ci-dessus inclut toutes les lignes concernées. Mise à jour du champ requise (clic droit → Mettre à jour).</p>
+        </div>
+      )}
+
       {/* Success */}
       <div className="bg-green-500/6 border border-green-500/20 rounded-xl p-5 space-y-3">
         <div className="flex items-center gap-2">
@@ -166,13 +196,19 @@ export function Step4Generation({ acheteurFile, acheteurAnalysis, acheteurMappin
         </div>
         <div className="flex flex-wrap gap-4 text-[12px] font-mono text-text-muted">
           <span>{nbRapprochees} / {nbLignes} lignes remplies</span>
-          {montantHt > 0 && (
-            <span>Total HT : {montantHt.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</span>
+          {montantOfreHt > 0 && (
+            <span className="font-semibold text-text">Offre de base + PSE HT : {montantOfreHt.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</span>
+          )}
+          {montantBaseHt > 0 && montantPseHt > 0 && (
+            <span className="text-text-muted">dont base {montantBaseHt.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} € + PSE {montantPseHt.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</span>
+          )}
+          {montantVarianteHt > 0 && (
+            <span className="text-blue-400">Variante HT : {montantVarianteHt.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} € (non cumulable)</span>
           )}
         </div>
-        {avertissements.length > 0 && (
+        {otherWarnings.length > 0 && (
           <ul className="space-y-1">
-            {avertissements.map((w, i) => (
+            {otherWarnings.map((w, i) => (
               <li key={i} className="font-syne text-[12px] text-yellow-400 flex items-start gap-2">
                 <span>⚠</span><span>{w}</span>
               </li>
@@ -216,8 +252,12 @@ export function Step4Generation({ acheteurFile, acheteurAnalysis, acheteurMappin
             <input className={INPUT} value={acteDuree} onChange={e => setActeDuree(e.target.value)} placeholder="Ex : 6 mois" />
           </div>
           <div>
-            <label className="font-syne text-[11px] text-text-muted block mb-1">Lieu d&apos;exécution</label>
-            <input className={INPUT} value={acteLieu} onChange={e => setActeLieu(e.target.value)} placeholder="Ex : 75015 Paris" />
+            <label className="font-syne text-[11px] text-text-muted block mb-1">Lieu d&apos;exécution des travaux</label>
+            <input className={INPUT} value={acteLieuExecution} onChange={e => setActeLieuExecution(e.target.value)} placeholder="Ex : Les Ulis (91)" />
+          </div>
+          <div>
+            <label className="font-syne text-[11px] text-text-muted block mb-1">Lieu de signature <span className="text-text-subtle">(« Fait à … »)</span></label>
+            <input className={INPUT} value={acteLieuSignature} onChange={e => setActeLieuSignature(e.target.value)} placeholder="Ex : Paris" />
           </div>
           <div>
             <label className="font-syne text-[11px] text-text-muted block mb-1">Taux TVA (%)</label>
@@ -225,12 +265,22 @@ export function Step4Generation({ acheteurFile, acheteurAnalysis, acheteurMappin
           </div>
         </div>
 
-        {montantHt > 0 && (
-          <div className="bg-background border border-border rounded-xl px-4 py-3 flex justify-between items-center">
-            <span className="font-syne text-[12px] text-text-muted">Montant total HT</span>
-            <span className="font-mono text-[14px] font-semibold text-text">
-              {montantHt.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
-            </span>
+        {montantOfreHt > 0 && (
+          <div className="bg-background border border-border rounded-xl px-4 py-3 space-y-1">
+            <div className="flex justify-between items-center">
+              <span className="font-syne text-[12px] text-text-muted">Offre de base + PSE HT</span>
+              <span className="font-mono text-[14px] font-semibold text-text">
+                {montantOfreHt.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+              </span>
+            </div>
+            {montantVarianteHt > 0 && (
+              <div className="flex justify-between items-center">
+                <span className="font-syne text-[11px] text-blue-400">Variante HT (non cumulable)</span>
+                <span className="font-mono text-[12px] text-blue-400">
+                  {montantVarianteHt.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+                </span>
+              </div>
+            )}
           </div>
         )}
 

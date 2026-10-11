@@ -291,6 +291,28 @@ export function AOResultDisplay({ data, meta }: { data: AOResult; meta: AOMetada
         </Section>
       )}
 
+      {/* C4 — Documents à remplir */}
+      {data.documents_a_remplir && data.documents_a_remplir.length > 0 && (
+        <Section title={`Documents à compléter (${data.documents_a_remplir.length})`}>
+          <ul className="space-y-1.5">
+            {data.documents_a_remplir.map((doc) => (
+              <li key={doc.nom_fichier} className="flex items-start gap-2.5">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-[2px]">
+                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="9" y1="13" x2="15" y2="13" /><line x1="9" y1="17" x2="15" y2="17" />
+                </svg>
+                <span className="font-syne text-[13px] text-text-muted">
+                  <span className="font-semibold text-text">{doc.nom_fichier}</span>
+                  {' — '}
+                  <span className="text-text-subtle">{doc.type_document}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Section>
+      )}
+
       {/* Points de vigilance */}
       {data.points_de_vigilance.length > 0 && (
         <Section title="Points de vigilance">
