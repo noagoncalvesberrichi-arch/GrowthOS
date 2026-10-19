@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { ChecklistDemarrage } from './ChecklistDemarrage'
+import { shouldRedirectToOnboarding } from '@/lib/onboarding'
 
 export const metadata = { title: 'Tableau de bord — Stratly' }
 
@@ -116,6 +118,10 @@ export default async function DashboardPage({
   void user
 
   const profil = profilData as ProfilRow | null
+
+  // First-time user without a profile → redirect to onboarding
+  if (shouldRedirectToOnboarding(profil)) redirect('/onboarding')
+
   const raisonSociale = (profil?.raison_sociale?.trim() ?? '').length >= 3
     ? profil!.raison_sociale!.trim()
     : null
@@ -153,6 +159,27 @@ export default async function DashboardPage({
           {raisonSociale ? `Bonjour, ${raisonSociale} 👋` : 'Bonjour 👋'}
         </h1>
       </div>
+
+      {/* Bandeau profil incomplet — visible si l'utilisateur a passé l'onboarding sans remplir */}
+      {profil?.onboarding_masque && !raisonSociale && (
+        <div className="mb-6 flex items-center justify-between gap-4 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+              <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+              <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+            <p className="font-syne text-[13px] text-amber-800 leading-snug">
+              Présentez votre entreprise pour obtenir des avis Go/No-Go personnalisés sur vos appels d&apos;offres.
+            </p>
+          </div>
+          <Link
+            href="/dashboard/mon-entreprise"
+            className="shrink-0 font-syne text-[12px] font-bold text-white bg-amber-500 hover:bg-amber-600 px-3 py-1.5 rounded-lg transition-colors duration-150"
+          >
+            Compléter →
+          </Link>
+        </div>
+      )}
 
       {/* Welcome banner (shown once after signup) */}
       {showWelcome && (
