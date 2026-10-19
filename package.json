@@ -6,8 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "test": "vitest run"
+    "test": "vitest run",
+    "check": "tsc --noEmit && vitest run && next build",
+    "prepare": "simple-git-hooks"
+  },
+  "simple-git-hooks": {
+    "pre-push": "npm run check"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
@@ -29,6 +33,7 @@
     "@types/react-dom": "^18",
     "autoprefixer": "^10.0.1",
     "postcss": "^8",
+    "simple-git-hooks": "^2.14.0",
     "tailwindcss": "^3.4.1",
     "typescript": "^5",
     "vite": "^8.3.4",
