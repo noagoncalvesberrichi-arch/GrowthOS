@@ -9,6 +9,7 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // ── Existing tokens (keep all) ──
         background: '#F4F4F6',
         surface: '#FFFFFF',
         'surface-raised': '#FAFAFA',
@@ -22,10 +23,20 @@ const config: Config = {
         'accent-subtle': '#EFF6FF',
         'accent-light': '#BFDBFE',
         'accent-fg': '#1E3A8A',
-        // Secondary brand accent — amber/gold for highlights and landing accents
         'brand-amber': '#D97706',
         'brand-amber-dark': '#B45309',
         'brand-amber-subtle': '#FFFBEB',
+        // ── Crépuscule palette (new) ──
+        nuit: '#0D1220',
+        'nuit-card': '#141D30',
+        'nuit-border': 'rgba(255,255,255,0.10)',
+        prune: '#4A1259',
+        cuivre: '#C17F3A',
+        'cuivre-glow': '#F2C470',
+        sable: '#F2EAD3',
+        'sable-muted': 'rgba(242,234,211,0.55)',
+        menthe: '#2ECC94',
+        'menthe-dark': '#1A9472',
       },
       fontFamily: {
         syne: ['var(--font-syne)', 'system-ui', 'sans-serif'],
@@ -59,10 +70,12 @@ const config: Config = {
         card: '0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.05)',
         'card-md': '0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.05)',
         'accent-ring': '0 0 0 3px rgba(37,99,235,0.12)',
+        glass: '0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.08)',
       },
       borderRadius: {
         'xl': '12px',
         '2xl': '16px',
+        'pill': '9999px',
       },
     },
   },

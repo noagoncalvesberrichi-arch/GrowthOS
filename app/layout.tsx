@@ -1,13 +1,13 @@
 import type { Metadata } from 'next'
-import { Plus_Jakarta_Sans, Space_Mono, Fraunces } from 'next/font/google'
+import { Manrope, Space_Mono, Fraunces } from 'next/font/google'
 import Script from 'next/script'
 import { SupportChat } from '@/components/SupportChat'
 import './globals.css'
 
-const jakarta = Plus_Jakarta_Sans({
+const manrope = Manrope({
   subsets: ['latin'],
   variable: '--font-syne',
-  weight: ['400', '500', '600', '700', '800'],
+  weight: ['300', '400', '500', '600', '700', '800'],
 })
 
 const spaceMono = Space_Mono({
@@ -54,7 +54,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="fr" className={`${jakarta.variable} ${spaceMono.variable} ${fraunces.variable}`}>
+    <html lang="fr" className={`${manrope.variable} ${spaceMono.variable} ${fraunces.variable}`}>
       <body className="bg-background text-text min-h-screen">
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=AW-18245027414"
