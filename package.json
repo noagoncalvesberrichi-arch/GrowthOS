@@ -27,8 +27,11 @@
     "unpdf": "^1.6.2",
     "xlsx": "^0.18.5"
   },
+  "engines": {
+    "node": ">=20"
+  },
   "devDependencies": {
-    "@types/node": "^20",
+    "@types/node": "^22",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "autoprefixer": "^10.0.1",
