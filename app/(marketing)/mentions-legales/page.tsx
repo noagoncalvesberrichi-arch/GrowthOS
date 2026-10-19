@@ -45,7 +45,7 @@ export default function MentionsLegalesPage() {
       {/* Header */}
       <section
         className="relative overflow-hidden py-14 px-5 sm:px-6 md:py-20 text-center"
-        style={{ background: 'linear-gradient(135deg, #0C1647 0%, #1E3A8A 55%, #2563EB 100%)' }}
+        style={{ background: 'linear-gradient(165deg, #0D1220 0%, #160D38 28%, #1B2550 55%, #0F2040 78%, #0A1628 100%)' }}
       >
         <div className="absolute inset-0 dot-grid opacity-[0.06] pointer-events-none" />
         <div className="relative max-w-3xl mx-auto">

@@ -12,18 +12,17 @@ export default async function PricingPage({
   return (
     <div className="bg-background">
 
-      {/* Header — dark gradient */}
+      {/* Header — crépuscule gradient */}
       <section
         className="relative overflow-hidden py-14 px-5 sm:px-6 md:py-20 text-center"
-        style={{ background: 'linear-gradient(135deg, #0C1647 0%, #1E3A8A 55%, #2563EB 100%)' }}
+        style={{ background: 'linear-gradient(165deg, #0D1220 0%, #160D38 28%, #1B2550 55%, #0F2040 78%, #0A1628 100%)' }}
       >
-        <div className="absolute inset-0 dot-grid opacity-[0.06] pointer-events-none" />
         <div
-          className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[600px] h-[200px] blur-3xl opacity-20 pointer-events-none"
-          style={{ background: 'radial-gradient(ellipse, #93C5FD, transparent 70%)' }}
+          className="absolute inset-0 pointer-events-none"
+          style={{ background: 'radial-gradient(ellipse 70% 60% at 50% 70%, rgba(37,99,235,0.09) 0%, transparent 70%)' }}
         />
         <div className="relative max-w-3xl mx-auto">
-          <p className="font-syne text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-amber mb-4">
+          <p className="font-syne text-[11px] font-bold uppercase tracking-[0.18em] text-cuivre-glow mb-4">
             Simple et transparent
           </p>
           <h1
@@ -32,7 +31,7 @@ export default async function PricingPage({
           >
             Choisissez votre plan.
           </h1>
-          <p className="font-syne text-[16px] text-white/65 max-w-lg mx-auto">
+          <p className="font-syne text-[16px] text-white/55 max-w-lg mx-auto">
             Commencez gratuitement. Passez à Essentiel ou Pro quand vous êtes prêt.
           </p>
         </div>
