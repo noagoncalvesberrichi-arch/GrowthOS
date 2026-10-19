@@ -44,8 +44,11 @@ export function matchRows(
   for (const row of crmRows) {
     if (row.designation) {
       const norm = normalizeDesignation(row.designation)
-      // Don't overwrite — first occurrence wins (sheet with prices comes first)
-      if (!crmByNorm.has(norm)) crmByNorm.set(norm, row)
+      // Prefer rows with prices over rows without (handles "Devis Non Chiffré" before "Devis chiffré")
+      const existing = crmByNorm.get(norm)
+      if (!existing || (existing.pu_ht == null && row.pu_ht != null)) {
+        crmByNorm.set(norm, row)
+      }
     }
     if (row.numero) {
       const num = normalizeNumero(row.numero)

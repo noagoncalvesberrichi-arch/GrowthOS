@@ -8,6 +8,30 @@ import {
   type SheetMeta,
   type ApplyResult,
 } from '../lib/chiffrage/matching'
+import { matchRows } from '../lib/chiffrage/rowMatching'
+import type { ParsedRow } from '../lib/chiffrage/types'
+
+// ---------------------------------------------------------------------------
+// Helper pour construire des ParsedRow fictives sans ExcelJS
+// ---------------------------------------------------------------------------
+
+function makeRow(overrides: Partial<ParsedRow> & { id: string }): ParsedRow {
+  const parts = overrides.id.split('__')
+  return {
+    sheetName: parts[0] ?? 'Sheet',
+    rowIndex: parseInt(parts[1] ?? '1'),
+    isTitle: false,
+    isSubtotal: false,
+    numero: null,
+    designation: null,
+    unit: 'u',
+    quantity: 1,
+    pu_ht: null,
+    total_ht: null,
+    totalHasFormula: false,
+    ...overrides,
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -222,5 +246,134 @@ describe('appliquerChiffrage', () => {
   test('qty_crm utilisée si cellule D vide (row 8 : qty_crm=5 → D8 mis à 5)', () => {
     const wsBase = wb.getWorksheet('Offre de base')!
     expect(wsBase.getRow(8).getCell(4).value).toBe(5)     // D8
+  })
+})
+
+// ---------------------------------------------------------------------------
+// 4. Piège production : numéros de postes inversés entre CRM et acheteur
+//    CRM : 2.1 = grillages, 2.09 = contrôle labo
+//    Acheteur : 2.09 = grillages, 2.10 (stocké 2.1) = contrôle
+//    Sans matching par désignation, les prix s'inversent.
+// ---------------------------------------------------------------------------
+
+describe('Piège 1 : numéros de postes inversés — le matching par désignation protège', () => {
+  const crmRows: ParsedRow[] = [
+    makeRow({ id: 'CRM__5', designation: 'Fourniture et pose de 2 grillages', numero: '2.1', pu_ht: 150 }),
+    makeRow({ id: 'CRM__6', designation: 'Contrôle par un laboratoire indépendant', numero: '2.09', pu_ht: 300 }),
+  ]
+
+  // Acheteur : numéros inversés vs CRM. 2.10 est stocké comme le nombre 2.1 dans Excel.
+  const acheteurRows: ParsedRow[] = [
+    makeRow({ id: 'Acheteur__5', designation: 'Fourniture et pose de 2 grillages', numero: '2.09' }),
+    makeRow({ id: 'Acheteur__6', designation: 'Contrôle par un laboratoire indépendant', numero: '2.10' }),
+  ]
+
+  const { matched, unmatched } = matchRows(acheteurRows, crmRows)
+
+  test('les deux lignes sont rapprochées (aucune non-matchée)', () => {
+    expect(unmatched).toHaveLength(0)
+    expect(matched).toHaveLength(2)
+  })
+
+  test('grillages (acheteur 2.09) reçoivent le prix grillages CRM = 150, pas 300', () => {
+    const m = matched.find(r => r.acheteurRowId === 'Acheteur__5')
+    expect(m).toBeDefined()
+    expect(m?.pu_ht_crm).toBe(150)
+  })
+
+  test('contrôle labo (acheteur 2.10) reçoit le prix contrôle CRM = 300, pas 150', () => {
+    const m = matched.find(r => r.acheteurRowId === 'Acheteur__6')
+    expect(m).toBeDefined()
+    expect(m?.pu_ht_crm).toBe(300)
+  })
+
+  test('numeroMismatch=true signale le conflit pour les deux lignes', () => {
+    // Acheteur 2.09 ≠ CRM 2.1 ; acheteur 2.10 (→2.1) ≠ CRM 2.09
+    expect(matched.every(m => m.numeroMismatch)).toBe(true)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// 5. Piège production : feuille non chiffrée présente avant la feuille chiffrée
+//    Export CRM contient "Devis chiffré" (avec prix) ET "Devis Non Chiffré" (sans prix).
+//    Si la feuille sans prix est traitée en premier, le matching retourne pu_ht=null.
+// ---------------------------------------------------------------------------
+
+describe('Piège 2 : feuille non chiffrée — les prix viennent toujours de la feuille chiffrée', () => {
+  const crmPriced: ParsedRow[] = [
+    makeRow({ id: 'Devis chiffré__5', sheetName: 'Devis chiffré', designation: 'Pose de clôture', numero: '1.1', pu_ht: 120 }),
+    makeRow({ id: 'Devis chiffré__6', sheetName: 'Devis chiffré', designation: 'Fourniture gazon synthétique', numero: '1.2', pu_ht: 200 }),
+  ]
+
+  const crmUnpriced: ParsedRow[] = [
+    makeRow({ id: 'Devis Non Chiffré__5', sheetName: 'Devis Non Chiffré', designation: 'Pose de clôture', numero: '1.1', pu_ht: null }),
+    makeRow({ id: 'Devis Non Chiffré__6', sheetName: 'Devis Non Chiffré', designation: 'Fourniture gazon synthétique', numero: '1.2', pu_ht: null }),
+  ]
+
+  const acheteurRows: ParsedRow[] = [
+    makeRow({ id: 'Acheteur__5', designation: 'Pose de clôture', numero: '1.1' }),
+    makeRow({ id: 'Acheteur__6', designation: 'Fourniture gazon synthétique', numero: '1.2' }),
+  ]
+
+  test('ordre naturel (chiffrée en premier) → prix non null', () => {
+    const { matched } = matchRows(acheteurRows, [...crmPriced, ...crmUnpriced])
+    expect(matched).toHaveLength(2)
+    expect(matched.every(m => m.pu_ht_crm != null)).toBe(true)
+  })
+
+  test('ordre inversé (non chiffrée en premier) → prix non null (ne doit pas prendre la feuille vide)', () => {
+    const { matched } = matchRows(acheteurRows, [...crmUnpriced, ...crmPriced])
+    expect(matched).toHaveLength(2)
+    expect(matched.every(m => m.pu_ht_crm != null)).toBe(true)
+  })
+
+  test('prix corrects dans les deux ordres de feuilles', () => {
+    for (const crmRows of [[...crmPriced, ...crmUnpriced], [...crmUnpriced, ...crmPriced]]) {
+      const { matched } = matchRows(acheteurRows, crmRows)
+      expect(matched.find(m => m.acheteurRowId === 'Acheteur__5')?.pu_ht_crm).toBe(120)
+      expect(matched.find(m => m.acheteurRowId === 'Acheteur__6')?.pu_ht_crm).toBe(200)
+    }
+  })
+})
+
+// ---------------------------------------------------------------------------
+// 6. Piège production : numéro en double dans deux sections distinctes
+//    "1.01" dans "Dispositions générales" ET dans "Prestations supplémentaires"
+//    avec des désignations différentes et des prix différents.
+// ---------------------------------------------------------------------------
+
+describe('Piège 3 : numéro en double — chaque ligne reçoit son propre prix', () => {
+  const crmRows: ParsedRow[] = [
+    makeRow({ id: 'CRM__3', designation: 'Installation de chantier', numero: '1.01', pu_ht: 500, quantity: 1 }),
+    makeRow({ id: 'CRM__7', designation: 'Essais de réception par laboratoire agréé', numero: '1.01', pu_ht: 800, quantity: 1 }),
+  ]
+
+  const acheteurRows: ParsedRow[] = [
+    makeRow({ id: 'Acheteur__3', designation: 'Installation de chantier', numero: '1.01' }),
+    makeRow({ id: 'Acheteur__7', designation: 'Essais de réception par laboratoire agréé', numero: '1.01' }),
+  ]
+
+  const { matched, unmatched } = matchRows(acheteurRows, crmRows)
+
+  test('les deux lignes sont rapprochées (aucune non-matchée)', () => {
+    expect(unmatched).toHaveLength(0)
+    expect(matched).toHaveLength(2)
+  })
+
+  test('Installation de chantier reçoit pu=500 (pas 800)', () => {
+    const m = matched.find(r => r.acheteurRowId === 'Acheteur__3')
+    expect(m?.pu_ht_crm).toBe(500)
+  })
+
+  test('Essais de réception reçoivent pu=800 (pas 500)', () => {
+    const m = matched.find(r => r.acheteurRowId === 'Acheteur__7')
+    expect(m?.pu_ht_crm).toBe(800)
+  })
+
+  test('le fallback numéro seul ne crée pas de faux rapprochement (2 candidats → skip)', () => {
+    // Si on force une ligne sans désignation avec numero=1.01, elle doit rester non-matchée
+    const rowSansDesig = makeRow({ id: 'Acheteur__99', designation: null, numero: '1.01' })
+    const { unmatched: u2 } = matchRows([rowSansDesig], crmRows)
+    expect(u2).toHaveLength(1)
   })
 })
