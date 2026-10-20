@@ -1,9 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { AOResultDisplay } from '../../analyser/AOResultDisplay'
-import { RecoPrix } from '@/components/RecoPrix'
-import { HistoriqueAcheteur } from '@/components/HistoriqueAcheteur'
+import { AnalyseResultat } from '@/components/AnalyseResultat'
+import { getNextActions } from '@/lib/analyse/resultUtils'
 import type { AOResult, AOMetadata } from '../../analyser/actions'
 
 // ─── Step frise ───────────────────────────────────────────────────────────────
@@ -105,7 +104,7 @@ export default async function AnalyseDetailPage({ params }: { params: Promise<{ 
     pieces_essentielles_manquantes: [],
   }
 
-  const memoireHref = `/dashboard/memoire?analyse=${data.id as string}`
+  const firstAction = resultat ? getNextActions(resultat, id)[0] : undefined
 
   return (
     <div className="pb-24">
@@ -191,96 +190,42 @@ export default async function AnalyseDetailPage({ params }: { params: Promise<{ 
 
       {/* ── Main content ── */}
       <div className="max-w-3xl mx-auto px-4 sm:px-8 pt-8">
-
-        {/* Mémoire CTA — top (desktop only, badge for Pro gate) */}
-        <div className="mb-7">
-          {isMemoreLocked ? (
-            <a
-              href="/pricing"
-              className="inline-flex items-center gap-2.5 font-syne text-[13px] font-semibold text-text-muted bg-surface border border-border hover:border-accent/40 px-4 py-2.5 rounded-xl transition-all duration-200"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-                <line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><line x1="10" y1="9" x2="8" y2="9" />
-              </svg>
-              Générer le mémoire technique
-              <span className="font-syne text-[10px] font-bold text-white bg-brand-amber px-1.5 py-0.5 rounded-full uppercase tracking-wide">Plan Pro</span>
-            </a>
-          ) : (
-            <a
-              href={memoireHref}
-              className="inline-flex items-center gap-2 font-syne text-[13px] font-bold text-white bg-accent hover:bg-accent-dark px-4 py-2.5 rounded-xl transition-all duration-200 shadow-[0_4px_12px_rgba(37,99,235,0.2)]"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-                <line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><line x1="10" y1="9" x2="8" y2="9" />
-              </svg>
-              Générer le mémoire technique →
-            </a>
-          )}
-        </div>
-
-        {/* Résultat — NE PAS MODIFIER */}
-        <div className="overflow-x-auto">
-          <AOResultDisplay data={resultat} meta={meta} />
-        </div>
-
-        {/* Positionnement prix */}
-        {resultat?.siret_acheteur && resultat?.code_cpv && (
-          <div className="mt-8">
-            <RecoPrix
-              siret={resultat.siret_acheteur}
-              cpv={resultat.code_cpv}
-              montant={resultat.montant_estime}
-              locked={!isPro}
-            />
-          </div>
-        )}
-
-        {/* Historique acheteur */}
-        {resultat?.siret_acheteur && (
-          <div className="mt-8">
-            <HistoriqueAcheteur
-              siret={resultat.siret_acheteur}
-              cpv={resultat.code_cpv}
-              locked={!isPro}
-            />
-          </div>
-        )}
+        <AnalyseResultat
+          data={resultat}
+          meta={meta}
+          analyseId={id}
+          isPro={isPro}
+          isMemoreLocked={isMemoreLocked}
+        />
       </div>
 
-      {/* ── Sticky bottom bar ── */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-border/60 bg-surface/95 backdrop-blur-xl px-4 py-3 sm:px-8">
-        <div className="max-w-3xl mx-auto flex items-center justify-between gap-4">
-          <div className="hidden sm:block">
-            <p className="font-fraunces text-[15px] text-text leading-tight">Étape suivante</p>
-            <p className="font-syne text-[12px] text-text-muted">Générez la trame de mémoire technique</p>
+      {/* ── Sticky bottom bar — first uncompleted action ── */}
+      {firstAction && (
+        <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-border/60 bg-surface/95 backdrop-blur-xl px-4 py-3 sm:px-8">
+          <div className="max-w-3xl mx-auto flex items-center justify-between gap-4">
+            <div className="hidden sm:block">
+              <p className="font-fraunces text-[15px] text-text leading-tight">Prochaine étape</p>
+              <p className="font-syne text-[12px] text-text-muted">{firstAction.detail}</p>
+            </div>
+            {firstAction.icon === 'memoire' && isMemoreLocked ? (
+              <a
+                href="/pricing"
+                className="ml-auto shrink-0 inline-flex items-center gap-2 font-syne text-[13px] font-semibold text-text-muted bg-background border border-border hover:border-accent/40 px-4 py-2.5 rounded-xl transition-all duration-200"
+              >
+                {firstAction.label}
+                <span className="font-syne text-[10px] font-bold text-white bg-brand-amber px-1.5 py-0.5 rounded-full uppercase tracking-wide">Pro</span>
+              </a>
+            ) : (
+              <a
+                href={firstAction.href}
+                className="ml-auto shrink-0 inline-flex items-center gap-2 font-syne text-[13px] font-bold text-white bg-accent hover:bg-accent-dark px-5 py-2.5 rounded-xl transition-all duration-200 shadow-[0_4px_12px_rgba(37,99,235,0.2)]"
+              >
+                {firstAction.label} →
+              </a>
+            )}
           </div>
-          {isMemoreLocked ? (
-            <a
-              href="/pricing"
-              className="ml-auto shrink-0 inline-flex items-center gap-2 font-syne text-[13px] font-semibold text-text-muted bg-background border border-border hover:border-accent/40 px-4 py-2.5 rounded-xl transition-all duration-200"
-            >
-              Générer le mémoire
-              <span className="font-syne text-[10px] font-bold text-white bg-brand-amber px-1.5 py-0.5 rounded-full uppercase tracking-wide">Pro</span>
-            </a>
-          ) : (
-            <a
-              href={memoireHref}
-              className="ml-auto shrink-0 inline-flex items-center gap-2 font-syne text-[13px] font-bold text-white bg-accent hover:bg-accent-dark px-5 py-2.5 rounded-xl transition-all duration-200 shadow-[0_4px_12px_rgba(37,99,235,0.2)]"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-                <line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><line x1="10" y1="9" x2="8" y2="9" />
-              </svg>
-              Générer le mémoire technique →
-            </a>
-          )}
         </div>
-      </div>
+      )}
 
     </div>
   )
