@@ -10,10 +10,10 @@ const config: Config = {
     extend: {
       colors: {
         // ── Existing tokens (keep all) ──
-        background: '#F4F4F6',
+        background: '#F3F5F9',
         surface: '#FFFFFF',
         'surface-raised': '#FAFAFA',
-        border: '#E4E4E7',
+        border: '#E3E7EE',
         'border-focus': '#2563EB',
         text: '#18181B',
         'text-muted': '#71717A',
@@ -73,9 +73,10 @@ const config: Config = {
         glass: '0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.08)',
       },
       borderRadius: {
-        'xl': '12px',
+        'xl': '10px',
         '2xl': '16px',
         'pill': '9999px',
+        'button': '10px',
       },
     },
   },

@@ -1,6 +1,78 @@
 import Link from 'next/link'
 import { Logo } from '@/components/Logo'
 
+// ─── Isometric layers SVG ─────────────────────────────────────────────────────
+
+function IsometricLayers() {
+  // Isometric platform: top face + right face + left face
+  // hw=75 hd=38 sideH=15 gap=58
+  const cx = 130
+  const hw = 75
+  const hd = 38
+  const h = 15
+  const gap = 58
+
+  const layer = (apexY: number) => {
+    const top = `${cx},${apexY}`
+    const right = `${cx + hw},${apexY + hd}`
+    const bottom = `${cx},${apexY + 2 * hd}`
+    const left = `${cx - hw},${apexY + hd}`
+    const rfTL = `${cx + hw},${apexY + hd}`
+    const rfBL = `${cx},${apexY + 2 * hd}`
+    const rfBR = `${cx},${apexY + 2 * hd + h}`
+    const rfTR = `${cx + hw},${apexY + hd + h}`
+    const lfTR = `${cx - hw},${apexY + hd}`
+    const lfBR = `${cx},${apexY + 2 * hd}`
+    const lfBL = `${cx},${apexY + 2 * hd + h}`
+    const lfTL = `${cx - hw},${apexY + hd + h}`
+    return { topFace: `${top} ${right} ${bottom} ${left}`, rightFace: `${rfTL} ${rfBL} ${rfBR} ${rfTR}`, leftFace: `${lfTR} ${lfBR} ${lfBL} ${lfTL}` }
+  }
+
+  const apices = [10, 10 + gap, 10 + gap * 2, 10 + gap * 3]
+  const stroke = 'rgba(255,255,255,0.35)'
+  const topOpacities = [0.12, 0.09, 0.07, 0.05]
+  const sideOpacities = [0.18, 0.14, 0.10, 0.07]
+  const numberCenterY = apices.map(a => a + hd)
+
+  return (
+    <svg viewBox="0 0 260 295" width="260" height="295" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <defs>
+        <linearGradient id="topGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#F2B26B" />
+          <stop offset="100%" stopColor="#E0875A" />
+        </linearGradient>
+      </defs>
+      {/* Draw bottom to top so upper layers appear on top */}
+      {[3, 2, 1, 0].map((i) => {
+        const { topFace, rightFace, leftFace } = layer(apices[i])
+        const isTop = i === 0
+        return (
+          <g key={i}>
+            {/* Left face */}
+            <polygon points={leftFace} fill={`rgba(255,255,255,${sideOpacities[i] * 0.7})`} stroke={stroke} strokeWidth="0.8" />
+            {/* Right face */}
+            <polygon points={rightFace} fill={`rgba(255,255,255,${sideOpacities[i]})`} stroke={stroke} strokeWidth="0.8" />
+            {/* Top face */}
+            <polygon points={topFace} fill={isTop ? 'url(#topGrad)' : `rgba(255,255,255,${topOpacities[i]})`} stroke={stroke} strokeWidth="0.8" />
+            {/* Number label */}
+            <text
+              x={cx}
+              y={numberCenterY[i] + 5}
+              textAnchor="middle"
+              fill={isTop ? '#0B1020' : 'rgba(255,255,255,0.55)'}
+              fontSize="14"
+              fontFamily="serif"
+              fontWeight="bold"
+            >
+              {i + 1}
+            </text>
+          </g>
+        )
+      })}
+    </svg>
+  )
+}
+
 // ─── Hero SVG ─────────────────────────────────────────────────────────────────
 
 function CitySilhouette() {
@@ -817,7 +889,45 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ════ 5. TARIFS ══════════════════════════════════════════════════════ */}
+      {/* ════ 5. QUATRE COUCHES ════════════════════════════════════════════════ */}
+      <section className="py-20 md:py-28 px-6 bg-nuit">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-12">
+            <p className="font-syne text-[11px] font-bold uppercase tracking-[0.18em] text-cuivre mb-3">Méthodologie</p>
+            <h2 className="font-fraunces text-white tracking-tight leading-tight" style={{ fontSize: 'clamp(1.75rem, 3.5vw, 2.75rem)' }}>
+              Un dossier, quatre couches d&apos;analyse.
+            </h2>
+          </div>
+          <div className="flex flex-col md:flex-row items-center gap-10 md:gap-16">
+            {/* Left: isometric SVG */}
+            <div className="flex-shrink-0 flex justify-center">
+              <IsometricLayers />
+            </div>
+            {/* Right: steps */}
+            <div className="flex-1 space-y-7">
+              {[
+                { n: 1, title: 'Les exigences', body: 'Critères d\'éligibilité, chiffre d\'affaires minimum, certifications requises, zone géographique — extraits et comparés à votre profil.' },
+                { n: 2, title: 'Les prix de l\'acheteur', body: 'Données DECP de 850 000 marchés passés pour positionner votre offre dans la fourchette qui remporte.' },
+                { n: 3, title: 'Le mémoire technique', body: 'Trame structurée sur la grille de notation du DCE, enrichie par vos références chantiers, prête à personnaliser.' },
+                { n: 4, title: 'Le verdict et l\'offre', body: 'Avis Go/No-Go chiffré, actions prioritaires classées et dossier complet prêt à remettre.' },
+              ].map(({ n, title, body }) => (
+                <div key={n} className="flex gap-5">
+                  <div className="shrink-0 w-8 h-8 rounded-xl flex items-center justify-center font-fraunces font-bold text-[15px]"
+                    style={{ background: n === 1 ? 'linear-gradient(135deg,#F2B26B,#E0875A)' : 'rgba(255,255,255,0.06)', color: n === 1 ? '#0B1020' : 'rgba(255,255,255,0.6)', border: n === 1 ? 'none' : '1px solid rgba(255,255,255,0.12)' }}>
+                    {n}
+                  </div>
+                  <div>
+                    <p className="font-fraunces text-[17px] text-white mb-1">{title}</p>
+                    <p className="font-syne text-[13px] text-white/45 leading-relaxed">{body}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ════ 6. TARIFS ══════════════════════════════════════════════════════ */}
       <section className="py-20 md:py-28 px-6 bg-nuit">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
@@ -879,7 +989,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ════ 6. CTA FINAL ═══════════════════════════════════════════════════ */}
+      {/* ════ 7. CTA FINAL ═══════════════════════════════════════════════════ */}
       <section
         className="relative overflow-hidden py-20 md:py-28 px-6 text-center"
         style={{ background: SKY_GRADIENT }}
