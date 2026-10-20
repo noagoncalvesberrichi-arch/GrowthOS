@@ -31,9 +31,9 @@ type ProfilRow = {
 }
 
 function verdictConfig(verdict: Verdict | undefined | null) {
-  if (verdict === 'GO') return { label: 'GO', bg: 'bg-green-50', text: 'text-green-700', dot: 'bg-green-500' }
+  if (verdict === 'GO') return { label: 'GO', bg: 'bg-green-50', text: 'text-green-700', dot: 'bg-menthe' }
   if (verdict === 'NO_GO') return { label: 'NO-GO', bg: 'bg-red-50', text: 'text-red-700', dot: 'bg-red-500' }
-  return { label: 'Vigilance', bg: 'bg-amber-50', text: 'text-amber-700', dot: 'bg-amber-500' }
+  return { label: 'Vigilance', bg: 'bg-amber-50', text: 'text-amber-700', dot: 'bg-brand-amber' }
 }
 
 function formatDate(iso: string) {
@@ -174,7 +174,7 @@ export default async function DashboardPage({
           </div>
           <Link
             href="/dashboard/mon-entreprise"
-            className="shrink-0 font-syne text-[12px] font-bold text-white bg-amber-500 hover:bg-amber-600 px-3 py-1.5 rounded-lg transition-colors duration-150"
+            className="shrink-0 font-syne text-[12px] font-bold text-white bg-brand-amber hover:bg-amber-600 px-3 py-1.5 rounded-lg transition-colors duration-150"
           >
             Compléter →
           </Link>
